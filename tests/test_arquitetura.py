@@ -1,16 +1,18 @@
 """
 Regra de camadas do pacote `pestinha`: cada camada só importa das que estão abaixo dela.
 
-    core  <  sense  <  body  <  world  <  mind  <  ui  <  controle  <  app
+    core  <  ia  <  sense  <  body  <  world  <  mind  <  ui  <  controle  <  app
 
 Módulos compartilhados (ajustes, config, store, log, mathutil, paths, settings_store) podem ser
-usados por todas. `core/` é puro: sem Qt e sem Windows, para ser testável em qualquer lugar.
+usados por todas. `core/` e `ia/` são puros: sem Qt e sem Windows, para serem testáveis em qualquer lugar.
 """
 import ast
 from pathlib import Path
 
+import pytest
+
 RAIZ = Path(__file__).resolve().parent.parent / "pestinha"
-ORDEM = ["core", "sense", "body", "world", "mind", "ui", "controle", "app"]
+ORDEM = ["core", "ia", "sense", "body", "world", "mind", "ui", "controle", "app"]
 COMPARTILHADOS = {"ajustes", "config", "store", "log", "mathutil", "paths", "settings_store", "__init__",
                   "plataforma"}
 
@@ -47,9 +49,10 @@ def test_camadas_so_importam_de_baixo():
     assert violacoes == []
 
 
-def test_core_e_puro():
+@pytest.mark.parametrize("camada", ["core", "ia"])
+def test_core_e_ia_sao_puros(camada):
     impuros = []
-    for arquivo in (RAIZ / "core").rglob("*.py"):
+    for arquivo in (RAIZ / camada).rglob("*.py"):
         for origem, alvo, linha in importacoes(arquivo):
             if alvo[0] == "externo" and alvo[1].split(".")[0] in ("PySide6", "win32gui", "win32api", "win32con",
                                                                      "win32process", "pywintypes", "ctypes"):

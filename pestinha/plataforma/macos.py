@@ -67,6 +67,11 @@ def processo_ativo():
     return str(nome).lower() if nome else "unknown"
 
 
+def titulo_ativo():
+    """No macOS o título exige a permissão de Gravação de Tela; sem ela, fica vazio (o print basta)."""
+    return ""
+
+
 def _rect_de(bounds):
     """Converte o retângulo do Quartz (X, Y, largura, altura) em (esquerda, topo, direita, base)."""
     return (bounds["X"], bounds["Y"], bounds["X"] + bounds["Width"], bounds["Y"] + bounds["Height"])

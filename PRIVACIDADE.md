@@ -1,6 +1,6 @@
 # Privacidade do Pestinha
 
-O Pestinha roda só no seu computador. Ele não envia nada para a internet.
+O Pestinha roda só no seu computador. Sem a IA ligada, ele não envia nada para a internet.
 
 ## O que ele lê
 
@@ -11,7 +11,28 @@ O Pestinha roda só no seu computador. Ele não envia nada para a internet.
 - Se uma janela cobre a tela inteira (para não aparecer em jogos ou apresentações).
 - A posição e o tamanho das janelas abertas, para ele poder pousar nas barras de título.
 
-Ele **não** lê o conteúdo nem o título de nenhuma janela, página, documento ou conversa.
+Ele **não** lê o conteúdo nem o título de nenhuma janela, página, documento ou conversa, a não ser que
+você ligue a visão da IA (abaixo).
+
+## Visão e conversa pela IA (desligadas por padrão)
+
+Só valem com **Usar IA** ligado em Configurações, e cada parte tem a própria opção:
+
+- **Conversar por texto:** o que você escreve no chat vai para o provedor escolhido, junto das últimas
+  mensagens da conversa (no máximo 8) e do último resumo do que ele viu na tela.
+- **Ver minha tela:** a cada ~2,5 minutos (e logo depois de você trocar de programa) ele tira um print do
+  monitor onde está a janela ativa, reduzido para 1280 px de largura, e lê o **título** da janela ativa.
+  Os dois vão para o provedor junto com o nome do programa. Ele não olha com você longe, com o pet
+  escondido, em tela cheia, dormindo, pausado ou depois do pânico.
+- **Para onde vai:** Claude (Anthropic), OpenAI ou DeepSeek, pela internet, sob as regras de privacidade de
+  cada um; ou o **Ollama**, que roda no seu computador e não manda nada para fora. O DeepSeek não recebe
+  o print (a API dele não aceita imagem), só o nome do programa e o título.
+- **O que fica gravado:** nada. O print, o título, o resumo e a conversa ficam só na memória enquanto o app
+  está aberto (o botão **Esquecer** do chat apaga a conversa na hora). Não vão para `memory/` nem para o
+  log. O que fica é o efeito na rede neural, como qualquer outro estímulo.
+- **As chaves** ficam nas variáveis de ambiente do sistema (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+  `DEEPSEEK_API_KEY`); o app não grava chave nenhuma.
+- O pânico (`Ctrl + Alt + Shift + B`) corta tudo, inclusive a resposta que ainda estava a caminho.
 
 ## O que ele grava (tudo em `memory/`)
 

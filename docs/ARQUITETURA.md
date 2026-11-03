@@ -31,7 +31,7 @@ pasta em `pestinha/`; para os detalhes da rede, [REDE_NEURAL.md](REDE_NEURAL.md)
 ## Camadas
 
 ```text
-core  <  sense  <  body  <  world  <  mind  <  ui  <  controle  <  app.py
+core  <  ia  <  sense  <  body  <  world  <  mind  <  ui  <  controle  <  app.py
 ```
 
 Cada camada só importa das que estão à esquerda dela, além dos módulos compartilhados
@@ -41,6 +41,7 @@ Cada camada só importa das que estão à esquerda dela, além dos módulos comp
 | Camada | Responsabilidade | Qt | Depende do sistema |
 |---|---|:-:|:-:|
 | `core/` | Rede neural, emoção, homeostase, memória episódica, condicionamento, física, protesto | não | não |
+| `ia/` | Clientes de IA (Claude, OpenAI, DeepSeek, Ollama), prompts e leitura das respostas | não | não |
 | `plataforma/` | Tudo que depende do sistema: janelas, teclado, tempo ocioso, atalho (um módulo por sistema) | não | sim |
 | `sense/` | O que as leituras significam e registro da rotina | não | não (usa `plataforma/`) |
 | `body/` | Janela do pet, estado que ele mostra, comportamento, bolinha | sim | não (usa `plataforma/`) |
@@ -59,11 +60,28 @@ Tudo roda na thread do Qt, em relógios (`QTimer`) criados em `PestinhaApp.__ini
 | 16 ms | `frame` | Física, comportamento, cantinho, notebook, bolinha, revolução, travessuras, desenho |
 | 100 ms | `think` | Sentidos → rede → motores → emoção, protesto, sono, aprendizado, festa, mesa |
 | 250 ms | `scan_windows` | Barras de título onde ele pode pousar |
-| 500 ms | `sense` | Programa ativo, tempo ocioso, tela cheia |
+| 500 ms | `sense` | Programa ativo, tempo ocioso, tela cheia (trocar de programa adianta a próxima olhada da IA) |
 | 30 s | `save` | Grava rede, homeostase, memória, condicionamento, protesto e cantinho |
 
 `think` integra pelo **tempo real** decorrido (em passos de até 100 ms, com no máximo 2 s por atraso),
 então um ciclo atrasado não muda o ritmo da rede nem da homeostase.
+
+## Visão e conversa (IA, opcional)
+
+Desligada por padrão. Com "Usar IA" ligado, `mind/visao.py` (`VisaoController`) fala com um modelo pelo
+cliente de `ia/provedores.py`; as chamadas rodam numa thread e a resposta volta à thread do Qt por sinal.
+
+- **Olhar** ("Ver minha tela"): a cada `visao_intervalo` s (e logo depois de trocar de programa, respeitando
+  `visao_apos_troca`) ele tira um print do monitor da janela ativa, lê o título dela e pergunta ao modelo o
+  que você está fazendo. A resposta é um JSON (`ia/mente.py`): um resumo, talvez um comentário, e quatro
+  sinais de 0 a 1 que viram pulsos nos canais `VISAO_GRACA`, `VISAO_ERRO`, `VISAO_FOCO` e `VISAO_NOVO`. A IA
+  descreve; quem decide o que ele sente e faz continua sendo a rede.
+- **Conversar**: o chat (`ui/conversa.py`) manda sua mensagem com o último resumo (e um print, se ele estiver
+  vendo a tela). A resposta aparece no chat e no balão (`world/balao.py`) e vira o canal `CONVERSA`, que
+  também conta como atenção para a homeostase.
+- Não olha com o pet escondido, em tela cheia, dormindo, pausado, no pânico ou com você longe. Pânico,
+  pausa ou desligar a IA descartam a resposta que ainda estava a caminho.
+- O print, o título, o resumo e a conversa ficam só na memória: nada disso é gravado, nem no log.
 
 ## Política de sessão
 

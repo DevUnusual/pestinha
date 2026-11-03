@@ -2,7 +2,7 @@
 
 > Gerado por `ferramentas/gerar_readmes.py` a partir das docstrings. Não edite à mão: rode o script.
 
-Tudo que depende do sistema operacional: programa em primeiro plano, tempo ocioso, janelas, tela cheia, foco e o atalho de pânico. Um módulo por sistema (Windows, macOS, Linux). Só nome de programa e geometria; nunca conteúdo nem título de janela.
+Tudo que depende do sistema operacional: programa em primeiro plano, tempo ocioso, janelas, tela cheia, foco e o atalho de pânico. Um módulo por sistema (Windows, macOS, Linux). Só nome de programa e geometria; o título da janela só com "Ver minha tela" ligado.
 
 **Pode importar de:** nada (só o sistema) (e dos módulos compartilhados). A regra é verificada por `tests/test_arquitetura.py`.
 

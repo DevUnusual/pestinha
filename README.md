@@ -11,7 +11,7 @@ Pets de tela para Windows, macOS e Linux, cada um com o próprio cérebro. São 
   cobra nem pede nada de ninguém.
 
 Os dois têm a mesma rede neural, mas cada um tem seu temperamento, seu conteúdo e sua memória, separados.
-Quem decide o que o pet sente e faz é uma **rede neural pulsada** de 470 neurônios (integração e disparo com
+Quem decide o que o pet sente e faz é uma **rede neural pulsada** de 500 neurônios (integração e disparo com
 vazamento), alimentada pelo que acontece no seu computador e pelo que você faz com ele. Algumas regras
 do programa (limiares, o que pode ou não acontecer) são escritas à mão; a seção
 [Como a decisão funciona](docs/ARQUITETURA.md#como-a-decisão-funciona) explica o que é aprendido e o que é regra.
@@ -45,6 +45,8 @@ Para criar um, veja [pets/README.md](pets/README.md).
 | **Tristeza** | Sozinho ou ignorado, fica triste, vai para o cantinho e cola bilhetes tristes. |
 | **Cantinho do castigo** | Uma placa que você arrasta para onde quiser. Solte ele na frente dela e ele fica de castigo: olha para você, vira de costas, xinga em cartazes e, se a frustração durar, foge. Carinho faz ele perdoar. |
 | **Sono e fogos** | Dorme quando a energia acaba. Muito feliz, solta fogos de artifício. |
+| **Visão (IA, opcional)** | Com "Ver minha tela" ligado, de tempos em tempos ele olha um print da tela e entende o que você está fazendo: um erro na tela deixa ele alerta, um meme deixa ele brincalhão, você concentrado deixa ele quieto. Às vezes comenta num balãozinho. |
+| **Conversa (IA, opcional)** | Botão direito nele, **Conversar**: você escreve e ele responde com a personalidade dele, sabendo o que está na sua tela. |
 
 Tudo o que ele aprende (carinho, condicionamento, o que deu certo nas travessuras, fugas do castigo)
 fica salvo localmente e muda o jeito dele com o tempo.
@@ -83,6 +85,27 @@ python main.py --direto
 | Rodinha do mouse | Gira |
 | Botão direito | Menu: cutucar, carinho, bolinha, dormir, travessura, trabalhar, notebook, cantinho do castigo, painéis, configurações, esconder, fechar |
 
+### Visão e conversa (IA)
+
+Desligadas por padrão. Para ligar: **Configurações**, grupo **Visão e conversa (IA)**, marque **Usar IA** e
+escolha o provedor. **Ver minha tela** é separado: sem ele, ele conversa mas não vê nada.
+
+| Provedor | Vê a tela? | Como configurar |
+|---|---|---|
+| **Claude** (padrão) | Sim | Variável de ambiente `ANTHROPIC_API_KEY`. Modelo padrão `claude-opus-5-5`; `claude-haiku-5-5` sai bem mais barato. |
+| **OpenAI** | Sim | Variável `OPENAI_API_KEY`. Modelo padrão `gpt-5-mini`. |
+| **DeepSeek** | Não (só o nome do programa e o título da janela) | Variável `DEEPSEEK_API_KEY`. A API do DeepSeek não aceita imagem. |
+| **Ollama** (local) | Sim, com modelo de visão | Sem chave e sem internet. Instale o [Ollama](https://ollama.com) e rode `ollama pull qwen2.5vl:7b` (ou `gemma3`, `minicpm-v`, `llava`). Precisa de uma placa de vídeo com uns 8 GB para responder em poucos segundos. |
+
+No Windows, para definir a chave (depois reabra o terminal e o Pestinha):
+
+```bash
+setx ANTHROPIC_API_KEY "sua-chave"
+```
+
+A chave nunca é gravada pelo app. Cada olhada (a cada ~2,5 min, e logo depois de trocar de programa) e
+cada mensagem custam um pouco na conta do provedor; com o Ollama, nada sai do computador.
+
 ### Pânico
 
 `Ctrl + Alt + Shift + B` desliga tudo na hora, e ele continua desligado até você religar em
@@ -96,9 +119,11 @@ terminal mostra as decisões.
 
 ## Privacidade
 
-Ele roda só no seu computador e não envia nada para a internet. Lê o **nome** do programa em primeiro
-plano, o tempo sem usar teclado e mouse, a posição do cursor e a geometria das janelas. **Nunca** lê
-conteúdo nem título de janela. Tudo o que ele grava fica em `memory/` e pode ser apagado pela tela de
+Sem a IA ligada, ele roda só no seu computador e não envia nada para a internet. Lê o **nome** do
+programa em primeiro plano, o tempo sem usar teclado e mouse, a posição do cursor e a geometria das
+janelas, e não lê conteúdo nem título de janela. Com **Usar IA** e **Ver minha tela** ligados, ele manda
+um print da tela e o título da janela ativa para o provedor escolhido (ou para o Ollama, no seu
+computador); o print e o que o modelo respondeu não são gravados. Tudo o que ele grava fica em `memory/` e pode ser apagado pela tela de
 configurações. Detalhes em [PRIVACIDADE.md](PRIVACIDADE.md).
 
 ## Personalizar
@@ -210,5 +235,7 @@ As imagens e os textos de `assets/` não estão cobertos por esta licença
 - No macOS, o pet precisa da permissão de Acessibilidade para o atalho Ctrl+Alt+Shift+B funcionar.
 - No Linux com Wayland, o pet não enxerga janelas nem o tempo ocioso, e o atalho global não funciona.
 - Pouco testado com escala de tela acima de 100% e com vários monitores.
+- A visão olha só o monitor da janela ativa. No macOS ela precisa da permissão de Gravação de Tela, e o
+  título da janela não é lido.
 - Jogos em janela sem borda podem não ser detectados como tela cheia.
 - O executável não é assinado; o Windows pode avisar na primeira execução.

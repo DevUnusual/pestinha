@@ -17,6 +17,7 @@ Quem faz o quê:
     SleepController         dormir e acordar
     ProtestController       estágios e cartazes
     MischiefController      quando e como apronta; o que a dispensa causa
+    VisaoController         olhar a tela e conversar pela IA (opcional); fala no balão
     FloatManager            painéis de teste
     SettingsStore           permissões e pânico
     PetState                o que ele sente e mostra (lido pela janela e pelo comportamento)
@@ -66,11 +67,13 @@ from .mind.mischief_ctl import MischiefController
 from .mind.protest_ctl import ProtestController
 from .mind.revolucao import RevolucaoController
 from .mind.sleep import SleepController
+from .mind.visao import VisaoController
 from .paths import Paths
 from .sense import senses
 from .sense.timeline import TimelineRecorder
 from .ui.float_manager import FloatManager
 from .ui.ui import PanicHotkey, Tray
+from .world.balao import Balao
 from .world.mischief import MischiefEngine
 
 MAX_DT = 2.0          # s: um atraso maior que isso (suspensão) não vira tempo de rede
@@ -177,6 +180,10 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.castigo = CastigoController(self, self.debugging)
         paper = load_sprite(self.conteudo.bolinha_papel)
         self.revolucao = RevolucaoController(self.behavior.play, self.debugging, sprite=paper)
+        self.balao = Balao()
+        self.visao = VisaoController(self, self.nome, pet_def.get("persona"), self.debugging)
+        self.visao.fala.connect(lambda texto: self.balao.mostrar(texto, time.monotonic()))
+        self.conversa_janela = None     # criada na primeira vez que você abre o chat
 
         # ----- reflexos e medições -----
         self.in_flight = False      # voando depois de um arremesso
@@ -197,6 +204,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.tray.clear_things.connect(self.clear_things)
         self.tray.panic.connect(self.panic)
         self.tray.quit.connect(self.quit)
+        self.visao.aviso.connect(lambda texto: self.tray.icon.showMessage(
+            f"{self.nome} · IA", texto, QSystemTrayIcon.Warning, 6000))
         self.hotkey = PanicHotkey()
         self.hotkey.pressed.connect(self.panic)
         self.wiping = False         # True depois de "apagar tudo": não grava mais nada ao sair
@@ -317,6 +326,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         for event in events:
             if event == "APP_CHANGED":
                 self.drives.stimulate("app")
+                self.visao.app_mudou(time.monotonic())
             elif event in ("ACTIVITY_CHANGED", "USER_RETURNED"):
                 self.drives.stimulate("novelty")
         if self.perms["rotina"]:
@@ -454,6 +464,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.memory.tick(now, self.prof["episode_ok"], self.prof["episode_window"])
         st.emotion = emotion
         self.behavior.on_emotion(emotion, time.monotonic())
+        self.visao.tick(now)
 
     def frame(self):
         """Um quadro da tela: move o corpo pela física e atualiza a animação do pet."""
@@ -509,6 +520,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.behavior.toy = (self.ball.body.x, self.ball.body.y) if self.ball.isVisible() else None
         self.mischief.tick(dt, bounds[3])
         self.pet.animate(now)
+        self.balao.seguir(body.x, body.y - 70, now)
         self.maybe_mischief(now, dt, bounds, cursor, motores)
 
     def _atualizar_mesa(self, now):

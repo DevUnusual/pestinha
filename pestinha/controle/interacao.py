@@ -11,6 +11,7 @@ from ..log import log
 import time
 from PySide6.QtWidgets import QMenu
 from ..body.pet import cursor_pos
+from ..ui.conversa import ConversaJanela
 from ..ajustes import (
     INSATISFACAO_NOTEBOOK,
     COOLDOWN_CUTUCADA as POKE_COOLDOWN,
@@ -128,6 +129,10 @@ class InteracaoMixin:
              self.menu_alternar_notebook)
         item("Fazer uma travessura agora", self.menu_mischief, perms["travessuras"])
         menu.addSeparator()
+        item("Conversar...", self.menu_conversar, perms["ia"] and perms["conversa"])
+        item("O que você está vendo?", self.visao.olhar_agora,
+             perms["ia"] and perms["ver_tela"] and not self.visao.olhando)
+        menu.addSeparator()
         item("Cantinho do castigo", lambda: self.castigo.toggle(self.bounds()))
         item("Painel de protesto", lambda: self.floats.toggle("greve"))
         item("Monitor neural", lambda: self.floats.toggle("neural"))
@@ -180,6 +185,36 @@ class InteracaoMixin:
         self.pet_state.at_desk = self.mesa.sentado
         if not self.mesa.sentado:
             self.pet_state.desk_top = None
+
+    def menu_conversar(self):
+        """Menu: 'Conversar' (abre o chat por texto; a resposta aparece no chat e no balão)."""
+        if self.conversa_janela is None:
+            janela = ConversaJanela(self.nome)
+            janela.enviar.connect(self._enviar_conversa)
+            janela.esquecer.connect(self.visao.conversa.limpar)
+            self.visao.resposta.connect(lambda texto: self._fim_conversa(texto))
+            self.visao.erro_conversa.connect(lambda texto: self._fim_conversa(texto, erro=True))
+            self.conversa_janela = janela
+        self.conversa_janela.set_aviso(self.visao.descricao())
+        self.conversa_janela.abrir()
+
+    def _enviar_conversa(self, texto):
+        """Você mandou uma mensagem: ele começa a pensar (ou explica por que não dá agora)."""
+        janela = self.conversa_janela
+        janela.set_aviso(self.visao.descricao())
+        if self.visao.perguntar(texto):
+            janela.set_ocupado(True)
+        elif not self.visao.respondendo:
+            motivo = ("a conversa está desligada em Configurações" if not (self.perms["ia"] and self.perms["conversa"])
+                      else f"o {self.nome} está pausado ou desligado agora")
+            janela.adicionar(self.nome, motivo, erro=True)
+
+    def _fim_conversa(self, texto, erro=False):
+        """Resposta (ou falha) do chat."""
+        if self.conversa_janela is None:
+            return
+        self.conversa_janela.set_ocupado(False)
+        self.conversa_janela.adicionar(self.nome, texto, erro=erro)
 
     def menu_pedir_trabalho(self):
         """Menu: 'Pedir para trabalhar' (ele pode aceitar, ou recusar com frustração)."""

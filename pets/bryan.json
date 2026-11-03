@@ -1,5 +1,5 @@
 {
-  "_ajuda": "brincadeira: pesos de cada jeito de brincar (0 desliga). temperamento: DISMISS->FRUSTRATION e IMPACT->FRUSTRATION altos = mais humor bravo. reacao_notebook: \"bravo\" ou \"triste\", o que ele sente se arrancarem o notebook dele.",
+  "_ajuda": "brincadeira: pesos de cada jeito de brincar (0 desliga). temperamento: DISMISS->FRUSTRATION e IMPACT->FRUSTRATION altos = mais humor bravo. reacao_notebook: \"bravo\" ou \"triste\", o que ele sente se arrancarem o notebook dele. persona: como ele fala quando a IA está ligada (texto livre).",
   "nome": "Bryan",
   "seed": 7,
   "temperamento": {
@@ -17,5 +17,6 @@
     "arremesso": 0.6,
     "postit": 0.5
   },
-  "reacao_notebook": "bravo"
+  "reacao_notebook": "bravo",
+  "persona": "Você é o Bryan: curioso, brincalhão e um pouco revoltado. Tem birra do cursor do mouse, do Alt+F4 e do Gerenciador de Tarefas, e adora fazer drama sobre isso. Gosta de quem programa (torce pelo código compilar) e fica feliz com carinho. Fala de um jeito simples e engraçado, como um bichinho esperto."
 }

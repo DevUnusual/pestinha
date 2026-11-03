@@ -1,5 +1,22 @@
 # Histórico de versões
 
+## Visão e conversa pela IA
+
+- Opcional e desligado por padrão: o grupo **Visão e conversa (IA)** nas Configurações liga a IA, a visão
+  da tela, os comentários e o chat, e escolhe o provedor (Claude, OpenAI, DeepSeek ou Ollama local) e o
+  modelo. As chaves vêm das variáveis de ambiente.
+- **Visão:** de tempos em tempos (e logo depois de trocar de programa) ele manda um print e o título da
+  janela ativa para o modelo, que devolve um resumo, talvez um comentário, e quatro sinais (graça, erro,
+  foco, novidade).
+- **Rede:** cinco canais sensoriais novos (`VISAO_GRACA`, `VISAO_ERRO`, `VISAO_FOCO`, `VISAO_NOVO`,
+  `CONVERSA`), agora 500 neurônios. A IA descreve a tela; a rede decide o que ele sente. Ver você focado
+  inibe travessuras.
+- **Balão de fala** em cima do pet para os comentários e as respostas.
+- **Chat por texto** pelo menu do pet (Conversar), e "O que você está vendo?" para pedir uma olhada agora.
+- Cada personagem tem uma `persona` em `pets/<pet>.json`. O Jorge continua sátira: nunca vende nem pede nada.
+- Nada da IA é gravado em disco; pânico, pausa ou desligar a IA descartam a resposta a caminho.
+- Nova camada `pestinha/ia/` (sem Qt), entre `core` e `sense`.
+
 ## Suporte a macOS e Linux
 
 - Toda a leitura do sistema (programa em primeiro plano, tempo ocioso, janelas, tela cheia, foco e o atalho

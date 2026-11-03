@@ -76,6 +76,12 @@ def processo_ativo():
         return "unknown"
 
 
+def titulo_ativo():
+    """Título da janela ativa pelo xdotool. Só é lido com "Ver minha tela" ligado."""
+    janela = _janela_ativa()
+    return (rodar(["xdotool", "getwindowname", janela]) or "").strip() if janela else ""
+
+
 def retangulo_ativo(escala=1.0):
     """Retângulo da janela ativa (pixels), ou None se não houver janela ativa."""
     janela = _janela_ativa()

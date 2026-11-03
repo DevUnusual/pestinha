@@ -2,9 +2,9 @@
 
 > Gerado por `ferramentas/gerar_readmes.py` a partir das docstrings. Não edite à mão: rode o script.
 
-Controladores de decisão: ligam o que a rede decide à cena (sono, mesa, protesto, travessuras, festa, revolução, cantinho do castigo).
+Controladores de decisão: ligam o que a rede decide à cena (sono, mesa, protesto, travessuras, festa, revolução, cantinho do castigo, visão e conversa pela IA).
 
-**Pode importar de:** core, sense, body, world (e dos módulos compartilhados). A regra é verificada por `tests/test_arquitetura.py`.
+**Pode importar de:** core, ia, sense, body, world (e dos módulos compartilhados). A regra é verificada por `tests/test_arquitetura.py`.
 
 | Arquivo | O que faz |
 |---|---|
@@ -15,3 +15,4 @@ Controladores de decisão: ligam o que a rede decide à cena (sono, mesa, protes
 | `protest_ctl.py` | Liga o protesto (core/protesto.py) à cena: cartaz, estágio, repressão. |
 | `revolucao.py` | As bolinhas de papel que o pet atira no cursor quando está em revolução. |
 | `sleep.py` | Quando ele dorme, quando acorda, e o que acontece ao adormecer. |
+| `visao.py` | O pet olha a sua tela e conversa com você por um modelo de IA (opcional, desligado por padrão). |

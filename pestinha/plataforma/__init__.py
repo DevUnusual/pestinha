@@ -6,6 +6,7 @@ escolhe o certo na importação. Os retângulos são em pixels físicos (o app d
 
     ocioso_segundos()            segundos desde o último teclado ou mouse
     processo_ativo()             nome (minúsculo) do programa em primeiro plano
+    titulo_ativo()               título da janela ativa (só com "Ver minha tela" ligado)
     retangulo_ativo(escala)      retângulo da janela em primeiro plano, ou None
     tela_cheia()                 a janela em primeiro plano cobre o monitor inteiro
     janelas_visiveis(excluir, escala)   [(id, (l, t, r, b), maximizada)] de cima para baixo
@@ -26,6 +27,7 @@ NOME_DO_SISTEMA = {"win32": "Windows", "darwin": "macOS"}.get(sys.platform, "Lin
 
 ocioso_segundos = _backend.ocioso_segundos
 processo_ativo = _backend.processo_ativo
+titulo_ativo = _backend.titulo_ativo
 retangulo_ativo = _backend.retangulo_ativo
 tela_cheia = _backend.tela_cheia
 janelas_visiveis = _backend.janelas_visiveis

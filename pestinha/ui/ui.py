@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMenu,
     QMessageBox,
     QPushButton,
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import config
+from ..ia import provedores
 from ..sense import timeline
 from ..core.emotion import EYE_SHAPES
 from ..body.pet import draw_face
@@ -40,7 +42,8 @@ QGroupBox { color: #63e56f; font: bold 12px; border: 1px solid #24402c;
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
 QCheckBox { color: #dfffe6; font-size: 13px; spacing: 8px; }
 QCheckBox:disabled { color: #4d6655; }
-QComboBox { background: #17201a; color: #dfffe6; border: 1px solid #2c5236; padding: 3px 6px; }
+QComboBox, QLineEdit { background: #17201a; color: #dfffe6; border: 1px solid #2c5236; padding: 3px 6px; }
+QComboBox:disabled, QLineEdit:disabled { color: #4d6655; }
 QPushButton { background: #17201a; color: #dfffe6; border: 1px solid #2c5236;
               border-radius: 6px; padding: 7px 18px; font-size: 13px; }
 QPushButton#start { background: #2c8a40; border-color: #63e56f; font-weight: bold; }
@@ -102,7 +105,8 @@ class SettingsDialog(QDialog):
         if first_run:
             welcome = QLabel(
                 f"Bem-vindo! O {config.APP_NOME} vê só o nome dos programas, o tempo sem usar o teclado e "
-                "as janelas para pousar. Nunca lê o conteúdo de nada. Detalhes em PRIVACIDADE.md.\n"
+                "as janelas para pousar. Só enxerga a sua tela se você ligar \"Ver minha tela\" na parte "
+                "de IA. Detalhes em PRIVACIDADE.md.\n"
                 "Escolha abaixo o que ele pode fazer e clique em Começar. Tudo pode ser mudado depois.")
             welcome.setObjectName("hint")
             welcome.setWordWrap(True)
@@ -172,6 +176,8 @@ class SettingsDialog(QDialog):
                 everything.clicked.connect(self._wipe_everything)
                 layout.addWidget(everything)
                 self._update_history_label()
+            if group_title == "Visão e conversa (IA)":
+                self._montar_provedor(layout)
             root.addWidget(group)
 
         panic = QLabel(f"Pânico (desliga tudo e fica desligado): {config.PANIC_HOTKEY_TEXT}")
@@ -195,6 +201,52 @@ class SettingsDialog(QDialog):
         self._outer.addLayout(buttons)
 
         self._sync_enabled()
+
+    def _montar_provedor(self, layout):
+        """Escolha do provedor e do modelo, e onde fica a chave (variável de ambiente, nunca em arquivo)."""
+        linha = QHBoxLayout()
+        linha.addWidget(QLabel("Provedor:"))
+        self.provedor_combo = QComboBox()
+        for chave, dados in provedores.PROVEDORES.items():
+            self.provedor_combo.addItem(dados["nome"], chave)
+        self.provedor_combo.setCurrentIndex(max(0, self.provedor_combo.findData(self.perms["ia_provedor"])))
+        self.provedor_combo.currentIndexChanged.connect(self._trocar_provedor)
+        linha.addWidget(self.provedor_combo, 1)
+        layout.addLayout(linha)
+        linha = QHBoxLayout()
+        linha.addWidget(QLabel("Modelo:"))
+        self.modelo_campo = QLineEdit(self.perms["ia_modelo"])
+        self.modelo_campo.setMaxLength(100)
+        self.modelo_campo.editingFinished.connect(
+            lambda: self._set("ia_modelo", self.modelo_campo.text().strip()))
+        linha.addWidget(self.modelo_campo, 1)
+        layout.addLayout(linha)
+        self.provedor_dica = QLabel()
+        self.provedor_dica.setObjectName("hint")
+        self.provedor_dica.setWordWrap(True)
+        layout.addWidget(self.provedor_dica)
+        self._atualizar_provedor()
+
+    def _trocar_provedor(self, _indice):
+        """Outro provedor: o modelo volta para o padrão dele."""
+        self._set("ia_provedor", self.provedor_combo.currentData())
+        self.modelo_campo.setText("")
+        self._set("ia_modelo", "")
+        self._atualizar_provedor()
+
+    def _atualizar_provedor(self):
+        """Modelo padrão no campo vazio e a dica de onde fica a chave."""
+        dados = provedores.info(self.perms["ia_provedor"])
+        self.modelo_campo.setPlaceholderText(f"padrão: {dados['modelo']}")
+        if dados["chave"]:
+            dica = (f"A chave fica na variável de ambiente {dados['chave']} (nunca neste app). "
+                    "Cada olhada e cada mensagem custam um pouco na conta do provedor.")
+        else:
+            dica = ("Roda no seu computador, sem internet e sem custo. Instale o Ollama e baixe um modelo "
+                    f"de visão: ollama pull {dados['modelo']} (precisa de uma placa de vídeo razoável).")
+        if not dados["ve_imagem"]:
+            dica += " Este provedor não vê imagem: ele conhece só o nome do programa e o título da janela."
+        self.provedor_dica.setText(dica)
 
     def _asset_summary(self):
         """Linha de resumo do conteúdo do pet escolhido (memes, fotos, recadinhos)."""
@@ -268,6 +320,13 @@ class SettingsDialog(QDialog):
         for key in ("memes", "fotos", "bilhetes"):
             self.boxes[key].setEnabled(master)
         self.boxes["mostrar_emocao"].setEnabled(self.perms["modo_teste"])
+        ia = self.perms["ia"]
+        for key in ("ver_tela", "conversa"):
+            self.boxes[key].setEnabled(ia)
+        self.boxes["comentarios"].setEnabled(ia and self.perms["ver_tela"])
+        if hasattr(self, "provedor_combo"):
+            self.provedor_combo.setEnabled(ia)
+            self.modelo_campo.setEnabled(ia)
 
     def set_active(self, on):
         """Atualiza a caixa 'ligado' sem disparar a gravação (usado pelo pânico)."""

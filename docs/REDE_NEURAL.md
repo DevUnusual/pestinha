@@ -2,7 +2,7 @@
 
 > Gerado por `ferramentas/gerar_doc_rede.py` a partir do código. Não edite à mão: rode o script.
 
-A rede tem **470 neurônios** de integração e disparo com vazamento (LIF), **15939 sinapses**, **30 canais sensoriais**, **10 populações de interneurônios** e **15 populações motoras**.
+A rede tem **500 neurônios** de integração e disparo com vazamento (LIF), **16527 sinapses**, **35 canais sensoriais**, **10 populações de interneurônios** e **15 populações motoras**.
 
 ## Como o sinal anda
 
@@ -59,28 +59,33 @@ computador e você ──► sentidos (0..1) ──► neurônios sensoriais (Po
 | `VISITA` | visita no canto | não | você está perto dele enquanto ele está preso |
 | `RECEIO` | receio de fugir | não | interno: fugas que deram errado (devolvido ao canto) |
 | `RANCOR` | rancor | não | interno: tempo de castigo acumulado, decai devagar |
+| `VISAO_GRACA` | vê graça | 0.0004 / 600 s | algo engraçado ou divertido na sua tela |
+| `VISAO_ERRO` | vê erro | 0.0004 / 600 s | erro, falha, algo dando errado |
+| `VISAO_FOCO` | vê foco | 7e-05 / 1200 s | você concentrado em algo sério |
+| `VISAO_NOVO` | vê novidade | 0.0004 / 600 s | algo novo ou interessante na tela |
+| `CONVERSA` | conversa | 0.0002 / 600 s | você conversou com ele pelo chat |
 
 ## Interneurônios
 
 | População | Nome no monitor | Tipo | Neurônios | Entradas (peso) |
 |---|---|---|---:|---|
-| `ALERT` | alerta | excitatória | 16 | MOTION (+0.14), ANTICIPATE (+0.12), ANTECIPA_PLACA (+0.12), IMPACT (+0.10), POKE (+0.08), NOVELTY (+0.06), DRAG (+0.06), TOY_TAKEN (+0.06), CALM (−0.06), THROW (+0.05), TIRED (−0.05), QUIET (−0.04), INHIB (−0.04), PRESO (+0.04), PLAY (+0.03), DISMISS (+0.03), TYPING (+0.02), PLACA (+0.02) |
-| `FOCUS` | foco | excitatória | 16 | WORK (+0.14), PEDIDO (+0.12), QUIET (−0.08), TYPING (+0.05), INHIB (−0.03) |
-| `CURIOUS` | curiosidade | excitatória | 16 | BOREDOM (+0.12), NOVELTY (+0.10), DRAG (+0.07), WEB (+0.06), TOY_NEAR (+0.06), POKE (+0.05), ALERT (+0.05), QUIET (−0.05), SOCIAL (+0.04), GLOOM (−0.04), TIRED (−0.04), THROW (+0.03), INHIB (−0.03) |
-| `PLAYFUL` | brincadeira | excitatória | 12 | TOY_NEAR (+0.10), BOREDOM (+0.09), PLAY (+0.08), POKE (+0.08), THROW (+0.08), GLOOM (−0.06), DRAG (+0.05), CARESS (+0.05), FRUSTRATION (−0.05), TIRED (−0.05), INHIB (−0.03), SOUND (+0.02) |
-| `CALM` | calma | excitatória | 12 | CARESS (+0.07), SOUND (+0.06), FRUSTRATION (−0.06), VISITA (+0.05), WORK (+0.03), SILENCE (+0.03) |
+| `ALERT` | alerta | excitatória | 16 | MOTION (+0.14), ANTICIPATE (+0.12), ANTECIPA_PLACA (+0.12), IMPACT (+0.10), POKE (+0.08), VISAO_ERRO (+0.08), NOVELTY (+0.06), DRAG (+0.06), TOY_TAKEN (+0.06), CALM (−0.06), THROW (+0.05), TIRED (−0.05), QUIET (−0.04), INHIB (−0.04), PRESO (+0.04), PLAY (+0.03), DISMISS (+0.03), TYPING (+0.02), PLACA (+0.02), VISAO_NOVO (+0.02) |
+| `FOCUS` | foco | excitatória | 16 | WORK (+0.14), PEDIDO (+0.12), VISAO_FOCO (+0.10), QUIET (−0.08), TYPING (+0.05), INHIB (−0.03) |
+| `CURIOUS` | curiosidade | excitatória | 16 | BOREDOM (+0.12), NOVELTY (+0.10), VISAO_NOVO (+0.10), DRAG (+0.07), WEB (+0.06), TOY_NEAR (+0.06), POKE (+0.05), ALERT (+0.05), QUIET (−0.05), SOCIAL (+0.04), GLOOM (−0.04), TIRED (−0.04), VISAO_GRACA (+0.04), THROW (+0.03), INHIB (−0.03) |
+| `PLAYFUL` | brincadeira | excitatória | 12 | TOY_NEAR (+0.10), VISAO_GRACA (+0.10), BOREDOM (+0.09), PLAY (+0.08), POKE (+0.08), THROW (+0.08), CONVERSA (+0.08), GLOOM (−0.06), DRAG (+0.05), CARESS (+0.05), FRUSTRATION (−0.05), TIRED (−0.05), INHIB (−0.03), SOUND (+0.02) |
+| `CALM` | calma | excitatória | 12 | CARESS (+0.07), SOUND (+0.06), FRUSTRATION (−0.06), CONVERSA (+0.06), VISITA (+0.05), VISAO_FOCO (+0.04), WORK (+0.03), SILENCE (+0.03) |
 | `TIRED` | cansaço | excitatória | 12 | FATIGUE (+0.08), SILENCE (+0.06) |
 | `QUIET` | quietude | inibitória | 12 | SILENCE (+0.08), FATIGUE (+0.03), LONELY (+0.03) |
 | `INHIB` | inibição | inibitória | 20 | ALERT (+0.10), FOCUS (+0.06), CURIOUS (+0.06), PLAYFUL (+0.06), FRUSTRATION (+0.04) |
-| `FRUSTRATION` | frustração | excitatória | 12 | RECUSA (+0.25), CARTAZ (−0.20), DISMISS (+0.12), TOY_TAKEN (+0.10), PRESO (+0.10), IMPACT (+0.06), RANCOR (+0.04), DRAG (+0.03), CALM (−0.03) |
-| `GLOOM` | desânimo | excitatória | 12 | TOY_TAKEN (+0.10), VISITA (−0.10), LONELY (+0.08), PLAYFUL (−0.05), RECUSA (+0.05), RECEIO (+0.04), DISMISS (+0.03), TIRED (+0.03), IMPACT (+0.02) |
+| `FRUSTRATION` | frustração | excitatória | 12 | RECUSA (+0.25), CARTAZ (−0.20), DISMISS (+0.12), TOY_TAKEN (+0.10), PRESO (+0.10), IMPACT (+0.06), RANCOR (+0.04), VISAO_ERRO (+0.04), DRAG (+0.03), CALM (−0.03) |
+| `GLOOM` | desânimo | excitatória | 12 | TOY_TAKEN (+0.10), VISITA (−0.10), LONELY (+0.08), CONVERSA (−0.06), PLAYFUL (−0.05), RECUSA (+0.05), RECEIO (+0.04), DISMISS (+0.03), TIRED (+0.03), IMPACT (+0.02), VISAO_ERRO (+0.02) |
 
 ## Motores
 
 | Motor | Grupo | Nome no monitor | Entradas (peso) | Para que serve |
 |---|---|---|---|---|
 | `STARTLE` | expressão | susto | ALERT (+0.50), INHIB (−0.08) |  |
-| `WATCH` | expressão | observar | FOCUS (+0.35), ALERT (+0.20), VISITA (+0.20), CURIOUS (+0.12), INHIB (−0.08), ANTICIPATE (+0.05) |  |
+| `WATCH` | expressão | observar | FOCUS (+0.35), ALERT (+0.20), VISITA (+0.20), CONVERSA (+0.15), CURIOUS (+0.12), INHIB (−0.08), ANTICIPATE (+0.05) |  |
 | `WANDER` | expressão | passear | CURIOUS (+0.35), FOCUS (−0.20), INHIB (−0.08) |  |
 | `CHEER` | expressão | alegria | PLAYFUL (+0.70), INHIB (−0.08) |  |
 | `SETTLE` | expressão | sossego | CALM (+0.50) |  |
@@ -91,7 +96,7 @@ computador e você ──► sentidos (0..1) ──► neurônios sensoriais (Po
 | `FUGIR` | decisão | fugir do canto | RECEIO (−0.40), FRUSTRATION (+0.35), LEMBRA_FUGA (+0.30), CALM (−0.30), ANTECIPA_PLACA (+0.15), BOREDOM (+0.15) | tenta escapar do cantinho |
 | `CARTAZ` | decisão | colar cartaz | FRUSTRATION (+0.25), CALM (−0.20) | cola um cartaz de protesto |
 | `CANTO` | decisão | ir para o cantinho | GLOOM (+0.50), TIRED (+0.05) | vai para o cantinho |
-| `TRAVESSURA` | decisão | aprontar | PLACA (−0.60), GLOOM (−0.50), BOREDOM (+0.30), CALM (−0.30), CURIOUS (+0.20), RANCOR (+0.15), PLAYFUL (+0.12) | apronta uma travessura (a taxa vira a frequência) |
+| `TRAVESSURA` | decisão | aprontar | PLACA (−0.60), GLOOM (−0.50), BOREDOM (+0.30), CALM (−0.30), CURIOUS (+0.20), VISAO_FOCO (−0.20), RANCOR (+0.15), PLAYFUL (+0.12) | apronta uma travessura (a taxa vira a frequência) |
 | `PAPEL` | decisão | atirar papel | FRUSTRATION (+0.40), CALM (−0.40) | atira bolinha de papel (na revolução) |
 | `ACEITAR` | decisão | aceitar o castigo | CALM (+0.45), FRUSTRATION (−0.40), CARESS (+0.30), RANCOR (−0.20), VISITA (+0.08) | aceita o castigo e sai do canto por conta própria (perdão) |
 

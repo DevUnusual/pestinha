@@ -2,7 +2,8 @@
 SENSES - o computador como mundo sensorial.
 
 Só olha: janela ativa, processo, tempo ocioso, tela cheia e o RETÂNGULO das janelas (para ele pousar).
-Como o sistema é lido fica em plataforma/; aqui fica só o que isso significa. Nunca lê conteúdo de janela.
+Como o sistema é lido fica em plataforma/; aqui fica só o que isso significa. Nunca lê conteúdo de janela,
+exceto o título com "Ver minha tela" ligado (get_active_title, usado só pela visão da IA).
 """
 
 import math
@@ -45,6 +46,11 @@ ACTIVITY_CHANNEL = {
 def get_idle_seconds():
     """Segundos desde o último teclado ou mouse (leitura da plataforma)."""
     return plataforma.ocioso_segundos()
+
+
+def get_active_title():
+    """Título da janela ativa. Só com "Ver minha tela" ligado: é a única leitura de título do app."""
+    return plataforma.titulo_ativo()
 
 
 def get_active_app():
@@ -130,7 +136,10 @@ class ComputerSenses:
     """
 
     PULSE_TAU = {"MOTION": 2.0, "NOVELTY": 3.0, "POKE": 1.5, "DISMISS": 6.0, "THROW": 2.0, "IMPACT": 4.0,
-                 "TOY_TAKEN": 4.0}
+                 "TOY_TAKEN": 4.0,
+                 # a IA olha a tela a cada minuto ou dois: o que ela viu dura dezenas de segundos
+                 "VISAO_GRACA": 30.0, "VISAO_ERRO": 30.0, "VISAO_FOCO": 60.0, "VISAO_NOVO": 20.0,
+                 "CONVERSA": 12.0}
 
     def __init__(self):
         """Estado dos sentidos: pulsos que decaem, níveis de atividade e se você está arrastando ou fazendo carinho."""
@@ -153,6 +162,12 @@ class ComputerSenses:
                 self.kick("MOTION", 0.75)
             elif e in ("ACTIVITY_CHANGED", "USER_RETURNED"):
                 self.kick("NOVELTY", 1.0)
+
+    def saw(self, sinais):
+        """O que a IA viu na tela (canal VISAO_* -> 0..1): cada sinal vira um pulso que decai sozinho."""
+        for channel, amount in sinais.items():
+            if channel in self.pulse:
+                self.pulse[channel] = max(self.pulse[channel], min(1.0, amount))
 
     def poke(self):
         """Pulso de cutucada."""

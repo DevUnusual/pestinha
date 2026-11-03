@@ -29,6 +29,8 @@ class SessaoMixin:
             self.timeline.close()      # grava o minuto em andamento e para
         self.prof = config.profile(self.perms)
         self.conditioning.rate = self.prof["cond_rate"]
+        if not self.visao.vendo():
+            self.visao.cancelar()                  # desligou a IA ou a visão: o que estava a caminho não vale
         self._apply_settings()
 
     def _apply_settings(self):
@@ -68,6 +70,7 @@ class SessaoMixin:
         self.castigo.set_visible(visible)
         if not visible:
             self.revolucao.esconder()
+            self.balao.esconder()                    # o balão só segue o pet enquanto ele aparece
         self.floats.sync(self.floats_allowed(), self.floats_base())
         self.protest_ctl.set_visible(visible, self.asleep)
         self.sad_ctl.set_visible(visible, self.asleep)
@@ -102,6 +105,8 @@ class SessaoMixin:
         now = time.monotonic()
         if self.paused:
             self._pausado_em = now
+            self.visao.cancelar()
+            self.balao.esconder()
         else:
             if self._pausado_em is not None:
                 parado = now - self._pausado_em
@@ -131,6 +136,10 @@ class SessaoMixin:
     def panic(self):
         """Desliga tudo e grava: só volta quando você religar na tela inicial."""
         self.store.panic()
+        self.visao.cancelar()                      # nada da IA chega depois do pânico
+        self.balao.esconder()
+        if self.conversa_janela:
+            self.conversa_janela.hide()
         self.pet.cancel_interaction()
         self.clear_things()
         self.protest_ctl.drop_sign()
@@ -191,6 +200,10 @@ class SessaoMixin:
     def quit(self):
         """Salva tudo e fecha o programa."""
         self.save()
+        self.visao.cancelar()
+        self.balao.esconder()
+        if self.conversa_janela:
+            self.conversa_janela.close()
         self.mesa.fechar()
         self.festa.fechar()
         self.revolucao.fechar()

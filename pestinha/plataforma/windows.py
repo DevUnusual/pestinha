@@ -48,6 +48,17 @@ def processo_ativo():
         return "unknown.exe"
 
 
+def titulo_ativo():
+    """Título da janela ativa. Só é lido com "Ver minha tela" ligado (ver mind/visao.py)."""
+    hwnd = win32gui.GetForegroundWindow()
+    if not hwnd:
+        return ""
+    try:
+        return win32gui.GetWindowText(hwnd)
+    except pywintypes.error:
+        return ""
+
+
 def tela_cheia():
     """Janela em primeiro plano cobrindo o monitor inteiro (jogo, vídeo, apresentação)."""
     hwnd = win32gui.GetForegroundWindow()

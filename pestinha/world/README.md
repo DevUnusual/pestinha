@@ -2,13 +2,14 @@
 
 > Gerado por `ferramentas/gerar_readmes.py` a partir das docstrings. Não edite à mão: rode o script.
 
-Objetos que aparecem na tela: post-its, memes, cartazes, notebook, fogos e a janela arrastável base.
+Objetos que aparecem na tela: post-its, memes, cartazes, notebook, fogos, o balão de fala e a janela arrastável base.
 
 **Pode importar de:** core, sense, body (e dos módulos compartilhados). A regra é verificada por `tests/test_arquitetura.py`.
 
 | Arquivo | O que faz |
 |---|---|
 | `arrastavel.py` | Janela arrastável que flutua sobre a área de trabalho (painéis, notebook, placa). |
+| `balao.py` | O balãozinho de fala em cima do pet (comentários da IA e respostas do chat). |
 | `cartazes.py` | Os cartazes e a bandeira que o pet levanta. |
 | `fireworks.py` | O fogo de artifício do bichinho feliz. |
 | `mischief.py` | Memes, fotos e bilhetes que o pet espalha pela tela. |

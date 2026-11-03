@@ -49,6 +49,12 @@ DEFAULT_PERMISSIONS = {
     "mostrar_emocao": False,   # só vale com modo_teste ligado
     "bolinha": True,           # a bolinha para ele brincar
     "fogos": True,             # fogo de artifício quando ele fica feliz de verdade (rede)
+    "ia": False,               # interruptor mestre da IA: sem ele, nada sai do computador
+    "ver_tela": False,         # print da tela + título da janela vão para o modelo de IA
+    "comentarios": True,       # ele comenta em balão o que vê (só com ver_tela)
+    "conversa": True,          # chat por texto pelo menu do pet
+    "ia_provedor": "claude",   # claude, openai, deepseek ou ollama (ver ia/provedores.py)
+    "ia_modelo": "",           # vazio: o modelo padrão do provedor
 }
 
 # (chave, rótulo, descrição) na ordem da tela inicial
@@ -79,6 +85,16 @@ PERMISSION_GROUPS = [
     ("Brincadeira", [
         ("fogos", "Fogos de artifício", "Quando ele fica muito feliz, a alegria da rede pode soltar um fogo."),
         ("bolinha", "Bolinha", "Uma bolinha para ele brincar. Se você levar para longe, ele reage (pode ficar triste, bravo ou ir atrás)."),
+    ]),
+    ("Visão e conversa (IA)", [
+        ("ia", "Usar IA",
+         "Interruptor geral. Liga a conversa e a visão por um modelo de IA (Claude, OpenAI, DeepSeek ou "
+         "Ollama local). Com Claude, OpenAI ou DeepSeek, o que ele vê e o que você escreve vai para a API."),
+        ("ver_tela", "Ver minha tela",
+         "De tempos em tempos ele tira um print da tela e lê o título da janela ativa, e manda para o modelo "
+         "descrever o que você está fazendo. O print não é gravado em disco."),
+        ("comentarios", "Comentar o que vê", "Às vezes ele comenta num balãozinho o que você está fazendo."),
+        ("conversa", "Conversar por texto", "Botão direito nele, Conversar: você escreve e ele responde."),
     ]),
     ("Teste", [
         ("modo_teste", "Modo teste", "Tempos curtos: travessuras e emoções acontecem em segundos."),
@@ -143,6 +159,9 @@ PROFILES = {
         "sad_down": 300.0,
         "sad_stage_up": [0.2, 0.5, 0.8, 1.0],
         "stage_hyst": 0.06,          # cartaz só some quando cai este tanto abaixo do limiar
+        # visão (IA): quanto tempo entre uma olhada e outra
+        "visao_intervalo": 25.0,     # s entre olhadas
+        "visao_apos_troca": 8.0,     # s depois de você trocar de programa (se já deu o mínimo)
     },
     "normal": {
         "mischief_interval": (300.0, 900.0),
@@ -172,6 +191,8 @@ PROFILES = {
         "sad_down": 5400.0,
         "sad_stage_up": [0.25, 0.5, 0.75, 1.0],
         "stage_hyst": 0.12,
+        "visao_intervalo": 150.0,    # ~2,5 min entre olhadas: o custo da API fica baixo
+        "visao_apos_troca": 45.0,
     },
 }
 
@@ -214,6 +235,7 @@ DEFAULT_PET = {
     "brincadeira": {"bola": 1.0, "arremesso": 0.6, "postit": 0.5},   # pesos: 0 desliga
     "temperamento": {},
     "reacao_notebook": "bravo",         # o que sente se arrancarem o notebook: "bravo" ou "triste"
+    "persona": None,                    # como ele fala com a IA (texto livre); sem isso, a persona padrão
 }
 
 
@@ -254,6 +276,8 @@ def _pet_valido(saved):
         out["temperamento"] = dict(temp)
     if saved.get("reacao_notebook") in ("bravo", "triste"):
         out["reacao_notebook"] = saved["reacao_notebook"]
+    if isinstance(saved.get("persona"), str) and saved["persona"].strip():
+        out["persona"] = saved["persona"].strip()[:2000]
     if isinstance(saved.get("aparencia"), dict):
         out["aparencia"] = dict(saved["aparencia"])    # cores e acessórios: validados em body/desenho_rosto.py
     return out
