@@ -112,6 +112,12 @@ class VisaoController(QObject):
         self.geracao += 1
         self.olhando = self.respondendo = False
 
+    def chave_nova(self):
+        """Você salvou uma chave: recria o cliente e olha de novo logo (sem esperar o tempo de erro)."""
+        self._cliente = None
+        self._avisos.clear()
+        self.proxima = min(self.proxima, time.monotonic() + ESPERA_TROCA)
+
     def cliente(self):
         """O cliente do provedor escolhido (recriado se você trocar de provedor ou modelo)."""
         chave = (self.perms["ia_provedor"], self.perms["ia_modelo"])

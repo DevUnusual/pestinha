@@ -91,6 +91,7 @@ class SessaoMixin:
             return
         self.settings = SettingsDialog(self.perms, self.paths, first_run=False)
         self.settings.changed.connect(self.apply_perms)
+        self.settings.chave_salva.connect(lambda _nome: self.visao.chave_nova())
         self.settings.wipe_all.connect(self.wipe_all_data)
         self.settings.history_wiped.connect(self.timeline.discard)
         self.settings.show()

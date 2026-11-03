@@ -1,6 +1,9 @@
 # Dados do usuário (aprendizado, histórico, logs): nunca vão para o repositório
 memory/
 
+# Chaves de API gravadas pela tela de Configurações: nunca vão para o repositório
+.env
+
 # Gerados pelo Python, pytest e PyInstaller
 __pycache__/
 *.pyc

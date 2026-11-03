@@ -7,6 +7,7 @@ e é gravado a CADA mudança (se o programa cair, a escolha não se perde).
 
 import random
 
+from .ia.chaves import parece_chave
 from .paths import pet_id_valido
 from .store import read_json, read_lines, write_json
 
@@ -104,9 +105,12 @@ PERMISSION_GROUPS = [
 
 
 def permissoes_validas(novo):
-    """Mantém só as chaves conhecidas e com o mesmo tipo do padrão."""
-    return {k: v for k, v in novo.items()
-            if k in DEFAULT_PERMISSIONS and type(v) is type(DEFAULT_PERMISSIONS[k])}
+    """Mantém só as chaves conhecidas e com o mesmo tipo do padrão; o modelo nunca guarda uma chave de API."""
+    validas = {k: v for k, v in novo.items()
+               if k in DEFAULT_PERMISSIONS and type(v) is type(DEFAULT_PERMISSIONS[k])}
+    if parece_chave(validas.get("ia_modelo")):
+        validas["ia_modelo"] = ""                  # chave colada no lugar do modelo: não grava
+    return validas
 
 
 def load_permissions(paths):

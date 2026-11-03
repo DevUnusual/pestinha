@@ -17,6 +17,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from pestinha import config
+from pestinha.ia.chaves import carregar_env
 from pestinha.paths import Paths
 from pestinha.settings_store import SettingsStore
 from pestinha.app import PestinhaApp
@@ -43,6 +44,7 @@ def main():
     app.setWindowIcon(face_icon())
 
     paths = Paths()
+    carregar_env(paths.env)                         # chaves de API salvas pela tela de Configurações
     store = SettingsStore(paths)
     perms = store.perms
     if not args.direto:

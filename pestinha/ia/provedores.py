@@ -5,11 +5,14 @@ Sem Qt: cada cliente recebe o prompt de sistema, as mensagens e (opcional) um pr
 base64, e devolve só o texto da resposta. As chamadas bloqueiam: quem chama roda numa thread
 (ver mind/visao.py).
 
-As chaves vêm das variáveis de ambiente (ANTHROPIC_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY),
-nunca de arquivo do projeto nem de memory/. O Ollama roda no seu computador e não precisa de chave.
+As chaves vêm das variáveis de ambiente (ANTHROPIC_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY), que o
+app preenche com o .env salvo pela tela de Configurações (ver chaves.py); nunca de memory/. O Ollama
+roda no seu computador e não precisa de chave.
 """
 
 import os
+
+from .chaves import parece_chave
 
 TEMPO_LIMITE = 60.0         # s por chamada; o pet desiste e tenta de novo mais tarde
 MAX_TOKENS = 1024           # as respostas pedidas são curtas (um JSON ou duas frases)
@@ -55,8 +58,9 @@ def info(provedor):
 
 
 def modelo_de(provedor, modelo):
-    """O modelo escolhido, ou o padrão do provedor se o campo estiver vazio."""
-    return (modelo or "").strip() or info(provedor)["modelo"]
+    """O modelo escolhido, ou o padrão do provedor se o campo estiver vazio (ou tiver uma chave por engano)."""
+    modelo = (modelo or "").strip()
+    return info(provedor)["modelo"] if not modelo or parece_chave(modelo) else modelo
 
 
 def criar_cliente(provedor, modelo=""):
@@ -66,7 +70,8 @@ def criar_cliente(provedor, modelo=""):
     if dados["chave"]:
         chave = os.environ.get(dados["chave"], "").strip()
         if not chave:
-            raise ErroIA(f"falta a chave: defina a variável de ambiente {dados['chave']} e reabra o Pestinha")
+            raise ErroIA(f"falta a chave de {dados['nome']}: cole em Configurações, Visão e conversa (IA), "
+                         "e clique em Salvar chave")
     if provedor == "claude":
         return ClienteClaude(chave, modelo_de(provedor, modelo))
     return ClienteOpenAI(chave or "ollama", modelo_de(provedor, modelo), dados.get("base_url"),

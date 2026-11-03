@@ -87,23 +87,20 @@ python main.py --direto
 
 ### Visão e conversa (IA)
 
-Desligadas por padrão. Para ligar: **Configurações**, grupo **Visão e conversa (IA)**, marque **Usar IA** e
-escolha o provedor. **Ver minha tela** é separado: sem ele, ele conversa mas não vê nada.
+Desligadas por padrão. Para ligar: **Configurações**, grupo **Visão e conversa (IA)**, marque **Usar IA**,
+escolha o provedor, cole a chave no campo **Chave** e clique em **Salvar chave** (aparece um aviso verde
+e a chave some da tela). **Ver minha tela** é separado: sem ele, ele conversa mas não vê nada.
 
 | Provedor | Vê a tela? | Como configurar |
 |---|---|---|
-| **Claude** (padrão) | Sim | Variável de ambiente `ANTHROPIC_API_KEY`. Modelo padrão `claude-opus-5-5`; `claude-haiku-5-5` sai bem mais barato. |
-| **OpenAI** | Sim | Variável `OPENAI_API_KEY`. Modelo padrão `gpt-5-mini`. |
-| **DeepSeek** | Não (só o nome do programa e o título da janela) | Variável `DEEPSEEK_API_KEY`. A API do DeepSeek não aceita imagem. |
+| **Claude** (padrão) | Sim | Chave da Anthropic (`ANTHROPIC_API_KEY`). Modelo padrão `claude-opus-5-5`; `claude-haiku-5-5` sai bem mais barato. |
+| **OpenAI** | Sim | Chave da OpenAI (`OPENAI_API_KEY`). Modelo padrão `gpt-5-mini`. |
+| **DeepSeek** | Não (só o nome do programa e o título da janela) | Chave do DeepSeek (`DEEPSEEK_API_KEY`). A API do DeepSeek não aceita imagem. |
 | **Ollama** (local) | Sim, com modelo de visão | Sem chave e sem internet. Instale o [Ollama](https://ollama.com) e rode `ollama pull qwen2.5vl:7b` (ou `gemma3`, `minicpm-v`, `llava`). Precisa de uma placa de vídeo com uns 8 GB para responder em poucos segundos. |
 
-No Windows, para definir a chave (depois reabra o terminal e o Pestinha):
-
-```bash
-setx ANTHROPIC_API_KEY "sua-chave"
-```
-
-A chave nunca é gravada pelo app. Cada olhada (a cada ~2,5 min, e logo depois de trocar de programa) e
+A chave é gravada no arquivo `.env` da pasta do Pestinha, que fica fora do git e da pasta `memory/`, e
+vale na hora. Também dá para usar uma variável de ambiente com o mesmo nome; se as duas existirem, vale a
+do `.env`. O campo **Modelo** recusa texto com cara de chave. Cada olhada (a cada ~2,5 min, e logo depois de trocar de programa) e
 cada mensagem custam um pouco na conta do provedor; com o Ollama, nada sai do computador.
 
 ### Pânico

@@ -29,6 +29,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_castigo_bugs_rede.py` | Reproduções diagnósticas: asserções descrevem o comportamento esperado. |
 | `test_castigo_integracao.py` | Cantinho do castigo dentro do app: o castigo vence a mesa e as travessuras, e o pânico encerra a fuga. |
 | `test_castigo_real.py` | Cantinho no app inteiro, com relógio virtual: soltar no ar, pousar, ficar preso e reagir pela rede. |
+| `test_chaves.py` | Chaves de API no .env: gravar pela tela de Configurações, carregar ao abrir, nunca aceitar uma chave no campo de modelo. |
 | `test_condicionamento.py` | Testes do condicionamento: aprender a reagir antes, extinguir, e persistir. |
 | `test_conteudo.py` | Etapa 2 do multipet: conteúdo por pet (frases, cartazes, memes, imagens). |
 | `test_escolha_pet.py` | Etapa 3 do multipet: escolha do personagem nas configurações e o nome certo em cada texto. |

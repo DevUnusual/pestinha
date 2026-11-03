@@ -190,6 +190,11 @@ class Paths:
     # ----- estado do app e seu (global) -----
 
     @property
+    def env(self):
+        """Chaves de API (.env), gravadas pela tela de Configurações. Fica fora de memory/ e do git."""
+        return self.root / ".env"
+
+    @property
     def memory(self):
         """Pasta memory/: tudo que é seu e do app, fora do código."""
         return self.root / "memory"

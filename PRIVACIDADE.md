@@ -30,8 +30,11 @@ Só valem com **Usar IA** ligado em Configurações, e cada parte tem a própria
 - **O que fica gravado:** nada. O print, o título, o resumo e a conversa ficam só na memória enquanto o app
   está aberto (o botão **Esquecer** do chat apaga a conversa na hora). Não vão para `memory/` nem para o
   log. O que fica é o efeito na rede neural, como qualquer outro estímulo.
-- **As chaves** ficam nas variáveis de ambiente do sistema (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
-  `DEEPSEEK_API_KEY`); o app não grava chave nenhuma.
+- **As chaves** que você salva em Configurações ficam no arquivo `.env` da pasta do Pestinha, em texto,
+  só no seu computador: fora de `memory/` (então "apagar todos os dados" não as apaga) e fora do git.
+  Depois de salva, a chave não aparece mais na tela, só os 4 últimos caracteres. Para apagar, edite ou
+  apague o `.env`. Variáveis de ambiente com o mesmo nome (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+  `DEEPSEEK_API_KEY`) também funcionam.
 - O pânico (`Ctrl + Alt + Shift + B`) corta tudo, inclusive a resposta que ainda estava a caminho.
 
 ## O que ele grava (tudo em `memory/`)

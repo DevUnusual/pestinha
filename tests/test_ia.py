@@ -76,7 +76,7 @@ def test_persona_entra_no_prompt():
 
 def test_sem_chave_explica_qual_variavel(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    with pytest.raises(provedores.ErroIA, match="OPENAI_API_KEY"):
+    with pytest.raises(provedores.ErroIA, match="Salvar chave"):
         provedores.criar_cliente("openai")
 
 

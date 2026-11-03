@@ -4,7 +4,8 @@
 
 - Opcional e desligado por padrão: o grupo **Visão e conversa (IA)** nas Configurações liga a IA, a visão
   da tela, os comentários e o chat, e escolhe o provedor (Claude, OpenAI, DeepSeek ou Ollama local) e o
-  modelo. As chaves vêm das variáveis de ambiente.
+  modelo. A chave é colada no campo **Chave** e gravada no `.env` (fora do git) pelo botão **Salvar
+  chave**, que avisa em verde e apaga o campo; vale sem reabrir. O campo **Modelo** recusa chaves.
 - **Visão:** de tempos em tempos (e logo depois de trocar de programa) ele manda um print e o título da
   janela ativa para o modelo, que devolve um resumo, talvez um comentário, e quatro sinais (graça, erro,
   foco, novidade).

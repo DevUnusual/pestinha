@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import config
-from ..ia import provedores
+from ..ia import chaves, provedores
 from ..sense import timeline
 from ..core.emotion import EYE_SHAPES
 from ..body.pet import draw_face
@@ -47,6 +47,8 @@ QComboBox:disabled, QLineEdit:disabled { color: #4d6655; }
 QPushButton { background: #17201a; color: #dfffe6; border: 1px solid #2c5236;
               border-radius: 6px; padding: 7px 18px; font-size: 13px; }
 QPushButton#start { background: #2c8a40; border-color: #63e56f; font-weight: bold; }
+QLabel#ok { color: #63e56f; font-size: 12px; font-weight: bold; }
+QLabel#erro { color: #ff9a8a; font-size: 12px; font-weight: bold; }
 QPushButton:hover { border-color: #63e56f; }
 """
 
@@ -71,6 +73,7 @@ class SettingsDialog(QDialog):
     """
 
     changed = Signal(dict)
+    chave_salva = Signal(str)          # nome da variável (ANTHROPIC_API_KEY...) que acabou de ser salva no .env
     wipe_all = Signal()
     history_wiped = Signal()
 
@@ -217,10 +220,25 @@ class SettingsDialog(QDialog):
         linha.addWidget(QLabel("Modelo:"))
         self.modelo_campo = QLineEdit(self.perms["ia_modelo"])
         self.modelo_campo.setMaxLength(100)
-        self.modelo_campo.editingFinished.connect(
-            lambda: self._set("ia_modelo", self.modelo_campo.text().strip()))
+        self.modelo_campo.editingFinished.connect(self._trocar_modelo)
         linha.addWidget(self.modelo_campo, 1)
         layout.addLayout(linha)
+        self.chave_linha = QWidget()
+        linha = QHBoxLayout(self.chave_linha)
+        linha.setContentsMargins(0, 0, 0, 0)
+        linha.addWidget(QLabel("Chave:"))
+        self.chave_campo = QLineEdit()
+        self.chave_campo.setEchoMode(QLineEdit.Password)     # não aparece na tela
+        self.chave_campo.setMaxLength(400)
+        self.chave_campo.returnPressed.connect(self._salvar_chave)
+        linha.addWidget(self.chave_campo, 1)
+        self.chave_botao = QPushButton("Salvar chave")
+        self.chave_botao.clicked.connect(self._salvar_chave)
+        linha.addWidget(self.chave_botao)
+        layout.addWidget(self.chave_linha)
+        self.chave_estado = QLabel()
+        self.chave_estado.setWordWrap(True)
+        layout.addWidget(self.chave_estado)
         self.provedor_dica = QLabel()
         self.provedor_dica.setObjectName("hint")
         self.provedor_dica.setWordWrap(True)
@@ -232,18 +250,64 @@ class SettingsDialog(QDialog):
         self._set("ia_provedor", self.provedor_combo.currentData())
         self.modelo_campo.setText("")
         self._set("ia_modelo", "")
+        self.chave_campo.clear()
         self._atualizar_provedor()
+
+    def _trocar_modelo(self):
+        """Grava o modelo. Uma chave colada aqui por engano é recusada e apagada da tela."""
+        texto = self.modelo_campo.text().strip()
+        if chaves.parece_chave(texto):
+            self.modelo_campo.clear()
+            self._set("ia_modelo", "")
+            self._mostrar_estado_chave("Isso parece uma chave, não um modelo. Cole a chave no campo Chave "
+                                       "e clique em Salvar chave.", erro=True)
+            return
+        self._set("ia_modelo", texto)
+
+    def _salvar_chave(self):
+        """Grava a chave no .env, apaga do campo e avisa que deu certo (ou por que não deu)."""
+        dados = provedores.info(self.perms["ia_provedor"])
+        valor = self.chave_campo.text().strip()
+        self.chave_campo.clear()                        # some da tela, dando certo ou não
+        if not dados["chave"]:
+            return
+        if not valor:
+            self._mostrar_estado_chave("Cole a chave no campo antes de salvar.", erro=True)
+            return
+        try:
+            chaves.salvar_chave(self.paths.env, dados["chave"], valor)
+        except (ValueError, OSError) as erro:
+            self._mostrar_estado_chave(f"Não salvou: {erro}", erro=True)
+            return
+        self._mostrar_estado_chave(f"✔ Chave salva (termina em …{valor[-4:]}). Já está valendo.")
+        self.chave_salva.emit(dados["chave"])
+
+    def _mostrar_estado_chave(self, texto, erro=False):
+        """Linha de aviso embaixo da chave: verde quando deu certo, vermelha quando não."""
+        self.chave_estado.setObjectName("erro" if erro else "ok")
+        self.chave_estado.setStyleSheet("")             # reaplica o estilo do novo objectName
+        self.chave_estado.setText(texto)
+        self.chave_estado.setVisible(bool(texto))
 
     def _atualizar_provedor(self):
         """Modelo padrão no campo vazio e a dica de onde fica a chave."""
         dados = provedores.info(self.perms["ia_provedor"])
         self.modelo_campo.setPlaceholderText(f"padrão: {dados['modelo']}")
+        self.chave_linha.setVisible(bool(dados["chave"]))
         if dados["chave"]:
-            dica = (f"A chave fica na variável de ambiente {dados['chave']} (nunca neste app). "
-                    "Cada olhada e cada mensagem custam um pouco na conta do provedor.")
+            final = chaves.final_da_chave(dados["chave"])
+            self.chave_campo.setPlaceholderText(f"cole aqui a chave ({dados['chave']})")
+            if final:
+                self._mostrar_estado_chave(f"✔ Chave configurada (termina em …{final}).")
+            else:
+                self._mostrar_estado_chave("Nenhuma chave configurada para este provedor.", erro=True)
+            dica = ("A chave é gravada no arquivo .env da pasta do Pestinha (fora do git e da pasta memory/) "
+                    "e não aparece mais na tela depois de salva. Cada olhada e cada mensagem custam um "
+                    "pouco na conta do provedor.")
         else:
             dica = ("Roda no seu computador, sem internet e sem custo. Instale o Ollama e baixe um modelo "
                     f"de visão: ollama pull {dados['modelo']} (precisa de uma placa de vídeo razoável).")
+            self._mostrar_estado_chave("")
         if not dados["ve_imagem"]:
             dica += " Este provedor não vê imagem: ele conhece só o nome do programa e o título da janela."
         self.provedor_dica.setText(dica)
@@ -325,8 +389,8 @@ class SettingsDialog(QDialog):
             self.boxes[key].setEnabled(ia)
         self.boxes["comentarios"].setEnabled(ia and self.perms["ver_tela"])
         if hasattr(self, "provedor_combo"):
-            self.provedor_combo.setEnabled(ia)
-            self.modelo_campo.setEnabled(ia)
+            for campo in (self.provedor_combo, self.modelo_campo, self.chave_campo, self.chave_botao):
+                campo.setEnabled(ia)
 
     def set_active(self, on):
         """Atualiza a caixa 'ligado' sem disparar a gravação (usado pelo pânico)."""
