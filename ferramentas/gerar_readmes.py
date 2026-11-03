@@ -16,7 +16,8 @@ CAMADAS = [
     ("core", "Cérebro e regras puras: rede neural, emoção, homeostase, memória, condicionamento, física e protesto. "
              "Sem Qt e sem API do sistema, para ser testável em qualquer lugar.", "módulos compartilhados"),
     ("ia", "Visão e conversa por um modelo de IA (Claude, OpenAI, DeepSeek ou Ollama local): os clientes, os "
-           "prompts e a leitura das respostas. Sem Qt; as chamadas rodam em thread (ver mind/visao.py).",
+           "prompts e a leitura das respostas, e a voz para texto (pelo serviço de servidor/voz/). Sem Qt; "
+           "as chamadas rodam em thread (ver mind/visao.py e mind/voz_ctl.py).",
      "core e módulos compartilhados"),
     ("plataforma", "Tudo que depende do sistema operacional: programa em primeiro plano, tempo ocioso, janelas, "
                    "tela cheia, foco e o atalho de pânico. Um módulo por sistema (Windows, macOS, Linux). "

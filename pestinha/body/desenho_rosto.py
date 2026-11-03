@@ -69,8 +69,9 @@ def lerp_shape(current, target, k):
     return {key: current[key] + (target[key] - current[key]) * k for key in target}
 
 
-def draw_face(p, shape, gaze=(0.0, 0.0), blink=1.0, emotion="observando", carinho=False, aparencia=PADRAO):
-    """Desenha moldura + tela + olhos (+ acessórios) com centro na origem do painter."""
+def draw_face(p, shape, gaze=(0.0, 0.0), blink=1.0, emotion="observando", carinho=False, aparencia=PADRAO,
+              ouvindo=False):
+    """Desenha moldura + tela + olhos (+ sinal de ouvindo, + acessórios) com centro na origem do painter."""
     a = aparencia
     p.setPen(QPen(a.moldura, 5))
     p.setBrush(a.casca)
@@ -92,9 +93,19 @@ def draw_face(p, shape, gaze=(0.0, 0.0), blink=1.0, emotion="observando", carinh
         p.setPen(Qt.NoPen)
     else:
         _olhos(p, shape, gaze, blink, emotion, a)
+    if ouvindo:
+        _ouvindo(p, a.olho)
     for nome, cor in a.acessorios:
         if nome == "oculos":
             _oculos(p, cor)
+
+
+def _ouvindo(p, cor):
+    """Três ondinhas no canto da tela: ele está ouvindo você."""
+    p.setPen(QPen(cor, 2.2, Qt.SolidLine, Qt.RoundCap))
+    p.setBrush(Qt.NoBrush)
+    for r in (4, 8, 12):
+        p.drawArc(QRectF(36 - r, -26 - r, 2 * r, 2 * r), -45 * 16, 90 * 16)
 
 
 def _olhos(p, shape, gaze, blink, emotion, a):

@@ -18,6 +18,7 @@ SHELL_CLASSES = {"Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd"
 MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT = 0x1, 0x2, 0x4, 0x4000
 WM_HOTKEY = 0x0312
 HOTKEY_ID = 0xB0DD
+HOTKEY_FALAR_ID = 0xB0DE
 
 
 class LASTINPUTINFO(ctypes.Structure):
@@ -156,8 +157,8 @@ def sem_foco_nativo(janela_id):
         pass    # sem janela nativa (ex.: teste offscreen)
 
 
-def iniciar_atalho(callback):
-    """RegisterHotKey numa thread com fila de mensagens própria. Devolve True se conseguiu."""
+def _registrar(tecla, ident, callback, nome):
+    """RegisterHotKey de Ctrl+Alt+Shift+`tecla` numa thread com fila de mensagens própria. True se conseguiu."""
     pronto = threading.Event()
     resultado = {"ok": False}
 
@@ -165,17 +166,32 @@ def iniciar_atalho(callback):
         """Laço da thread que registra o atalho e recebe as teclas do sistema."""
         user32 = ctypes.windll.user32
         resultado["ok"] = bool(user32.RegisterHotKey(
-            None, HOTKEY_ID, MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, ord("B")
+            None, ident, MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, ord(tecla)
         ))
         pronto.set()
         if not resultado["ok"]:
-            log("[pânico] não deu para registrar o atalho (outro programa usa?)")
+            log(f"[{nome}] não deu para registrar o atalho (outro programa usa?)")
             return
         msg = wintypes.MSG()
         while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
-            if msg.message == WM_HOTKEY and msg.wParam == HOTKEY_ID:
+            if msg.message == WM_HOTKEY and msg.wParam == ident:
                 callback()
 
     threading.Thread(target=laco, daemon=True).start()
     pronto.wait(2.0)
     return resultado["ok"]
+
+
+def iniciar_atalho(callback):
+    """Ctrl+Alt+Shift+B (pânico). Devolve True se conseguiu."""
+    return _registrar("B", HOTKEY_ID, callback, "pânico")
+
+
+def iniciar_atalho_falar(callback):
+    """Ctrl+Alt+Shift+V (segurar para falar). Devolve True se conseguiu."""
+    return _registrar("V", HOTKEY_FALAR_ID, callback, "voz")
+
+
+def tecla_falar_segurada():
+    """A tecla V ainda está apertada? (o Windows sabe: dá para soltar e parar de ouvir)."""
+    return bool(ctypes.windll.user32.GetAsyncKeyState(ord("V")) & 0x8000)

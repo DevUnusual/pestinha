@@ -3,7 +3,8 @@ CONVERSA - a janelinha de chat com o pet (botão direito nele, Conversar).
 
 É a única janela do pet que recebe o foco: você abriu para digitar. Mostra a conversa desta
 sessão (nada é gravado em disco) e manda cada mensagem pelo sinal `enviar`. Quem pergunta
-ao modelo é mind/visao.py.
+ao modelo é mind/visao.py. Com a voz ligada, o botão de microfone grava e a fala vira texto no campo
+(quem ouve é mind/voz_ctl.py).
 """
 
 import html
@@ -24,6 +25,8 @@ QLineEdit:focus { border-color: #63e56f; }
 QPushButton { background: #2c8a40; color: #dfffe6; border: 1px solid #63e56f; border-radius: 6px;
               padding: 6px 14px; font-weight: bold; }
 QPushButton:disabled { background: #17201a; border-color: #2c5236; color: #4d6655; }
+QPushButton#microfone { background: #17201a; padding: 6px 10px; }
+QPushButton#microfone:checked { background: #b3261e; border-color: #ff9a8a; }
 """
 
 
@@ -32,6 +35,7 @@ class ConversaJanela(QWidget):
 
     enviar = Signal(str)
     esquecer = Signal()
+    microfone = Signal()            # o botão de microfone: começa ou para de gravar
 
     def __init__(self, nome):
         """Monta a janela; `nome` é o do personagem (quem responde)."""
@@ -55,6 +59,13 @@ class ConversaJanela(QWidget):
         self.campo.setMaxLength(1000)
         self.campo.returnPressed.connect(self._enviar)
         linha.addWidget(self.campo, 1)
+        self.mic = QPushButton("🎤")
+        self.mic.setObjectName("microfone")
+        self.mic.setCheckable(True)
+        self.mic.setToolTip("Clique e fale; clique de novo para parar. A sua fala vira texto aqui no campo.")
+        self.mic.clicked.connect(lambda _marcado: self.microfone.emit())
+        self.mic.setVisible(False)
+        linha.addWidget(self.mic)
         self.botao = QPushButton("Enviar")
         self.botao.clicked.connect(self._enviar)
         linha.addWidget(self.botao)
@@ -78,6 +89,25 @@ class ConversaJanela(QWidget):
         cor = "#ff9a8a" if erro else ("#63e56f" if quem == self.nome else "#9fd0ff")
         self.historico.append(f'<p><b style="color:{cor}">{html.escape(quem)}:</b> {html.escape(texto)}</p>')
         self.historico.verticalScrollBar().setValue(self.historico.verticalScrollBar().maximum())
+
+    def set_microfone(self, ligado, gravando=False, transcrevendo=False):
+        """O botão de microfone: só aparece com a voz ligada; vermelho enquanto grava."""
+        self.mic.setVisible(ligado)
+        self.mic.setChecked(gravando)
+        self.mic.setEnabled(ligado and not transcrevendo)
+        if gravando:
+            self.estado.setText("Ouvindo... clique no microfone para parar.")
+        elif transcrevendo:
+            self.estado.setText("Transformando a sua fala em texto...")
+        elif self.estado.text().startswith(("Ouvindo", "Transformando")):
+            self.estado.setText("")
+
+    def ditar(self, texto):
+        """O texto da sua fala entra no campo (depois do que já estava escrito), para conferir e mandar."""
+        atual = self.campo.text().rstrip()
+        self.campo.setText(f"{atual} {texto}".strip()[:self.campo.maxLength()])
+        self.campo.setFocus()
+        self.campo.end(False)
 
     def set_ocupado(self, ocupado):
         """Enquanto ele pensa, não dá para mandar outra mensagem."""

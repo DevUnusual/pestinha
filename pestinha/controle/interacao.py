@@ -102,7 +102,7 @@ class InteracaoMixin:
         self.mesa.levantar_arrancado(now)
         self.senses.dismissed()                    # a dispensa entra na rede como frustração
         alvo = self.sad_ctl if self.reacao_notebook == "triste" else self.protest_ctl
-        alvo.provoke(INSATISFACAO_NOTEBOOK)
+        alvo.provoke(INSATISFACAO_NOTEBOOK, "arrancaram o meu notebook")
         if self.debugging():
             log(f"[notebook] arrancado: reação {self.reacao_notebook}")
 
@@ -194,9 +194,17 @@ class InteracaoMixin:
             janela.esquecer.connect(self.visao.conversa.limpar)
             self.visao.resposta.connect(lambda texto: self._fim_conversa(texto))
             self.visao.erro_conversa.connect(lambda texto: self._fim_conversa(texto, erro=True))
+            janela.microfone.connect(self.voz.alternar_microfone)
+            self.voz.estado.connect(self.atualizar_microfone)
             self.conversa_janela = janela
         self.conversa_janela.set_aviso(self.visao.descricao())
+        self.atualizar_microfone()
         self.conversa_janela.abrir()
+
+    def on_double_click(self):
+        """Dois cliques rápidos no pet: abre o chat, se a conversa estiver ligada em Configurações."""
+        if self.perms["ia"] and self.perms["conversa"]:
+            self.menu_conversar()
 
     def _enviar_conversa(self, texto):
         """Você mandou uma mensagem: ele começa a pensar (ou explica por que não dá agora)."""
@@ -208,6 +216,28 @@ class InteracaoMixin:
             motivo = ("a conversa está desligada em Configurações" if not (self.perms["ia"] and self.perms["conversa"])
                       else f"o {self.nome} está pausado ou desligado agora")
             janela.adicionar(self.nome, motivo, erro=True)
+
+    def _ouvi(self, texto):
+        """Você falou pelo atalho: vai para ele como se tivesse escrito no chat (a resposta vem no balão)."""
+        janela = self.conversa_janela
+        if janela is not None and janela.isVisible():
+            janela.adicionar("Você", texto)
+        if self.visao.perguntar(texto):
+            if janela is not None:
+                janela.set_ocupado(True)
+        elif janela is not None and janela.isVisible() and not self.visao.respondendo:
+            janela.adicionar(self.nome, f"o {self.nome} está pausado ou desligado agora", erro=True)
+
+    def atualizar_microfone(self):
+        """O botão de microfone do chat segue a permissão de voz e o que a voz está fazendo."""
+        if self.conversa_janela is not None:
+            v = self.voz
+            self.conversa_janela.set_microfone(v.ligada(), v.gravando == "chat", v.transcrevendo)
+
+    def _ditado(self, texto):
+        """Você falou pelo botão de microfone do chat: o texto cai no campo, para conferir e mandar."""
+        if self.conversa_janela is not None:
+            self.conversa_janela.ditar(texto)
 
     def _fim_conversa(self, texto, erro=False):
         """Resposta (ou falha) do chat."""

@@ -2,7 +2,7 @@
 
 > Gerado por `ferramentas/gerar_readmes.py` a partir das docstrings. Não edite à mão: rode o script.
 
-Visão e conversa por um modelo de IA (Claude, OpenAI, DeepSeek ou Ollama local): os clientes, os prompts e a leitura das respostas. Sem Qt; as chamadas rodam em thread (ver mind/visao.py).
+Visão e conversa por um modelo de IA (Claude, OpenAI, DeepSeek ou Ollama local): os clientes, os prompts e a leitura das respostas, e a voz para texto (pelo serviço de servidor/voz/). Sem Qt; as chamadas rodam em thread (ver mind/visao.py e mind/voz_ctl.py).
 
 **Pode importar de:** core e módulos compartilhados (e dos módulos compartilhados). A regra é verificada por `tests/test_arquitetura.py`.
 
@@ -11,3 +11,4 @@ Visão e conversa por um modelo de IA (Claude, OpenAI, DeepSeek ou Ollama local)
 | `chaves.py` | As chaves de API no arquivo .env da pasta do Pestinha. |
 | `mente.py` | O que o pet pergunta ao modelo e como ele entende a resposta. |
 | `provedores.py` | Quem responde pelo pet: Claude, OpenAI, DeepSeek ou um modelo local no Ollama. |
+| `voz.py` | A sua fala vira texto pelo serviço de voz (servidor/voz/), no formato da API de áudio da OpenAI. |

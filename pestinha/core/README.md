@@ -16,3 +16,4 @@ Cérebro e regras puras: rede neural, emoção, homeostase, memória, condiciona
 | `nervous_system.py` | A rede neural pulsada do pet (neurônios de integração e disparo com vazamento). |
 | `physics.py` | Corpo 2D do pet: gravidade, inércia, rotação, quique e pouso. |
 | `protesto.py` | A insatisfação do pet e o estágio em que ele está. |
+| `rotulos.py` | Os nomes que aparecem na tela, em português. |

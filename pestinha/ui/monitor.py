@@ -12,11 +12,11 @@ Abre pela bandeja ("Monitor neural"). Só grava o raster enquanto está aberto.
 
 import numpy as np
 from PySide6.QtCore import QRectF, Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QImage, QPainter
+from PySide6.QtGui import QColor, QFont, QGuiApplication, QImage, QPainter
 from ..world.arrastavel import FloatingWidget
 
 from ..config import EMOTION_NAMES
-from .rotulos import nome_canal
+from ..core.rotulos import nome_canal
 from ..core.protesto import STAGE_NAMES
 
 BG = QColor("#0d110f")
@@ -48,7 +48,11 @@ class NeuralMonitor(FloatingWidget):
     """Janela de diagnóstico: mostra os disparos da rede, a atividade dos motores e as necessidades do pet em tempo real."""
     def __init__(self, app, default_pos):
         """Cria a janela do monitor e um relógio para redesenhar."""
-        super().__init__(app, "neural", f"{app.nome} · Monitor neural", (1180, 700), (980, 620), default_pos)
+        # mais alto que o mínimo para os canais caberem em 2 colunas, mas nunca maior que a tela
+        tela = QGuiApplication.primaryScreen().availableGeometry()
+        tamanho = (min(1180, tela.width() - 40), min(800, tela.height() - 40))
+        minimo = (min(980, tamanho[0]), min(620, tamanho[1]))
+        super().__init__(app, "neural", f"{app.nome} · Monitor neural", tamanho, minimo, default_pos)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update)
         self.timer.start(100)
@@ -140,10 +144,17 @@ class NeuralMonitor(FloatingWidget):
         y += 20
         eff = brain.efficacy()
         names = brain.sensory_names
-        col_w = (w - 12) / 2
+        tone = app.behavior.tone
+        # o resto do painel (motores e estado) tem altura fixa; os canais dividem o que sobra,
+        # em 2 colunas se couber, senão em 3 (são muitos canais desde a visão)
+        livre = area.height() - (20 + 10 + 20 + len(tone.r) * 17 + 45 + 120)
+        cols = 2 if livre / -(-len(names) // 2) >= 15 else 3
+        rows = -(-len(names) // cols)
+        row_h = max(13.0, min(22.0, livre / rows))
+        col_w = (w - 12 * (cols - 1)) / cols
         for i, name in enumerate(names):
-            cx = x + (i % 2) * (col_w + 12)
-            cy = y + (i // 2) * 22
+            cx = x + (i % cols) * (col_w + 12)
+            cy = y + (i // cols) * row_h
             p.setFont(mono)
             p.setPen(TEXT)
             p.drawText(QRectF(cx, cy, 64, 12), Qt.AlignLeft | Qt.AlignVCenter, nome_canal(name))
@@ -153,13 +164,12 @@ class NeuralMonitor(FloatingWidget):
             self._bar(p, bx, cy + 8, bw, eff[name], EFFICACY, 3)
             p.setPen(MUTED)
             p.drawText(QRectF(bx + bw + 2, cy, 32, 12), Qt.AlignRight | Qt.AlignVCenter, f"{eff[name]:.2f}")
-        y += ((len(names) + 1) // 2) * 22 + 10
+        y += rows * row_h + 10
 
         # ---- motores -> corpo ----
         self._title(p, x, y + 10, "Motores → o que controlam no corpo")
         y += 20
         motor = brain.motor_activity()
-        tone = app.behavior.tone
         for m in tone.r:
             p.setFont(mono)
             p.setPen(MOTOR)

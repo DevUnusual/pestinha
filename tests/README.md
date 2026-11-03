@@ -37,6 +37,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_homeostase.py` | Homeostase: trabalhar é estímulo, então o tédio não sobe enquanto ele programa. |
 | `test_ia.py` | Visão e conversa pela IA: o texto do modelo, os clientes (com SDK falsa, sem rede) e o controlador dentro do app de verdade (Qt offscreen, pasta temporária). |
 | `test_jorge.py` | Etapa 4 do multipet: o Jorge, segundo personagem, feito só de configuração e conteúdo. |
+| `test_memoria.py` | Memória compartilhada: o serviço de servidor/memoria/ de verdade (numa porta livre, pasta temporária) e dois "computadores" (duas pastas) sincronizando por ele. |
 | `test_mesa.py` | Notebook: sentar e levantar pelo disparo do neurônio SENTAR. |
 | `test_migracao.py` | Etapa 1 do multipet: memória por pet (memory/pets/<pet>/) e a migração da versão antiga. |
 | `test_nucleo.py` | Testes dos módulos puros: nada de Qt, nada de Windows. |
@@ -45,3 +46,4 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_plataforma.py` | Plataforma: cada sistema expõe as mesmas funções, e as leituras de texto (wmctrl, xdotool, ioreg, janelas do Quartz) são testadas com saídas de exemplo, em qualquer sistema. |
 | `test_robustez.py` | Robustez: arquivo corrompido, assets faltando, log em arquivo. |
 | `test_robustez_v2.py` | Falhas do relatório técnico (docs/auditorias/ANALISE_TECNICA.md): cada caso tem um teste que reproduz o problema. |
+| `test_voz.py` | Voz: o áudio e o cliente do serviço de transcrição (com um servidor HTTP falso nesta máquina) e o controlador dentro do app de verdade (Qt offscreen, microfone falso). |

@@ -15,7 +15,7 @@ core  <  ia  <  sense  <  body  <  world  <  mind  <  ui  <  controle  <  app.py
 | Pasta | Papel |
 |---|---|
 | `core/` | Cérebro e regras puras: rede neural, emoção, homeostase, memória, condicionamento, física e protesto. Sem Qt e sem API do sistema, para ser testável em qualquer lugar. |
-| `ia/` | Visão e conversa por um modelo de IA (Claude, OpenAI, DeepSeek ou Ollama local): os clientes, os prompts e a leitura das respostas. Sem Qt; as chamadas rodam em thread (ver mind/visao.py). |
+| `ia/` | Visão e conversa por um modelo de IA (Claude, OpenAI, DeepSeek ou Ollama local): os clientes, os prompts e a leitura das respostas, e a voz para texto (pelo serviço de servidor/voz/). Sem Qt; as chamadas rodam em thread (ver mind/visao.py e mind/voz_ctl.py). |
 | `plataforma/` | Tudo que depende do sistema operacional: programa em primeiro plano, tempo ocioso, janelas, tela cheia, foco e o atalho de pânico. Um módulo por sistema (Windows, macOS, Linux). Só nome de programa e geometria; o título da janela só com "Ver minha tela" ligado. |
 | `sense/` | Sentidos: o que as leituras da plataforma significam (atividade, tela cheia, janela para pousar) e registro da rotina. Título de janela só para a visão da IA, se você ligar. |
 | `body/` | O corpo do pet: a janela com o rosto, o estado que ele mostra, o comportamento (movimento) e a bolinha. |

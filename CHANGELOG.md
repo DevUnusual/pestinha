@@ -1,5 +1,50 @@
 # Histórico de versões
 
+## O mesmo pet em todos os computadores
+
+- **Serviço de memória** em `servidor/memoria/` (só Python, nada para instalar): guarda a rede, a memória,
+  o humor e a personalidade (`pets/<pet>.json`) de cada pet, com versão por documento. Serviço de usuário
+  (`systemctl --user`), porta 11600, token opcional (`PESTINHA_MEMORIA_TOKEN`).
+- **Compartilhar a memória dele** (desligado por padrão) e **Servidor da memória** + **Testar memória** nas
+  Configurações. Ao abrir, baixa o que outro computador gravou (vale o mais novo); aberto, manda o que
+  mudou a cada minuto e ao fechar (vale o daqui). Sem rede, segue com a memória local. Avisa se o pet já
+  está aberto em outro computador. Novo `pestinha/memoria_remota.py`.
+- **Lembrar o que viu** (desligado por padrão): o resumo curto da IA, o programa, a hora, o sistema e o
+  computador vão para `lembrancas_<computador>.jsonl`, só quando muda de assunto e no máximo a cada 10 min.
+  Cada computador grava as próprias e lê as dos outros: no Mac, ele pode lembrar do que você fazia no
+  Windows e perguntar como ficou. Novo `pestinha/mind/lembrancas.py`.
+
+## Rede e IA em sincronia
+
+- **Rede -> IA:** cada olhada e cada mensagem do chat levam o estado da rede naquele instante (emoção,
+  o que os motores querem, energia, tédio, carência, protesto e o motivo, castigo, o que ele já enjoou).
+  O temperamento de `pets/<pet>.json` vira texto no prompt do sistema. Perguntado por que está bravo ou
+  como é o temperamento dele, responde pela rede, não com algo genérico. Novo `pestinha/mind/sincronia.py`.
+- **IA -> rede:** como antes, pelos canais `VISAO_*` e `CONVERSA`.
+- O protesto anota o motivo de cada salto da insatisfação (notebook arrancado, cartaz fechado à força), e
+  as mudanças de estágio vão sempre para o log, não só na depuração.
+- `pets/<pet>.json` aceita `exemplos` (falas que dão o tom) e `evitar` (frases batidas proibidas). Ele não
+  repete os últimos comentários.
+- Bryan novo: curioso e marrento. Pergunta sobre o que aparece de novo na tela; a rede dele também ficou
+  mais curiosa com novidade vista (`VISAO_NOVO->CURIOUS`).
+- A visão só marca "erro" para erro de verdade (código normal não conta).
+- Monitor neural: os canais se ajustam à altura (2 ou 3 colunas) e a janela cabe na tela.
+- Dois cliques no pet abrem o chat.
+- `rotulos.py` passou de `ui/` para `core/`.
+
+## Falar com ele (voz para texto)
+
+- Opcional e desligado por padrão (**Falar com ele**, no grupo de IA): a sua fala vira texto e ele
+  responde por escrito. Segure `Ctrl + Alt + Shift + V` e fale (o texto vai direto para ele), ou use o
+  botão 🎤 da janela Conversar (o texto cai no campo para conferir). No macOS e no Linux o atalho é
+  aperta-e-aperta. Ele nunca ouve sem você apertar e para sozinho depois de 30 s.
+- Ondinhas no rosto mostram que ele está ouvindo.
+- **Serviço de voz** em `servidor/voz/` (compatível com `/v1/audio/transcriptions` da OpenAI):
+  faster-whisper `large-v3-turbo` na placa de vídeo, como serviço de usuário (`systemctl --user`), com
+  nice 10, sem sudo. Configurações: **Servidor da voz** e **Testar voz**.
+- O pânico, a pausa e desligar a voz fecham o microfone na hora.
+- Novos `pestinha/ia/voz.py` (sem Qt) e `pestinha/mind/voz_ctl.py`; atalho de falar em `plataforma/`.
+
 ## Visão e conversa pela IA
 
 - Opcional e desligado por padrão: o grupo **Visão e conversa (IA)** nas Configurações liga a IA, a visão

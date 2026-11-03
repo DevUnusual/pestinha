@@ -426,3 +426,62 @@ def test_personas_carregam(tmp_path):
     for pet_id in ("bryan", "jorge"):
         assert config.load_pet(paths, pet_id)["persona"]
     assert "NUNCA vende" in config.load_pet(paths, "jorge")["persona"]
+
+
+# ---------------- sincronia: a rede fala pelo modelo ----------------
+
+def test_temperamento_vira_texto_so_com_o_que_foge_do_normal():
+    from pestinha.mind.sincronia import descrever_temperamento
+    texto = descrever_temperamento({"CURIOUS": 1.3, "PLAYFUL": 1.1, "DISMISS->FRUSTRATION": 1.6, "DRAG->FRUSTRATION": 0.5})
+    assert "curiosidade alta" in texto and "brincadeira" not in texto
+    assert "dispensa -> frustração (forte)" in texto and "arraste -> frustração (fraco)" in texto
+    assert descrever_temperamento({}) == ""
+
+
+def test_estado_da_rede_vai_na_olhada_e_no_chat(qapp, pet):
+    app, falso = pet
+    app.protest_ctl.provoke(0.9, "arrancaram o meu notebook")
+    app.protest.stage = 2
+    app.visao.tick(time.monotonic())
+    assert esperar(qapp, lambda: not app.visao.olhando)
+    olhada = falso.chamadas[-1][1][-1]["content"]
+    assert olhada.startswith("[Seu estado agora:") and "arrancaram o meu notebook" in olhada
+    assert app.visao.perguntar("por que você tá bravo?")
+    assert esperar(qapp, lambda: not app.visao.respondendo)
+    sistema, mensagens, _ = falso.chamadas[-1]
+    assert "manifestação porque arrancaram o meu notebook" in mensagens[-1]["content"]
+    assert "rede neural" in sistema
+    assert app.visao.conversa.turnos[-2]["content"] == "por que você tá bravo?"   # o estado não fica no histórico
+
+
+def test_ele_nao_repete_o_que_ja_disse(qapp, pet):
+    app, falso = pet
+    agora = time.monotonic()
+    app.visao.tick(agora)
+    assert esperar(qapp, lambda: not app.visao.olhando)
+    app.visao.tick(agora + app.prof["visao_intervalo"] + 0.1)
+    assert esperar(qapp, lambda: len(falso.chamadas) == 2 and not app.visao.olhando)
+    assert '"Esse bug de novo?"' in falso.chamadas[-1][1][-1]["content"]
+
+
+def test_exemplos_e_frases_proibidas_do_pet():
+    pet = config.load_pet(Paths(), "bryan")
+    assert pet["exemplos"] and "vai compilar" in pet["evitar"]
+    sistema = mente.prompt_sistema("Bryan", pet["persona"], "", pet["exemplos"], pet["evitar"])
+    assert "Nunca diga" in sistema and pet["exemplos"][0] in sistema
+    assert "compilar" not in pet["persona"]
+
+
+def test_pet_invalido_nao_quebra_exemplos(tmp_path):
+    out = config._pet_valido({"exemplos": ["ok", 3, "  ", None], "evitar": "não é lista"})
+    assert out["exemplos"] == ["ok"] and "evitar" not in out
+
+
+def test_motivo_da_raiva_fica_anotado(tmp_path):
+    from pestinha.core.protesto import MAX_MOTIVOS, Protesto
+    pr = Protesto(tmp_path / "c.txt", tmp_path / "p.json")
+    for i in range(MAX_MOTIVOS + 3):
+        pr.anotar(f"motivo {i % 2}")
+    pr.repressed()
+    assert pr.motivos_recentes() == ["motivo 0", "motivo 1", "fecharam meu cartaz à força"]
+    assert len(pr.motivos) == MAX_MOTIVOS

@@ -1,0 +1,20 @@
+# Serviço de usuário (sem sudo): ~/.config/systemd/user/pestinha-voz.service
+# Instalar: systemctl --user daemon-reload && systemctl --user enable --now pestinha-voz
+# Sobrevive a reinícios com "loginctl enable-linger" (já ligado neste servidor).
+[Unit]
+Description=Pestinha voz (fala->texto, API de audio da OpenAI)
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/pestinha-voz
+Environment=PESTINHA_VOZ_MODELOS=%h/pestinha-voz/modelos
+Environment=OMP_NUM_THREADS=2
+ExecStart=%h/pestinha-voz/iniciar.sh
+Nice=10
+CPUWeight=20
+IOSchedulingClass=idle
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

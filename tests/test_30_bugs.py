@@ -173,7 +173,7 @@ def test_11_painel_so_solta_com_o_botao_que_arrastou(mundo):
 # 12
 def test_12_monitor_tem_rotulo_em_portugues_para_tudo():
     from pestinha.core.nervous_system import MOTOR_SPEC, SENSORY_SPEC
-    from pestinha.ui.rotulos import CANAIS_SENSORIAIS, MOTORES
+    from pestinha.core.rotulos import CANAIS_SENSORIAIS, MOTORES
     assert all(c in CANAIS_SENSORIAIS for c in SENSORY_SPEC)
     assert all(m[0] in MOTORES for m in MOTOR_SPEC)
 

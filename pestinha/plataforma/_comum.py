@@ -14,18 +14,18 @@ def rodar(comando, tempo=1.0):
     return resultado.stdout if resultado.returncode == 0 else None
 
 
-def atalho_pynput(callback):
-    """Ctrl + Alt + Shift + B em qualquer lugar do sistema. Precisa de pynput instalado."""
+def atalho_pynput(callback, tecla="b", nome="pânico"):
+    """Ctrl + Alt + Shift + `tecla` em qualquer lugar do sistema. Precisa de pynput instalado."""
     try:
         from pynput import keyboard
     except Exception:
-        log("[pânico] pynput não está instalado: o atalho global fica desligado (o menu da bandeja funciona)")
+        log(f"[{nome}] pynput não está instalado: o atalho global fica desligado")
         return False
     try:
-        listener = keyboard.GlobalHotKeys({"<ctrl>+<alt>+<shift>+b": callback})
+        listener = keyboard.GlobalHotKeys({f"<ctrl>+<alt>+<shift>+{tecla}": callback})
         listener.daemon = True
         listener.start()
     except Exception as error:
-        log(f"[pânico] não deu para registrar o atalho: {error}")
+        log(f"[{nome}] não deu para registrar o atalho: {error}")
         return False
     return True

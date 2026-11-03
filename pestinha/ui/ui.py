@@ -24,8 +24,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from .. import config
-from ..ia import chaves, provedores
+from .. import config, memoria_remota
+from ..ia import chaves, provedores, voz
 from ..sense import timeline
 from ..core.emotion import EYE_SHAPES
 from ..body.pet import draw_face
@@ -181,6 +181,9 @@ class SettingsDialog(QDialog):
                 self._update_history_label()
             if group_title == "Visão e conversa (IA)":
                 self._montar_provedor(layout)
+                self._montar_voz(layout)
+            if group_title == "Memória em outro computador":
+                self._montar_memoria(layout)
             root.addWidget(group)
 
         panic = QLabel(f"Pânico (desliga tudo e fica desligado): {config.PANIC_HOTKEY_TEXT}")
@@ -257,6 +260,122 @@ class SettingsDialog(QDialog):
         self.provedor_dica.setWordWrap(True)
         layout.addWidget(self.provedor_dica)
         self._atualizar_provedor()
+
+    def _montar_voz(self, layout):
+        """Onde fica o serviço de voz (servidor/voz/), que transforma a sua fala em texto."""
+        linha = QHBoxLayout()
+        linha.addWidget(QLabel("Servidor da voz:"))
+        self.voz_campo = QLineEdit(self.perms["voz_url"])
+        self.voz_campo.setPlaceholderText(f"vazio = este computador ({voz.VOZ_URL_PADRAO})")
+        self.voz_campo.setMaxLength(200)
+        self.voz_campo.editingFinished.connect(self._trocar_endereco_voz)
+        linha.addWidget(self.voz_campo, 1)
+        self.voz_botao = QPushButton("Testar voz")
+        self.voz_botao.clicked.connect(self._testar_voz)
+        linha.addWidget(self.voz_botao)
+        layout.addLayout(linha)
+        self.voz_dica = QLabel("O computador que transforma a sua fala em texto (o serviço da pasta "
+                               "servidor/voz/, precisa de placa de vídeo). Se ele roda em outro computador "
+                               "da casa, digite o IP dele, por exemplo 192.168.0.10. O áudio vai só para lá.")
+        self.voz_dica.setObjectName("hint")
+        self.voz_dica.setWordWrap(True)
+        layout.addWidget(self.voz_dica)
+        self.voz_estado = QLabel()
+        self.voz_estado.setWordWrap(True)
+        self.voz_estado.setVisible(False)
+        layout.addWidget(self.voz_estado)
+
+    def _montar_memoria(self, layout):
+        """Onde fica o serviço de memória (servidor/memoria/), que guarda o pet para todos os computadores."""
+        linha = QHBoxLayout()
+        linha.addWidget(QLabel("Servidor da memória:"))
+        self.memoria_campo = QLineEdit(self.perms["memoria_url"])
+        self.memoria_campo.setPlaceholderText("ex.: 192.168.0.10")
+        self.memoria_campo.setMaxLength(200)
+        self.memoria_campo.editingFinished.connect(self._trocar_endereco_memoria)
+        linha.addWidget(self.memoria_campo, 1)
+        self.memoria_botao = QPushButton("Testar memória")
+        self.memoria_botao.clicked.connect(self._testar_memoria)
+        linha.addWidget(self.memoria_botao)
+        layout.addLayout(linha)
+        dica = QLabel(f"Este computador aparece lá como \"{memoria_remota.maquina_atual()}\" "
+                      f"({memoria_remota.sistema_atual()}). Sem internet ou com o servidor desligado, ele "
+                      "usa a memória daqui e sincroniza quando der.")
+        dica.setObjectName("hint")
+        dica.setWordWrap(True)
+        layout.addWidget(dica)
+        self.memoria_estado = QLabel()
+        self.memoria_estado.setWordWrap(True)
+        self.memoria_estado.setVisible(False)
+        layout.addWidget(self.memoria_estado)
+
+    def _trocar_endereco_memoria(self):
+        """Grava o endereço do serviço de memória já completo (http:// e a porta); um endereço ruim é recusado."""
+        texto = self.memoria_campo.text().strip()
+        base = memoria_remota.endereco_memoria(texto) if texto else ""
+        if base is None:
+            self._mostrar_estado_memoria("Endereço inválido. Exemplos: 192.168.0.10 ou http://192.168.0.10:11600",
+                                         erro=True)
+            self.memoria_campo.setText(self.perms["memoria_url"])
+            return
+        self.memoria_campo.setText(base)
+        if base != self.perms["memoria_url"]:
+            self._set("memoria_url", base)
+            self._mostrar_estado_memoria("Vale na próxima vez que abrir.")
+
+    def _testar_memoria(self):
+        """Pergunta ao serviço de memória se ele responde (espera uns segundos no máximo)."""
+        self._trocar_endereco_memoria()
+        self.memoria_botao.setEnabled(False)
+        self.memoria_botao.setText("Testando...")
+        QApplication.processEvents()
+        try:
+            ok, mensagem = memoria_remota.testar_memoria(self.perms["memoria_url"])
+        finally:
+            self.memoria_botao.setText("Testar memória")
+            self._sync_enabled()
+        self._mostrar_estado_memoria(("✔ " if ok else "") + mensagem, erro=not ok)
+
+    def _mostrar_estado_memoria(self, texto, erro=False):
+        """Linha de aviso do serviço de memória: verde quando deu certo, vermelha quando não."""
+        self.memoria_estado.setObjectName("erro" if erro else "ok")
+        self.memoria_estado.setStyleSheet("")
+        self.memoria_estado.setText(texto)
+        self.memoria_estado.setVisible(bool(texto))
+
+    def _trocar_endereco_voz(self):
+        """Grava o endereço do serviço de voz já completo (http:// e a porta); um endereço ruim é recusado."""
+        base = voz.endereco_voz(self.voz_campo.text().strip())
+        if base is None:
+            self._mostrar_estado_voz("Endereço inválido. Exemplos: 192.168.0.10 ou http://192.168.0.10:11500",
+                                     erro=True)
+            self.voz_campo.setText(self.perms["voz_url"])
+            return
+        valor = "" if base == voz.VOZ_URL_PADRAO else base
+        self.voz_campo.setText(valor)
+        if valor != self.perms["voz_url"]:
+            self._set("voz_url", valor)
+            self._mostrar_estado_voz("")
+
+    def _testar_voz(self):
+        """Pergunta ao serviço de voz se ele responde (espera uns segundos no máximo)."""
+        self._trocar_endereco_voz()
+        self.voz_botao.setEnabled(False)
+        self.voz_botao.setText("Testando...")
+        QApplication.processEvents()
+        try:
+            ok, mensagem = voz.testar_voz(self.perms["voz_url"])
+        finally:
+            self.voz_botao.setText("Testar voz")
+            self._sync_enabled()
+        self._mostrar_estado_voz(("✔ " if ok else "") + mensagem, erro=not ok)
+
+    def _mostrar_estado_voz(self, texto, erro=False):
+        """Linha de aviso do serviço de voz: verde quando deu certo, vermelha quando não."""
+        self.voz_estado.setObjectName("erro" if erro else "ok")
+        self.voz_estado.setStyleSheet("")
+        self.voz_estado.setText(texto)
+        self.voz_estado.setVisible(bool(texto))
 
     def _trocar_provedor(self, _indice):
         """Outro provedor: o modelo volta para o padrão dele."""
@@ -432,6 +551,15 @@ class SettingsDialog(QDialog):
         for key in ("ver_tela", "conversa"):
             self.boxes[key].setEnabled(ia)
         self.boxes["comentarios"].setEnabled(ia and self.perms["ver_tela"])
+        self.boxes["voz"].setEnabled(ia and self.perms["conversa"])
+        self.boxes["lembrar"].setEnabled(ia and self.perms["ver_tela"])
+        if hasattr(self, "memoria_campo"):
+            for campo in (self.memoria_campo, self.memoria_botao):
+                campo.setEnabled(self.perms["memoria_compartilhada"])
+        if hasattr(self, "voz_campo"):
+            com_voz = ia and self.perms["conversa"] and self.perms["voz"]
+            for campo in (self.voz_campo, self.voz_botao):
+                campo.setEnabled(com_voz)
         if hasattr(self, "provedor_combo"):
             for campo in (self.provedor_combo, self.modelo_campo, self.chave_campo, self.chave_botao,
                           self.ollama_campo, self.ollama_botao):

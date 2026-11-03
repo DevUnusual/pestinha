@@ -32,7 +32,7 @@ from PySide6.QtWidgets import QSystemTrayIcon
 
 from . import config
 from . import log as log_module
-from . import migracao
+from . import memoria_remota, migracao
 from .ajustes import (
     ATIVIDADE_MINIMA_VOO as REFLEX_MIN_HZ,
     BATIDA_FORTE as HARD_IMPACT,
@@ -62,12 +62,14 @@ from .core.protesto import Protesto
 from .log import log
 from .mind.castigo_ctl import CastigoController
 from .mind.festa import FestaController
+from .mind.lembrancas import Lembrancas
 from .mind.mesa import MesaController, pull
 from .mind.mischief_ctl import MischiefController
 from .mind.protest_ctl import ProtestController
 from .mind.revolucao import RevolucaoController
 from .mind.sleep import SleepController
 from .mind.visao import VisaoController
+from .mind.voz_ctl import VozController
 from .paths import Paths
 from .sense import senses
 from .sense.timeline import TimelineRecorder
@@ -105,6 +107,14 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             self.aviso_migracao = ("A memória ainda está no formato antigo (migração pendente: "
                                    f"{migracao_feita.resumo()}). Nada foi apagado; veja memory/logs.")
             log(f"[migração] {pet_id} em modo compatível: {migracao_feita.resumo()}")
+        # memória compartilhada (opcional): antes de ler qualquer arquivo, traz o que outro computador gravou
+        self.memoria_remota = (memoria_remota.criar(self.perms, self.paths, pet_id, self.pet_paths)
+                               if self.aviso_migracao is None else None)
+        self._envio = None                  # thread do último envio
+        self._fechando = False              # fechando: o envio é feito na hora, não numa thread
+        self.aviso_memoria = self._baixar_memoria()
+        self.lembrancas = Lembrancas(self.pet_paths.base, memoria_remota.maquina_atual(),
+                                     memoria_remota.sistema_atual())
 
         # ----- cérebro e estado interno -----
         pet_def = config.load_pet(self.paths, pet_id)
@@ -149,6 +159,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.pet.drag_ended.connect(lambda: self.senses.set_dragging(False))
         self.pet.thrown.connect(self.on_thrown)
         self.pet.menu_requested.connect(self.show_pet_menu)
+        self.pet.double_clicked.connect(self.on_double_click)
         self.ball_stored = False    # você guardou a bolinha pelo menu
         self.mischief = MischiefEngine(self.conteudo)
         self.mischief.dismissed.connect(self.on_dismissed)
@@ -181,9 +192,12 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         paper = load_sprite(self.conteudo.bolinha_papel)
         self.revolucao = RevolucaoController(self.behavior.play, self.debugging, sprite=paper)
         self.balao = Balao()
-        self.visao = VisaoController(self, self.nome, pet_def.get("persona"), self.debugging)
+        self.visao = VisaoController(self, self.nome, pet_def, self.debugging)
         self.visao.fala.connect(lambda texto: self.balao.mostrar(texto, time.monotonic()))
         self.conversa_janela = None     # criada na primeira vez que você abre o chat
+        self.voz = VozController(self, self.nome)
+        self.voz.ouvido.connect(self._ouvi)
+        self.voz.ditado.connect(self._ditado)
 
         # ----- reflexos e medições -----
         self.in_flight = False      # voando depois de um arremesso
@@ -206,6 +220,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.tray.quit.connect(self.quit)
         self.visao.aviso.connect(lambda texto: self.tray.icon.showMessage(
             f"{self.nome} · IA", texto, QSystemTrayIcon.Warning, 6000))
+        self.voz.aviso.connect(lambda texto: self.tray.icon.showMessage(
+            f"{self.nome} · voz", texto, QSystemTrayIcon.Warning, 6000))
         self.hotkey = PanicHotkey()
         self.hotkey.pressed.connect(self.panic)
         self.wiping = False         # True depois de "apagar tudo": não grava mais nada ao sair
@@ -223,6 +239,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self._timer(SAVE_EVERY_MS, self.save)
 
         self._apply_settings()
+        self.voz.registrar_atalho()
         self.sense()
         self.scan_windows()
         problems = config.check_assets(self.conteudo)
@@ -230,6 +247,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             log(f"[assets] {text}")
         if self.aviso_migracao:
             problems.append(self.aviso_migracao)
+        if self.aviso_memoria:
+            problems.append(self.aviso_memoria)
         if not self.hotkey.ok:
             problems.append(f"atalho de pânico {config.PANIC_HOTKEY_TEXT} já está em uso por outro programa")
         if problems:

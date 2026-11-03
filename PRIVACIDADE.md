@@ -29,15 +29,51 @@ Só valem com **Usar IA** ligado em Configurações, e cada parte tem a própria
   não manda nada para a internet. Com outro computador, o print atravessa a sua rede local sem criptografia
   (http), a não ser que você use um endereço https. O DeepSeek não recebe
   o print (a API dele não aceita imagem), só o nome do programa e o título.
-- **O que fica gravado:** nada. O print, o título, o resumo e a conversa ficam só na memória enquanto o app
-  está aberto (o botão **Esquecer** do chat apaga a conversa na hora). Não vão para `memory/` nem para o
-  log. O que fica é o efeito na rede neural, como qualquer outro estímulo.
+- **O que fica gravado:** nada, a não ser que você ligue **Lembrar o que viu**. O print, o título, o
+  comentário e a conversa ficam só na memória enquanto o app está aberto (o botão **Esquecer** do chat
+  apaga a conversa na hora). Não vão para `memory/` nem para o log. O que fica é o efeito na rede neural,
+  como qualquer outro estímulo.
+- **Lembrar o que viu (desligado por padrão):** grava, no máximo a cada 10 minutos e só quando muda de
+  assunto, o **resumo** da IA (até 12 palavras), o nome do programa, a hora e o computador, em
+  `memory/pets/<pet>/lembrancas_<computador>.jsonl` (até 500 linhas). Nunca o print, o título nem o
+  comentário. As lembranças vão para o modelo de IA junto com as olhadas e o chat, para ele poder te
+  lembrar de algo ou perguntar como ficou.
 - **As chaves** que você salva em Configurações ficam no arquivo `.env` da pasta do Pestinha, em texto,
   só no seu computador: fora de `memory/` (então "apagar todos os dados" não as apaga) e fora do git.
   Depois de salva, a chave não aparece mais na tela, só os 4 últimos caracteres. Para apagar, edite ou
   apague o `.env`. Variáveis de ambiente com o mesmo nome (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
   `DEEPSEEK_API_KEY`) também funcionam.
 - O pânico (`Ctrl + Alt + Shift + B`) corta tudo, inclusive a resposta que ainda estava a caminho.
+
+## Falar com ele: voz para texto (desligado por padrão)
+
+Só vale com **Usar IA**, **Conversar por texto** e **Falar com ele** ligados. Ele não fala: só transforma
+a sua fala em texto.
+
+- **Quando ele ouve:** só enquanto você segura `Ctrl + Alt + Shift + V` (no macOS e no Linux, entre o
+  primeiro e o segundo aperto) ou entre os dois cliques no botão 🎤 do chat, e no máximo 30 segundos.
+  Fora disso o microfone fica fechado. O atalho só é registrado no sistema depois que você liga a voz.
+  Enquanto ouve, aparecem ondinhas no rosto dele (e o botão do chat fica vermelho).
+- **Para onde vai:** a gravação (WAV, 16 kHz) vai para o **serviço de voz** do endereço que você escolheu
+  (por padrão este computador; em geral, um servidor seu na rede, ver `servidor/voz/`), que devolve o
+  texto e não manda nada para a internet. O texto segue como uma mensagem do chat, para o provedor de
+  IA escolhido acima (pelo botão do chat, só quando você clicar em Enviar). Na rede local o áudio passa
+  sem criptografia (http), a não ser que você use um endereço https.
+- **O que fica gravado:** nada. O áudio e o texto do que você disse ficam só na memória; não vão para
+  `memory/` nem para o log, nem no Pestinha nem no serviço de voz.
+- O pânico, a pausa ou desligar a voz fecham o microfone na hora e descartam o texto que ainda estava a
+  caminho.
+
+## Memória em outro computador (desligado por padrão)
+
+Com **Compartilhar a memória dele** e o endereço do **Servidor da memória** (ver `servidor/memoria/`), os
+arquivos do pet em `memory/pets/<pet>/` (a tabela abaixo, as lembranças de cada computador e o
+`.sync.json`, que só anota o que já foi sincronizado) e a definição dele (`pets/<pet>.json`) também ficam
+nesse servidor, para todos os seus computadores usarem o mesmo pet. O servidor guarda o nome de cada
+computador e o sistema (Windows, macOS, Linux) de quem gravou. Permissões, painéis, rotina e log não vão.
+Na rede local tudo passa sem criptografia (http), a não ser que você use um endereço https; sem
+`PESTINHA_MEMORIA_TOKEN`, qualquer um da sua rede pode ler o servidor. **Apagar todos os dados** apaga só
+este computador: no servidor, apague a pasta do pet em `~/pestinha-memoria/dados/`.
 
 ## O que ele grava (tudo em `memory/`)
 
@@ -60,6 +96,8 @@ De cada personagem, em `memory/pets/<pet>/` (um personagem não lê a memória d
 | `drives.json` | Energia, estimulação e carência |
 | `protest.json`, `sad_protest.json` | Insatisfação e tristeza |
 | `castigo.json` | Fugas do cantinho, rancor e receio |
+| `lembrancas_<computador>.jsonl` | Só com "Lembrar o que viu": resumo curto do que a IA viu, programa, hora e computador. As de outros computadores chegam pela memória compartilhada |
+| `.sync.json` | Só com a memória compartilhada: a versão de cada arquivo na última sincronia |
 | `.migrado` | Só existe se a memória veio da versão antiga: quando migrou e o hash de cada arquivo |
 
 Quem usou uma versão antiga (arquivos soltos em `memory/`) tem a memória migrada sozinha na primeira

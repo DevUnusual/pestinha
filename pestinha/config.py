@@ -28,6 +28,7 @@ EMOTION_NAMES = {
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 PANIC_HOTKEY_TEXT = "Ctrl + Alt + Shift + B"
+PTT_HOTKEY_TEXT = "Ctrl + Alt + Shift + V"     # segurar para falar com ele (macOS/Linux: aperta e aperta de novo)
 
 # ============================================================
 # PERMISSÕES
@@ -57,6 +58,11 @@ DEFAULT_PERMISSIONS = {
     "ia_provedor": "claude",   # claude, openai, deepseek ou ollama (ver ia/provedores.py)
     "ia_modelo": "",           # vazio: o modelo padrão do provedor
     "ia_ollama_url": "",       # vazio: o Ollama deste computador; ou outro PC da rede (ex.: 192.168.0.10)
+    "voz": False,              # sua fala vira texto (só com a tecla ou o botão do microfone); precisa de ia e conversa
+    "voz_url": "",             # serviço de voz (servidor/voz/); vazio: este computador, porta 11500
+    "lembrar": False,          # grava o resumo do que a IA viu (nunca o print nem o título), por computador
+    "memoria_compartilhada": False,   # sincroniza o pet com o serviço de memória (servidor/memoria/)
+    "memoria_url": "",         # onde está o serviço de memória (ex.: 192.168.0.10); vazio: desligado
 }
 
 # (chave, rótulo, descrição) na ordem da tela inicial
@@ -97,6 +103,21 @@ PERMISSION_GROUPS = [
          "descrever o que você está fazendo. O print não é gravado em disco."),
         ("comentarios", "Comentar o que vê", "Às vezes ele comenta num balãozinho o que você está fazendo."),
         ("conversa", "Conversar por texto", "Botão direito nele, Conversar: você escreve e ele responde."),
+        ("voz", "Falar com ele (voz para texto)",
+         f"Segure {PTT_HOTKEY_TEXT} e fale, ou use o botão de microfone do chat: a sua fala vira texto e ele "
+         "responde por escrito. Ele só ouve enquanto você aperta. O áudio vai para o serviço de voz do "
+         "endereço abaixo (o seu servidor) e não é gravado."),
+        ("lembrar", "Lembrar o que viu",
+         "Grava o resumo curto do que a IA viu (até 12 palavras) e o nome do programa, com a hora e o "
+         "computador, em memory/pets/<pet>/lembrancas_<computador>.jsonl. Nunca o print, o título da "
+         "janela nem o que ele comentou. Com a memória compartilhada, ele lembra num computador do que viu "
+         "no outro (e pode te perguntar como ficou)."),
+    ]),
+    ("Memória em outro computador", [
+        ("memoria_compartilhada", "Compartilhar a memória dele",
+         "O mesmo pet em todos os seus computadores: a rede, a memória, o humor e a personalidade (pets/<pet>.json) "
+         "ficam também no serviço de memória (servidor/memoria/) de um computador da sua casa. Vale na "
+         "próxima vez que abrir. Permissões, painéis e rotina continuam de cada computador."),
     ]),
     ("Teste", [
         ("modo_teste", "Modo teste", "Tempos curtos: travessuras e emoções acontecem em segundos."),
@@ -241,6 +262,8 @@ DEFAULT_PET = {
     "temperamento": {},
     "reacao_notebook": "bravo",         # o que sente se arrancarem o notebook: "bravo" ou "triste"
     "persona": None,                    # como ele fala com a IA (texto livre); sem isso, a persona padrão
+    "exemplos": [],                     # falas que mostram o jeito dele (a IA pega o tom, não copia)
+    "evitar": [],                       # frases batidas que ele nunca deve dizer
 }
 
 
@@ -283,6 +306,10 @@ def _pet_valido(saved):
         out["reacao_notebook"] = saved["reacao_notebook"]
     if isinstance(saved.get("persona"), str) and saved["persona"].strip():
         out["persona"] = saved["persona"].strip()[:2000]
+    for campo in ("exemplos", "evitar"):
+        lista = saved.get(campo)
+        if isinstance(lista, list):
+            out[campo] = [t.strip()[:200] for t in lista if isinstance(t, str) and t.strip()][:12]
     if isinstance(saved.get("aparencia"), dict):
         out["aparencia"] = dict(saved["aparencia"])    # cores e acessórios: validados em body/desenho_rosto.py
     return out

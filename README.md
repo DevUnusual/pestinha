@@ -103,10 +103,35 @@ vale na hora. Também dá para usar uma variável de ambiente com o mesmo nome; 
 do `.env`. O campo **Modelo** recusa texto com cara de chave. Cada olhada (a cada ~2,5 min, e logo depois de trocar de programa) e
 cada mensagem custam um pouco na conta do provedor; com o Ollama, nada sai do computador.
 
+### Falar com ele (voz para texto)
+
+Desligado por padrão, e só funciona com **Usar IA** e **Conversar por texto** ligados. A sua fala vira
+texto e ele responde por escrito, como no chat (ele não fala). Dois jeitos:
+
+- **Atalho:** segure `Ctrl + Alt + Shift + V`, fale e solte; o texto vai direto para ele e a resposta
+  aparece no balão. No macOS e no Linux: aperta para começar e aperta de novo para parar.
+- **Microfone do chat:** na janela Conversar, clique no 🎤, fale e clique de novo; o texto cai no campo
+  para você conferir e mandar.
+
+Ele só ouve enquanto você aperta (no máximo 30 s), com ondinhas no canto do rosto. A transcrição roda
+num **serviço de voz** seu, não na internet: [`servidor/voz/`](servidor/voz/README.md) tem o serviço
+(faster-whisper `large-v3-turbo`) e como instalar num computador com placa de vídeo, sem sudo. Em
+Configurações, ponha o endereço dele em **Servidor da voz** (ex.: `192.168.0.10`, porta 11500) e clique em
+**Testar voz**. Testado numa RTX 3070 de 8 GB junto com o `gemma4:e4b`: ~0,2 s para transcrever uma frase
+e cerca de 6 GB de VRAM somando os dois.
+
+### O mesmo pet em todos os computadores
+
+Com **Compartilhar a memória dele** (desligado por padrão), a rede, o humor, o que ele aprendeu e a
+personalidade ficam também num **serviço de memória** seu ([`servidor/memoria/`](servidor/memoria/README.md),
+só Python, nada para instalar). Abra no Windows ou no Mac e é o mesmo bichinho. Com **Lembrar o que viu**,
+cada computador guarda as próprias lembranças (o resumo curto do que a IA viu, com hora e sistema), e ele
+pode, no Mac, te lembrar de algo que viu no Windows.
+
 ### Pânico
 
-`Ctrl + Alt + Shift + B` desliga tudo na hora, e ele continua desligado até você religar em
-Configurações.
+`Ctrl + Alt + Shift + B` desliga tudo na hora (inclusive o microfone), e ele continua desligado
+até você religar em Configurações.
 
 ### Modo teste
 
@@ -120,7 +145,8 @@ Sem a IA ligada, ele roda só no seu computador e não envia nada para a interne
 programa em primeiro plano, o tempo sem usar teclado e mouse, a posição do cursor e a geometria das
 janelas, e não lê conteúdo nem título de janela. Com **Usar IA** e **Ver minha tela** ligados, ele manda
 um print da tela e o título da janela ativa para o provedor escolhido (ou para o Ollama, no seu
-computador); o print e o que o modelo respondeu não são gravados. Tudo o que ele grava fica em `memory/` e pode ser apagado pela tela de
+computador); o print e o que o modelo respondeu não são gravados. Com **Falar com ele**, ele só
+ouve enquanto você aperta a tecla ou o microfone, e o áudio vai para o seu serviço de voz sem ser gravado. Tudo o que ele grava fica em `memory/` e pode ser apagado pela tela de
 configurações. Detalhes em [PRIVACIDADE.md](PRIVACIDADE.md).
 
 ## Personalizar

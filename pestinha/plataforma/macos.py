@@ -14,6 +14,7 @@ from PySide6.QtWidgets import QApplication
 from quickmachotkey import quickHotKey, mask
 from quickmachotkey.constants import (
     kVK_ANSI_B,
+    kVK_ANSI_V,
     controlKey,
     optionKey,
     shiftKey,
@@ -23,6 +24,7 @@ LARGURA_MINIMA, ALTURA_MINIMA = 120, 60
 OPCOES_NA_TELA = (1 << 0) | (1 << 4)        # OnScreenOnly | ExcludeDesktopElements
 JANELA_NULA = 0
 _hotkey = None
+_hotkey_falar = None
 
 def _quartz():
     """Carrega o módulo Quartz (pyobjc); devolve None se não estiver instalado."""
@@ -177,3 +179,29 @@ def iniciar_atalho(callback):
 
     except Exception:
         return False
+
+
+def iniciar_atalho_falar(callback):
+    """Registra Ctrl+Alt+Shift+V pelo QuickMacHotKey (aperta para ouvir, aperta de novo para parar)."""
+    global _hotkey_falar
+
+    if _hotkey_falar is not None:
+        return True
+    if threading.current_thread() is not threading.main_thread() or (
+        app := QApplication.instance()
+    ) is None:
+        return False
+    try:
+        _hotkey_falar = quickHotKey(
+            virtualKey=kVK_ANSI_V,
+            modifierMask=mask(controlKey, optionKey, shiftKey),
+        )(lambda: callback())
+        app.aboutToQuit.connect(_hotkey_falar.unregister)
+        return True
+    except Exception:
+        return False
+
+
+def tecla_falar_segurada():
+    """None: o QuickMacHotKey só avisa o aperto (o controlador usa aperta-e-aperta)."""
+    return None

@@ -110,3 +110,13 @@ def sem_foco_nativo(janela_id):
 def iniciar_atalho(callback):
     """Registra Ctrl+Alt+Shift+B pelo pynput; devolve True se conseguiu."""
     return atalho_pynput(callback)
+
+
+def iniciar_atalho_falar(callback):
+    """Registra Ctrl+Alt+Shift+V pelo pynput (aperta para ouvir, aperta de novo para parar)."""
+    return atalho_pynput(callback, "v", "voz")
+
+
+def tecla_falar_segurada():
+    """None: aqui não dá para saber quando a tecla foi solta (o controlador usa aperta-e-aperta)."""
+    return None

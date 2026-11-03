@@ -7,6 +7,8 @@ Dois caminhos, os dois em thread para o pet não travar enquanto o modelo pensa:
                (VISAO_*) e, às vezes, um comentário no balão.
     conversar  você escreve pelo chat; ele responde no chat e no balão, e a conversa vira o canal CONVERSA.
 
+Nos dois, o estado da rede vai junto (mind/sincronia.py): quem sente é a rede, o modelo só dá voz.
+
 Política (as permissões ficam em config.py):
     - nada sai do computador sem "Usar IA"; print e título só com "Ver minha tela";
     - não olha com o pet escondido, em tela cheia, dormindo, pausado, no pânico ou com você longe;
@@ -24,11 +26,13 @@ from PySide6.QtGui import QGuiApplication
 from ..ia import provedores
 from ..ia.mente import Conversa, ler_observacao, limpar_fala, pedido_observacao, prompt_sistema
 from ..log import log
+from .sincronia import descrever_temperamento, estado_agora
 from ..sense import senses
 
 LARGURA_PRINT = 1280        # px: o print é reduzido antes de ir (mais barato e rápido)
 QUALIDADE_JPEG = 70
 ESPERA_APOS_ERRO = 300.0    # s sem olhar depois de uma falha (sem chave, sem rede...)
+JA_DISSE = 5                # últimos comentários que ele não deve repetir
 ESPERA_TROCA = 3.0          # s depois de trocar de programa, para a janela nova terminar de desenhar
 REPETE_AVISO = 600.0        # s antes de repetir o mesmo aviso na bandeja
 
@@ -64,12 +68,15 @@ class VisaoController(QObject):
     aviso = Signal(str)             # problema de configuração (mostrado na bandeja)
     _pronto = Signal(str, object, int)      # da thread para a thread do Qt: (tipo, resultado, geração)
 
-    def __init__(self, app, nome, persona, debugging):
-        """`app` é o PestinhaApp (permissões, sentidos, homeostase); `persona` vem de pets/<pet>.json."""
+    def __init__(self, app, nome, pet_def, debugging):
+        """`app` é o PestinhaApp (permissões, sentidos, homeostase); `pet_def` é o pets/<pet>.json carregado."""
         super().__init__()
         self.app = app
         self.nome = nome
-        self.sistema = prompt_sistema(nome, persona)
+        self.sistema = prompt_sistema(nome, pet_def.get("persona"),
+                                      descrever_temperamento(pet_def.get("temperamento")),
+                                      pet_def.get("exemplos", ()), pet_def.get("evitar", ()))
+        self.ja_disse = []                  # comentários recentes (para ele não se repetir)
         self.debugging = debugging
         self.conversa = Conversa()
         self.ultimo_resumo = ""
@@ -129,6 +136,17 @@ class VisaoController(QObject):
             self._cliente_de = chave
         return self._cliente
 
+    def estado(self):
+        """O estado da rede agora, em texto (sincronia rede -> IA). Vazio se algo ainda não existe."""
+        try:
+            return estado_agora(self.app)
+        except AttributeError:                         # app ainda montando (ou de teste)
+            return ""
+
+    def lembrado(self):
+        """O que ele viu nos outros computadores (só com "Lembrar o que viu")."""
+        return self.app.lembrancas.contexto() if self.perms["lembrar"] else ""
+
     # ---------------- olhar ----------------
 
     def app_mudou(self, now):
@@ -160,7 +178,8 @@ class VisaoController(QObject):
             return
         imagem = self._print() if cliente.ve_imagem else None
         pergunta = pedido_observacao(senses.get_active_app(), senses.get_active_title(), self.app.activity,
-                                     self.app.pet_state.emotion, self.ultimo_resumo)
+                                     self.app.pet_state.emotion, self.ultimo_resumo,
+                                     self.estado(), self.ja_disse, self.lembrado())
         self.olhando = True
         self._em_thread("observacao", cliente, [{"role": "user", "content": pergunta}], imagem)
 
@@ -192,7 +211,8 @@ class VisaoController(QObject):
             self.erro_conversa.emit(str(erro))
             return False
         imagem = self._print() if self.vendo() and cliente.ve_imagem else None
-        mensagens = self.conversa.mensagens(texto, self.ultimo_resumo if self.vendo() else "")
+        mensagens = self.conversa.mensagens(texto, self.ultimo_resumo if self.vendo() else "", self.estado(),
+                                            self.lembrado())
         self.respondendo = True
         self._pergunta = texto
         self._em_thread("conversa", cliente, mensagens, imagem)
@@ -240,6 +260,8 @@ class VisaoController(QObject):
         app = self.app
         if obs.resumo:
             self.ultimo_resumo = obs.resumo
+            if self.perms["lembrar"]:
+                app.lembrancas.anotar(senses.get_active_app(), obs.resumo)
         app.senses.saw(obs.sinais)
         novidade = obs.sinais.get("VISAO_NOVO", 0.0)
         if novidade > 0.3:
@@ -248,6 +270,7 @@ class VisaoController(QObject):
             log("[visão] sinais " + " ".join(f"{k[6:].lower()}={v:.2f}" for k, v in obs.sinais.items()))
         comentario = obs.comentario or (obs.resumo if pedido else "")
         if comentario and (pedido or self.perms["comentarios"]):
+            self.ja_disse = (self.ja_disse + [comentario])[-JA_DISSE:]
             self.fala.emit(comentario)
 
     def _respondido(self, texto):

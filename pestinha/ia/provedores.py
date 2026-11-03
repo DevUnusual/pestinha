@@ -69,18 +69,23 @@ def modelo_de(provedor, modelo):
     return info(provedor)["modelo"] if not modelo or parece_chave(modelo) else modelo
 
 
-def endereco_ollama(texto):
-    """'192.168.3.250' -> 'http://192.168.3.250:11434'. Vazio vira este computador; inválido vira None."""
+def endereco_de(texto, porta_padrao, padrao):
+    """'192.168.3.250' -> 'http://192.168.3.250:<porta_padrao>'. Vazio vira `padrao`; inválido vira None."""
     texto = (texto or "").strip().rstrip("/")
     if not texto:
-        return OLLAMA_PADRAO
+        return padrao
     if "://" not in texto:
         texto = "http://" + texto
     achado = re.fullmatch(r"(https?)://([A-Za-z0-9.-]+|\[[0-9A-Fa-f:]+\])(?::(\d{1,5}))?(?:/v1)?", texto)
     if not achado or (achado.group(3) and not 0 < int(achado.group(3)) < 65536):
         return None
     esquema, host, porta = achado.groups()
-    return f"{esquema}://{host}:{porta or PORTA_OLLAMA}"
+    return f"{esquema}://{host}:{porta or porta_padrao}"
+
+
+def endereco_ollama(texto):
+    """'192.168.3.250' -> 'http://192.168.3.250:11434'. Vazio vira este computador; inválido vira None."""
+    return endereco_de(texto, PORTA_OLLAMA, OLLAMA_PADRAO)
 
 
 def testar_ollama(endereco, modelo, tempo=3.0):

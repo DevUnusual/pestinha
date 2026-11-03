@@ -12,6 +12,8 @@ escolhe o certo na importação. Os retângulos são em pixels físicos (o app d
     janelas_visiveis(excluir, escala)   [(id, (l, t, r, b), maximizada)] de cima para baixo
     sem_foco_nativo(janela_id)   a janela do pet não rouba o foco (quando o sistema permite)
     iniciar_atalho(callback)     Ctrl+Alt+Shift+B; devolve True se registrou
+    iniciar_atalho_falar(callback)   Ctrl+Alt+Shift+V (falar com ele); devolve True se registrou
+    tecla_falar_segurada()       o V ainda está apertado? None se o sistema não sabe dizer
 """
 
 import sys
@@ -33,3 +35,5 @@ tela_cheia = _backend.tela_cheia
 janelas_visiveis = _backend.janelas_visiveis
 sem_foco_nativo = _backend.sem_foco_nativo
 iniciar_atalho = _backend.iniciar_atalho
+iniciar_atalho_falar = _backend.iniciar_atalho_falar
+tecla_falar_segurada = _backend.tecla_falar_segurada

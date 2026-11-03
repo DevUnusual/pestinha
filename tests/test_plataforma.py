@@ -27,7 +27,8 @@ elif sys.platform == "win32":
     from pestinha.plataforma import windows  # noqa: E402
 
 FUNCOES = ["ocioso_segundos", "processo_ativo", "retangulo_ativo", "tela_cheia",
-           "janelas_visiveis", "sem_foco_nativo", "iniciar_atalho"]
+           "janelas_visiveis", "sem_foco_nativo", "iniciar_atalho",
+           "iniciar_atalho_falar", "tecla_falar_segurada"]
 
 
 def test_cada_sistema_expoe_as_mesmas_funcoes():

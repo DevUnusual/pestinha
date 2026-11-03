@@ -9,9 +9,10 @@ Mixin de PestinhaApp: usa os atributos criados em PestinhaApp.__init__.
 
 from .. import log as log_module
 from ..log import log
+import threading
 import time
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
-from .. import config
+from .. import config, memoria_remota
 from ..ui.ui import SettingsDialog
 
 
@@ -31,6 +32,10 @@ class SessaoMixin:
         self.conditioning.rate = self.prof["cond_rate"]
         if not self.visao.vendo():
             self.visao.cancelar()                  # desligou a IA ou a visão: o que estava a caminho não vale
+        if not self.voz.ligada():
+            self.voz.cancelar()                    # desligou a voz: o microfone fecha na hora
+        self.voz.registrar_atalho()
+        self.atualizar_microfone()
         self._apply_settings()
 
     def _apply_settings(self):
@@ -107,6 +112,7 @@ class SessaoMixin:
         if self.paused:
             self._pausado_em = now
             self.visao.cancelar()
+            self.voz.cancelar()
             self.balao.esconder()
         else:
             if self._pausado_em is not None:
@@ -138,6 +144,7 @@ class SessaoMixin:
         """Desliga tudo e grava: só volta quando você religar na tela inicial."""
         self.store.panic()
         self.visao.cancelar()                      # nada da IA chega depois do pânico
+        self.voz.cancelar()                        # o microfone fecha na hora
         self.balao.esconder()
         if self.conversa_janela:
             self.conversa_janela.hide()
@@ -190,6 +197,7 @@ class SessaoMixin:
             self.sad.save()
         except OSError as error:
             log(f"[app] não salvou o protesto: {error}")
+        self._enviar_memoria()
         if self.perms["modo_teste"]:
             sleeping = "  (dormindo)" if self.asleep else ""
             log(f"[homeostase] {self.drives.describe()}{sleeping}")
@@ -198,10 +206,52 @@ class SessaoMixin:
             if learned:
                 log("[aprendizado] " + "  ".join(f"{c}->{post} {w:+.3f}" for c, post, w in learned))
 
+    def _baixar_memoria(self):
+        """Ao abrir: traz do serviço de memória o que outro computador gravou. Devolve um aviso, ou None."""
+        sync = self.memoria_remota
+        if sync is None:
+            return None
+        try:
+            outro = sync.baixar()
+        except memoria_remota.ErroMemoria as erro:
+            log(f"[memória] {erro}")
+            return f"Memória compartilhada: {erro}. Usando a memória deste computador."
+        if outro:
+            return (f"O {self.nome} também está aberto em {outro}. Os dois vão gravar na mesma memória: "
+                    "feche lá para não misturar.")
+        return None
+
+    def _enviar_memoria(self, agora=False):
+        """Depois de salvar: manda o que mudou ao serviço de memória (numa thread, no máximo a cada minuto)."""
+        sync = self.memoria_remota
+        if sync is None or self.wiping:
+            return
+        if agora:
+            if self._envio is not None:
+                self._envio.join(memoria_remota.TEMPO_LIMITE * 3)     # termina o envio que estava a caminho
+        elif self._fechando or not sync.hora_de_enviar(time.monotonic()):
+            return
+
+        def trabalho():
+            """Roda fora da thread do Qt; uma falha de rede só vai para o log."""
+            try:
+                sync.enviar()
+            except memoria_remota.ErroMemoria as erro:
+                log(f"[memória] {erro}")
+
+        if agora:
+            trabalho()                      # ao fechar: espera (cada pedido tem tempo curto)
+        else:
+            self._envio = threading.Thread(target=trabalho, name="pestinha-memoria", daemon=True)
+            self._envio.start()
+
     def quit(self):
         """Salva tudo e fecha o programa."""
+        self._fechando = True               # o save daqui não abre outra thread de envio
         self.save()
+        self._enviar_memoria(agora=True)
         self.visao.cancelar()
+        self.voz.cancelar()
         self.balao.esconder()
         if self.conversa_janela:
             self.conversa_janela.close()
