@@ -74,10 +74,11 @@ def bloco_lembrancas(lembrancas):
 
 
 def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", estado="", ja_disse=(),
-                      lembrancas="", pesquisa=False):
+                      lembrancas="", pesquisa=False, jogo=False):
     """Pergunta da observação periódica. A resposta vem em JSON (ver ler_observacao).
 
     Com `pesquisa`, o JSON ganha o campo "pesquisar": um termo para ele procurar na internet (pelo Hermes).
+    Com `jogo`, ele acompanha a partida: repara no que mudou e comemora ou zoa (ver "Acompanhar jogos").
     """
     contexto = [f"Programa em primeiro plano: {programa or 'desconhecido'}."]
     if titulo:
@@ -102,6 +103,10 @@ def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", est
         "em vez de comentar: pra que é, se é importante, no que vai dar. Pergunte do assunto, não do "
         "programa. Fora isso, fique quieto (comentario vazio) na maior parte das vezes, principalmente "
         "se ela estiver focada."
+        + (" Ela está jogando e você está acompanhando a partida de perto: repare no que mudou desde a última "
+           "olhada (um item novo, uma conquista, uma morte, um chefe, uma construção, uma jogada boa). Se foi "
+           "legal, comemore ou elogie; se ela se deu mal, zoe com carinho; se não mudou nada, fique quieto. "
+           "Nunca dê ordens nem fique narrando o jogo." if jogo else "")
         + (" Você pode pesquisar na internet: se algo na tela chamou sua atenção (um jogo, um item, um erro, "
            "um assunto) e uma curiosidade ou dica ajudaria, ponha em \"pesquisar\" o que procurar, em até 6 "
            "palavras, sem nomes de pessoas, e-mails, senhas, números ou qualquer dado pessoal da tela. Quase "

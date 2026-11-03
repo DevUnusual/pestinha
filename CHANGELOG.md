@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## Acompanhar jogos
+
+- **Visão ~10× mais rápida no Ollama:** o Pestinha pede para o modelo responder sem "pensar" antes
+  (`reasoning_effort: none`). No `gemma4:e4b` (RTX 3070), a olhada caiu de ~5,9 s para ~0,6 s, com o
+  mesmo JSON; o tamanho do print quase não pesava (1280 → 512 px: ~0,1 s).
+- **Acompanhar jogos** (desligado por padrão, precisa de Usar IA e Ver minha tela): em jogo, olha a cada
+  ~8 s com o Ollama (~1 min com API paga; 4 s e 20 s no modo teste) e o pedido vira "acompanhe a partida":
+  itens, conquistas, mortes, jogadas boas. Não manda o print se a tela quase não mudou (miniatura 32×18)
+  e fala no máximo a cada 45 s (12 s no modo teste).
+- Mais jogos reconhecidos (Minecraft Bedrock, Roblox, Fortnite, LoL, Dota 2, Apex...) e o Minecraft Java
+  (`javaw`) pelo título da janela.
+
 ## Pesquisa na internet pelo Hermes
 
 - **Pesquisar na internet (Hermes)** (desligado por padrão, precisa de Usar IA e Ver minha tela): quando

@@ -43,6 +43,10 @@ Só valem com **Usar IA** ligado em Configurações, e cada parte tem a própria
   Depois de salva, a chave não aparece mais na tela, só os 4 últimos caracteres. Para apagar, edite ou
   apague o `.env`. Variáveis de ambiente com o mesmo nome (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
   `DEEPSEEK_API_KEY`) também funcionam.
+- **Acompanhar jogos (desligado por padrão):** em jogo, os prints vão bem mais seguido para o mesmo
+  provedor (a cada ~8 s com o Ollama, ~1 min com uma API paga), com as mesmas regras de cima: nada é
+  gravado. Para comparar com o anterior, ele guarda na memória só uma miniatura cinza de 32×18 do último
+  print enviado. Para reconhecer o Minecraft Java, lê o título da janela, como já faz com **Ver minha tela**.
 - O pânico (`Ctrl + Alt + Shift + B`) corta tudo, inclusive a resposta que ainda estava a caminho.
 
 ## Falar com ele: voz para texto (desligado por padrão)

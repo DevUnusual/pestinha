@@ -96,12 +96,31 @@ e a chave some da tela). **Ver minha tela** é separado: sem ele, ele conversa m
 | **Claude** (padrão) | Sim | Chave da Anthropic (`ANTHROPIC_API_KEY`). Modelo padrão `claude-opus-5-5`; `claude-haiku-5-5` sai bem mais barato. |
 | **OpenAI** | Sim | Chave da OpenAI (`OPENAI_API_KEY`). Modelo padrão `gpt-5-mini`. |
 | **DeepSeek** | Não (só o nome do programa e o título da janela) | Chave do DeepSeek (`DEEPSEEK_API_KEY`). A API do DeepSeek não aceita imagem. |
-| **Ollama** (local) | Sim, com modelo de visão | Sem chave e sem internet. Instale o [Ollama](https://ollama.com) neste ou em outro computador da rede e baixe um modelo de visão. **Recomendado: `ollama pull gemma4:e4b`** (testado numa RTX 3070 de 8 GB: ~5 s por olhada, ~3 s no chat). Para usar outro PC, ponha o endereço dele em **Endereço** (ex.: `192.168.0.10`) e clique em **Testar conexão**; lá, o Ollama precisa de `OLLAMA_HOST=0.0.0.0`. |
+| **Ollama** (local) | Sim, com modelo de visão | Sem chave e sem internet. Instale o [Ollama](https://ollama.com) neste ou em outro computador da rede e baixe um modelo de visão. **Recomendado: `ollama pull gemma4:e4b`** (testado numa RTX 3070 de 8 GB: ~0,6 s por olhada com o modelo carregado; o Pestinha pede ao Ollama para responder sem "pensar" antes, que custava ~5 s). Para usar outro PC, ponha o endereço dele em **Endereço** (ex.: `192.168.0.10`) e clique em **Testar conexão**; lá, o Ollama precisa de `OLLAMA_HOST=0.0.0.0`. |
 
 A chave é gravada no arquivo `.env` da pasta do Pestinha, que fica fora do git e da pasta `memory/`, e
 vale na hora. Também dá para usar uma variável de ambiente com o mesmo nome; se as duas existirem, vale a
 do `.env`. O campo **Modelo** recusa texto com cara de chave. Cada olhada (a cada ~2,5 min, e logo depois de trocar de programa) e
 cada mensagem custam um pouco na conta do provedor; com o Ollama, nada sai do computador.
+
+### Acompanhar jogos
+
+Desligado por padrão (precisa de **Usar IA** e **Ver minha tela**). Quando você está jogando, ele olha a
+tela bem mais seguido para acompanhar a partida: repara num item novo, numa conquista, numa morte ou numa
+jogada boa, e comemora, elogia ou zoa no balão. Dá para conversar com ele pelo chat ou pela voz enquanto
+joga.
+
+- **Ritmo:** com o Ollama, uma olhada a cada ~8 s (cada uma leva ~0,6 s no `gemma4:e4b`); com uma API
+  paga, uma por minuto, por causa do custo. Fora do jogo, volta ao ritmo normal.
+- **Tela parada:** antes de mandar, ele compara o print com o anterior numa miniatura de 32×18; se quase
+  nada mudou (menu, pausa, AFK), não manda, e só olha de novo depois de ~2,5 min.
+- **Fala com freio:** olhar rápido não é falar sem parar: no máximo um comentário a cada 45 s (o que você
+  pergunta pelo menu ou pelo chat sempre tem resposta).
+- **Que jogos:** os da lista em `pestinha/sense/senses.py` (Minecraft Bedrock, Roblox, Fortnite, LoL,
+  CS2, Valorant...) e o Minecraft Java, que aparece como `javaw` e é reconhecido pelo título da janela.
+- **Por cima do jogo:** ligue também **Aparecer em tela cheia (experimental)** e jogue em **janela sem
+  borda** (tela cheia exclusiva não deixa nada aparecer por cima). Ele não olha com o pet escondido nem
+  com você longe (jogando só com controle, o Pestinha pode achar que você saiu).
 
 ### Falar com ele (voz para texto)
 

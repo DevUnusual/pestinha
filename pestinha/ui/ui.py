@@ -640,6 +640,7 @@ class SettingsDialog(QDialog):
         for key in ("ver_tela", "conversa"):
             self.boxes[key].setEnabled(ia)
         self.boxes["comentarios"].setEnabled(ia and self.perms["ver_tela"])
+        self.boxes["jogos"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["voz"].setEnabled(ia and self.perms["conversa"])
         self.boxes["lembrar"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["pesquisar"].setEnabled(ia and self.perms["ver_tela"])

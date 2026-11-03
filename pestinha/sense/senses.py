@@ -17,7 +17,9 @@ ACTIVITY_APPS = {
     "PROGRAMMING": {"code", "visual studio code", "devenv", "pycharm64", "pycharm", "xcode",
                     "claude", "codex"},
     "DESIGNING": {"fusion360", "fusion"},
-    "GAMING": {"valorant", "cs2", "csgo"},
+    "GAMING": {"valorant", "cs2", "csgo", "minecraft.windows", "minecraftlauncher", "robloxplayerbeta",
+               "fortniteclient-win64-shipping", "leagueoflegends", "league of legends", "dota2", "r5apex",
+               "overwatch", "rocketleague", "gta5", "eldenring", "terraria", "stardew valley"},
     "BROWSING": {"chrome", "google chrome", "chromium", "firefox", "msedge", "microsoft edge", "opera",
                  "brave", "brave browser", "safari"},
     "SOCIAL": {"discord", "teams", "microsoft teams", "whatsapp"},
@@ -56,6 +58,17 @@ def get_active_title():
 def get_active_app():
     """Nome do programa em primeiro plano, em minúsculo (leitura da plataforma)."""
     return plataforma.processo_ativo()
+
+
+# Jogos que rodam num programa genérico: só dá para saber pelo título (lido só com "Ver minha tela")
+JOGOS_POR_TITULO = {"javaw": "minecraft", "java": "minecraft"}
+
+
+def jogo_pelo_titulo(app, titulo):
+    """O Minecraft Java aparece como 'javaw': é jogo se o título disser."""
+    nome = app.lower().removesuffix(".exe")
+    palavra = JOGOS_POR_TITULO.get(nome)
+    return bool(palavra and palavra in (titulo or "").lower())
 
 
 def detect_activity(app, idle_seconds, away_after):

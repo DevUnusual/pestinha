@@ -201,7 +201,9 @@ class ClienteOpenAI:
             ]
         sdk = self._sdk
         try:
-            resposta = self.cliente.chat.completions.create(model=self.modelo, messages=msgs)
+            # Ollama: sem "pensar" antes de responder (gemma4: de ~6 s para <1 s por olhada, ver #4)
+            extra = {"reasoning_effort": "none"} if self.ollama else None
+            resposta = self.cliente.chat.completions.create(model=self.modelo, messages=msgs, extra_body=extra)
         except sdk.AuthenticationError as erro:
             raise ErroIA("a chave da API foi recusada") from erro
         except sdk.NotFoundError as erro:

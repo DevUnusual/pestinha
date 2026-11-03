@@ -54,6 +54,7 @@ DEFAULT_PERMISSIONS = {
     "ia": False,               # interruptor mestre da IA: sem ele, nada sai do computador
     "ver_tela": False,         # print da tela + título da janela vão para o modelo de IA
     "comentarios": True,       # ele comenta em balão o que vê (só com ver_tela)
+    "jogos": False,            # em jogo, ele olha bem mais seguido para acompanhar a partida (só com ver_tela)
     "conversa": True,          # chat por texto pelo menu do pet
     "pesquisar": False,        # ele pesquisa na internet pelo Hermes o que chamou a atenção na tela; precisa de ia e ver_tela
     "hermes_url": "",          # onde está a API do Hermes; vazio: este computador, porta 8642
@@ -104,6 +105,11 @@ PERMISSION_GROUPS = [
          "De tempos em tempos ele tira um print da tela e lê o título da janela ativa, e manda para o modelo "
          "descrever o que você está fazendo. O print não é gravado em disco."),
         ("comentarios", "Comentar o que vê", "Às vezes ele comenta num balãozinho o que você está fazendo."),
+        ("jogos", "Acompanhar jogos",
+         "Quando você está jogando, ele olha a tela bem mais seguido (com o Ollama, a cada poucos segundos; "
+         "com uma API paga, mais devagar, por causa do custo) para perceber itens, conquistas e jogadas e "
+         "comentar. Se a tela quase não mudou, ele não manda o print. Para ele aparecer por cima do jogo, "
+         "ligue também \"Aparecer em tela cheia\" e jogue em janela sem borda."),
         ("pesquisar", "Pesquisar na internet (Hermes)",
          "Quando algo na tela chama a atenção dele (um jogo, um item, um erro), ele pede ao Hermes para "
          "pesquisar e te dá uma dica no balão. Vai para o Hermes só o termo da pesquisa e o resumo do que "
@@ -195,6 +201,9 @@ PROFILES = {
         "visao_intervalo": 25.0,     # s entre olhadas
         "visao_apos_troca": 8.0,     # s depois de você trocar de programa (se já deu o mínimo)
         "pesquisa_intervalo": 60.0,  # s mínimos entre uma pesquisa na internet e outra
+        "visao_jogo": 4.0,           # s entre olhadas em jogo, com o Ollama ("Acompanhar jogos")
+        "visao_jogo_nuvem": 20.0,    # s entre olhadas em jogo, com uma API paga
+        "fala_jogo": 12.0,           # s mínimos entre um comentário e outro em jogo
     },
     "normal": {
         "mischief_interval": (300.0, 900.0),
@@ -227,6 +236,9 @@ PROFILES = {
         "visao_intervalo": 150.0,    # ~2,5 min entre olhadas: o custo da API fica baixo
         "visao_apos_troca": 45.0,
         "pesquisa_intervalo": 600.0,     # no máximo uma pesquisa a cada 10 min
+        "visao_jogo": 8.0,           # Ollama: ~0,7 s por olhada no gemma4:e4b, sobra placa para o jogo
+        "visao_jogo_nuvem": 60.0,    # API paga: ~1 olhada por minuto em jogo
+        "fala_jogo": 45.0,           # olhar rápido não é falar sem parar
     },
 }
 

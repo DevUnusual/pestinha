@@ -36,6 +36,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_festa.py` | Fogos de artifício ligados à rede e brincadeira mais animada quando feliz. |
 | `test_homeostase.py` | Homeostase: trabalhar é estímulo, então o tédio não sobe enquanto ele programa. |
 | `test_ia.py` | Visão e conversa pela IA: o texto do modelo, os clientes (com SDK falsa, sem rede) e o controlador dentro do app de verdade (Qt offscreen, pasta temporária). |
+| `test_jogo.py` | Acompanhar jogos (#4): o Ollama sem "pensar", o reconhecimento do jogo, o pedido de jogo, o print repetido que não é mandado e o freio da fala, com o controlador dentro do app de verdade (Qt offscreen, modelo falso). |
 | `test_jorge.py` | Etapa 4 do multipet: o Jorge, segundo personagem, feito só de configuração e conteúdo. |
 | `test_memoria.py` | Memória compartilhada: o serviço de servidor/memoria/ de verdade (numa porta livre, pasta temporária) e dois "computadores" (duas pastas) sincronizando por ele. |
 | `test_mesa.py` | Notebook: sentar e levantar pelo disparo do neurônio SENTAR. |

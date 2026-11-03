@@ -7,6 +7,8 @@ Dois caminhos, os dois em thread para o pet não travar enquanto o modelo pensa:
                (VISAO_*) e, às vezes, um comentário no balão.
     conversar  você escreve pelo chat; ele responde no chat e no balão, e a conversa vira o canal CONVERSA.
     pesquisar  se a olhada pedir (campo "pesquisar"), o Hermes pesquisa na internet e a dica vai para o balão.
+    jogo       com "Acompanhar jogos", em jogo ele olha a cada poucos segundos (visao_jogo), pula o print
+               se a tela quase não mudou e fala no máximo a cada `fala_jogo`.
 
 Nos dois, o estado da rede vai junto (mind/sincronia.py): quem sente é a rede, o modelo só dá voz.
 
@@ -24,7 +26,7 @@ import threading
 import time
 
 from PySide6.QtCore import QBuffer, QIODevice, QObject, QPoint, Qt, Signal
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QImage
 
 from ..ia import pesquisa, provedores
 from ..ia.mente import Conversa, ler_dica, ler_observacao, limpar_fala, pedido_dica, pedido_observacao, prompt_sistema
@@ -38,6 +40,8 @@ ESPERA_APOS_ERRO = 300.0    # s sem olhar depois de uma falha (sem chave, sem re
 JA_DISSE = 5                # últimos comentários que ele não deve repetir
 ESPERA_TROCA = 3.0          # s depois de trocar de programa, para a janela nova terminar de desenhar
 REPETE_AVISO = 600.0        # s antes de repetir o mesmo aviso na bandeja
+TAMANHO_MINI = (32, 18)     # px da miniatura cinza que compara um print com o anterior
+QUASE_IGUAL = 0.025         # diferença média (0..1) abaixo disso: a tela não mudou o bastante
 
 
 def capturar_tela(retangulo_ativo=None, dpr=1.0):
@@ -60,6 +64,29 @@ def capturar_tela(retangulo_ativo=None, dpr=1.0):
     if not imagem.save(buffer, "JPG", QUALIDADE_JPEG):
         return None
     return base64.b64encode(bytes(buffer.data())).decode("ascii")
+
+
+def miniatura(imagem_b64):
+    """Miniatura cinza do print (bytes, um por pixel), para comparar com o anterior. None se não deu."""
+    try:
+        imagem = QImage.fromData(base64.b64decode(imagem_b64, validate=True), "JPG")
+    except (ValueError, TypeError):
+        return None
+    if imagem.isNull():
+        return None
+    mini = imagem.scaled(*TAMANHO_MINI, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+    mini = mini.convertToFormat(QImage.Format_Grayscale8)
+    largura, altura = TAMANHO_MINI
+    linha = mini.bytesPerLine()
+    dados = bytes(mini.constBits())
+    return b"".join(dados[y * linha:y * linha + largura] for y in range(altura))
+
+
+def diferenca(a, b):
+    """Quanto duas miniaturas diferem, de 0 (iguais) a 1. Sem uma delas, 1."""
+    if not a or not b or len(a) != len(b):
+        return 1.0
+    return sum(abs(x - y) for x, y in zip(a, b)) / (255.0 * len(a))
 
 
 class VisaoController(QObject):
@@ -89,6 +116,9 @@ class VisaoController(QObject):
         self.respondendo = False            # uma resposta do chat a caminho
         self.pesquisando = False            # uma pesquisa do Hermes a caminho
         self.ultima_pesquisa = float("-inf")
+        self.ultimo_envio = float("-inf")   # quando um print foi de fato para o modelo
+        self.ultima_fala = float("-inf")    # último comentário espontâneo (freio em jogo)
+        self._mini = None                   # miniatura do último print enviado
         self.geracao = 0                    # muda no pânico/pausa: respostas antigas são descartadas
         self._pedido_seu = False            # a olhada a caminho foi pedida por você (pelo menu)
         self._pergunta = ""                 # a mensagem do chat que está sendo respondida
@@ -118,6 +148,20 @@ class VisaoController(QObject):
         """Permissão ligada, nada a caminho e já passou o intervalo desde a última pesquisa."""
         return (self.vendo() and self.perms["pesquisar"] and not self.pesquisando
                 and now - self.ultima_pesquisa >= self.app.prof["pesquisa_intervalo"])
+
+    def em_jogo(self):
+        """"Acompanhar jogos" ligado e você jogando (pela lista de jogos ou pelo título, no Minecraft Java)."""
+        if not (self.vendo() and self.perms["jogos"]):
+            return False
+        return (self.app.activity == "GAMING"
+                or senses.jogo_pelo_titulo(senses.get_active_app(), senses.get_active_title()))
+
+    def intervalo(self):
+        """Segundos até a próxima olhada: curto em jogo (mais com o Ollama, que não cobra), longo fora."""
+        prof = self.app.prof
+        if self.em_jogo():
+            return prof["visao_jogo" if self.perms["ia_provedor"] == "ollama" else "visao_jogo_nuvem"]
+        return prof["visao_intervalo"]
 
     def descricao(self):
         """Uma linha para o chat: quem responde e se ele está vendo a tela."""
@@ -171,7 +215,8 @@ class VisaoController(QObject):
     def app_mudou(self, now):
         """Você trocou de programa: ele dá uma olhada logo (respeitando o intervalo mínimo)."""
         if self.vendo():
-            cedo = max(now + ESPERA_TROCA, self.ultima_olhada + self.app.prof["visao_apos_troca"])
+            minimo = min(self.app.prof["visao_apos_troca"], self.intervalo())
+            cedo = max(now + ESPERA_TROCA, self.ultima_olhada + minimo)
             self.proxima = min(self.proxima, cedo)
 
     def pode_olhar(self):
@@ -188,17 +233,26 @@ class VisaoController(QObject):
 
     def olhar(self, now):
         """Tira o print, lê o programa e o título e pergunta ao modelo (em outra thread)."""
+        jogo = self.em_jogo()
         self.ultima_olhada = now
-        self.proxima = now + self.app.prof["visao_intervalo"]
+        self.proxima = now + self.intervalo()
         try:
             cliente = self.cliente()
         except provedores.ErroIA as erro:
             self._falhou(str(erro), now)
             return
         imagem = self._print() if cliente.ve_imagem else None
+        if imagem:
+            mini = miniatura(imagem)
+            if (jogo and not self._pedido_seu and diferenca(mini, self._mini) < QUASE_IGUAL
+                    and now - self.ultimo_envio < self.app.prof["visao_intervalo"]):
+                return                                 # a tela quase não mudou: não gasta uma olhada
+            self._mini = mini
+        self.ultimo_envio = now
         pergunta = pedido_observacao(senses.get_active_app(), senses.get_active_title(), self.app.activity,
                                      self.app.pet_state.emotion, self.ultimo_resumo,
-                                     self.estado(), self.ja_disse, self.lembrado(), self.pode_pesquisar(now))
+                                     self.estado(), self.ja_disse, self.lembrado(), self.pode_pesquisar(now),
+                                     jogo)
         self.olhando = True
         self._em_thread("observacao", cliente, [{"role": "user", "content": pergunta}], imagem)
 
@@ -314,8 +368,12 @@ class VisaoController(QObject):
         if obs.pesquisar and self.pode_pesquisar(now):
             self.pesquisar(obs.pesquisar, now)
         comentario = obs.comentario or (obs.resumo if pedido else "")
+        if not pedido and self.em_jogo() and now - self.ultima_fala < app.prof["fala_jogo"]:
+            comentario = ""                            # em jogo ele olha muito: fala bem menos do que vê
         if comentario and (pedido or self.perms["comentarios"]):
             self.ja_disse = (self.ja_disse + [comentario])[-JA_DISSE:]
+            if not pedido:
+                self.ultima_fala = now
             self.fala.emit(comentario)
 
     def _respondido(self, texto):
