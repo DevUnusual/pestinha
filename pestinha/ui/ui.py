@@ -223,6 +223,19 @@ class SettingsDialog(QDialog):
         self.modelo_campo.editingFinished.connect(self._trocar_modelo)
         linha.addWidget(self.modelo_campo, 1)
         layout.addLayout(linha)
+        self.ollama_linha = QWidget()
+        linha = QHBoxLayout(self.ollama_linha)
+        linha.setContentsMargins(0, 0, 0, 0)
+        linha.addWidget(QLabel("Endereço:"))
+        self.ollama_campo = QLineEdit(self.perms["ia_ollama_url"])
+        self.ollama_campo.setPlaceholderText(f"{provedores.OLLAMA_PADRAO} (este computador)")
+        self.ollama_campo.setMaxLength(200)
+        self.ollama_campo.editingFinished.connect(self._trocar_endereco)
+        linha.addWidget(self.ollama_campo, 1)
+        self.ollama_botao = QPushButton("Testar conexão")
+        self.ollama_botao.clicked.connect(self._testar_ollama)
+        linha.addWidget(self.ollama_botao)
+        layout.addWidget(self.ollama_linha)
         self.chave_linha = QWidget()
         linha = QHBoxLayout(self.chave_linha)
         linha.setContentsMargins(0, 0, 0, 0)
@@ -264,6 +277,34 @@ class SettingsDialog(QDialog):
             return
         self._set("ia_modelo", texto)
 
+    def _trocar_endereco(self):
+        """Grava o endereço do Ollama já completo (http:// e a porta); um endereço ruim é recusado."""
+        texto = self.ollama_campo.text().strip()
+        base = provedores.endereco_ollama(texto)
+        if base is None:
+            self._mostrar_estado_chave("Endereço inválido. Exemplos: 192.168.0.10 ou http://192.168.0.10:11434",
+                                       erro=True)
+            self.ollama_campo.setText(self.perms["ia_ollama_url"])
+            return
+        valor = "" if base == provedores.OLLAMA_PADRAO else base
+        self.ollama_campo.setText(valor)
+        if valor != self.perms["ia_ollama_url"]:
+            self._set("ia_ollama_url", valor)
+            self._mostrar_estado_chave("")
+
+    def _testar_ollama(self):
+        """Pergunta ao Ollama se ele responde e se tem o modelo escolhido (espera no máximo uns segundos)."""
+        self._trocar_endereco()
+        self.ollama_botao.setEnabled(False)
+        self.ollama_botao.setText("Testando...")
+        QApplication.processEvents()
+        try:
+            ok, mensagem = provedores.testar_ollama(self.perms["ia_ollama_url"], self.perms["ia_modelo"])
+        finally:
+            self.ollama_botao.setText("Testar conexão")
+            self.ollama_botao.setEnabled(self.perms["ia"])
+        self._mostrar_estado_chave(("\u2714 " if ok else "") + mensagem, erro=not ok)
+
     def _salvar_chave(self):
         """Grava a chave no .env, apaga do campo e avisa que deu certo (ou por que não deu)."""
         dados = provedores.info(self.perms["ia_provedor"])
@@ -294,6 +335,7 @@ class SettingsDialog(QDialog):
         dados = provedores.info(self.perms["ia_provedor"])
         self.modelo_campo.setPlaceholderText(f"padrão: {dados['modelo']}")
         self.chave_linha.setVisible(bool(dados["chave"]))
+        self.ollama_linha.setVisible(self.perms["ia_provedor"] == "ollama")
         if dados["chave"]:
             final = chaves.final_da_chave(dados["chave"])
             self.chave_campo.setPlaceholderText(f"cole aqui a chave ({dados['chave']})")
@@ -305,8 +347,10 @@ class SettingsDialog(QDialog):
                     "e não aparece mais na tela depois de salva. Cada olhada e cada mensagem custam um "
                     "pouco na conta do provedor.")
         else:
-            dica = ("Roda no seu computador, sem internet e sem custo. Instale o Ollama e baixe um modelo "
-                    f"de visão: ollama pull {dados['modelo']} (precisa de uma placa de vídeo razoável).")
+            dica = ("Roda num computador seu (este ou outro da rede), sem internet e sem custo. Recomendado: "
+                    f"{dados['recomendado']} (ollama pull {dados['recomendado']}), que cabe numa placa de vídeo "
+                    "de 8 GB. Para usar outro PC, ponha o endereço dele acima; lá, o Ollama precisa aceitar "
+                    "conexões da rede (OLLAMA_HOST=0.0.0.0).")
             self._mostrar_estado_chave("")
         if not dados["ve_imagem"]:
             dica += " Este provedor não vê imagem: ele conhece só o nome do programa e o título da janela."
@@ -389,7 +433,8 @@ class SettingsDialog(QDialog):
             self.boxes[key].setEnabled(ia)
         self.boxes["comentarios"].setEnabled(ia and self.perms["ver_tela"])
         if hasattr(self, "provedor_combo"):
-            for campo in (self.provedor_combo, self.modelo_campo, self.chave_campo, self.chave_botao):
+            for campo in (self.provedor_combo, self.modelo_campo, self.chave_campo, self.chave_botao,
+                          self.ollama_campo, self.ollama_botao):
                 campo.setEnabled(ia)
 
     def set_active(self, on):

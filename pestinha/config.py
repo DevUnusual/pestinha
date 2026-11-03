@@ -56,6 +56,7 @@ DEFAULT_PERMISSIONS = {
     "conversa": True,          # chat por texto pelo menu do pet
     "ia_provedor": "claude",   # claude, openai, deepseek ou ollama (ver ia/provedores.py)
     "ia_modelo": "",           # vazio: o modelo padrão do provedor
+    "ia_ollama_url": "",       # vazio: o Ollama deste computador; ou outro PC da rede (ex.: 192.168.0.10)
 }
 
 # (chave, rótulo, descrição) na ordem da tela inicial

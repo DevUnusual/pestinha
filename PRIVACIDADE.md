@@ -25,7 +25,9 @@ Só valem com **Usar IA** ligado em Configurações, e cada parte tem a própria
   Os dois vão para o provedor junto com o nome do programa. Ele não olha com você longe, com o pet
   escondido, em tela cheia, dormindo, pausado ou depois do pânico.
 - **Para onde vai:** Claude (Anthropic), OpenAI ou DeepSeek, pela internet, sob as regras de privacidade de
-  cada um; ou o **Ollama**, que roda no seu computador e não manda nada para fora. O DeepSeek não recebe
+  cada um; ou o **Ollama**, que roda num computador seu (este ou outro da sua rede, pelo campo Endereço) e
+  não manda nada para a internet. Com outro computador, o print atravessa a sua rede local sem criptografia
+  (http), a não ser que você use um endereço https. O DeepSeek não recebe
   o print (a API dele não aceita imagem), só o nome do programa e o título.
 - **O que fica gravado:** nada. O print, o título, o resumo e a conversa ficam só na memória enquanto o app
   está aberto (o botão **Esquecer** do chat apaga a conversa na hora). Não vão para `memory/` nem para o

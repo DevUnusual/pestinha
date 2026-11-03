@@ -88,7 +88,72 @@ def test_provedor_desconhecido_vira_o_padrao_e_modelo_vazio_o_do_provedor():
 
 def test_ollama_nao_precisa_de_chave(monkeypatch):
     cliente = provedores.criar_cliente("ollama")
-    assert cliente.local and cliente.ve_imagem
+    assert cliente.ollama and cliente.ve_imagem and cliente.base_url == "http://localhost:11434/v1"
+
+
+@pytest.mark.parametrize("texto, esperado", [
+    ("", "http://localhost:11434"),
+    ("192.168.3.250", "http://192.168.3.250:11434"),
+    (" http://192.168.3.250:11434/ ", "http://192.168.3.250:11434"),
+    ("https://ia.casa.lan:8443/v1", "https://ia.casa.lan:8443"),
+    ("[::1]", "http://[::1]:11434"),
+    ("ftp://x", None), ("1.2.3.4:99999", None), ("a b", None), ("http://x/caminho", None),
+])
+def test_endereco_do_ollama(texto, esperado):
+    assert provedores.endereco_ollama(texto) == esperado
+
+
+def test_ollama_de_outro_computador():
+    cliente = provedores.criar_cliente("ollama", "gemma4:e4b", "192.168.3.250")
+    assert cliente.base_url == "http://192.168.3.250:11434/v1" and cliente.modelo == "gemma4:e4b"
+    with pytest.raises(provedores.ErroIA, match="inválido"):
+        provedores.criar_cliente("ollama", "", "ftp://x")
+
+
+class _RespostaHTTP:
+    def __init__(self, dados):
+        self.dados = dados
+
+    def read(self):
+        import json
+        return json.dumps(self.dados).encode()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+
+def _ollama_falso(monkeypatch, modelos, chamadas):
+    def abrir(url, timeout):
+        chamadas.append(url)
+        if url.endswith("/api/version"):
+            return _RespostaHTTP({"version": "0.40.13"})
+        return _RespostaHTTP({"models": [{"name": m} for m in modelos]})
+    monkeypatch.setattr(provedores.urllib.request, "urlopen", abrir)
+
+
+def test_testar_conexao_diz_se_falta_o_modelo(monkeypatch):
+    chamadas = []
+    _ollama_falso(monkeypatch, ["gemma4:e4b"], chamadas)
+    ok, msg = provedores.testar_ollama("192.168.3.250", "gemma4:e4b")
+    assert ok and "0.40.13" in msg and chamadas[0] == "http://192.168.3.250:11434/api/version"
+    ok, msg = provedores.testar_ollama("192.168.3.250", "llava")
+    assert not ok and "ollama pull llava" in msg
+
+
+def test_testar_conexao_sem_resposta(monkeypatch):
+    def recusa(url, timeout):
+        raise provedores.urllib.error.URLError("recusado")
+    monkeypatch.setattr(provedores.urllib.request, "urlopen", recusa)
+    ok, msg = provedores.testar_ollama("192.168.3.251", "")
+    assert not ok and "192.168.3.251:11434" in msg
+    assert provedores.testar_ollama("ftp://x", "")[0] is False
+
+
+def test_gemma4_e_a_recomendacao_do_ollama():
+    assert provedores.PROVEDORES["ollama"]["recomendado"] == "gemma4:e4b"
 
 
 class _Chamadas:
@@ -304,6 +369,40 @@ def test_balao_some_com_o_pet(qapp, pet):
     assert app.balao.isVisible()
     app.toggle_hidden()
     assert not app.balao.isVisible()
+
+
+def test_endereco_do_ollama_na_tela(qapp, tmp_path, monkeypatch):
+    from pestinha.ui.ui import SettingsDialog
+    perms = dict(config.DEFAULT_PERMISSIONS, ia=True, ia_provedor="ollama")
+    dialogo = SettingsDialog(perms, Paths(root=tmp_path), first_run=False)
+    try:
+        assert not dialogo.ollama_linha.isHidden() and dialogo.chave_linha.isHidden()
+        assert "gemma4:e4b" in dialogo.provedor_dica.text()
+        dialogo.ollama_campo.setText("192.168.3.250")
+        dialogo.ollama_campo.editingFinished.emit()
+        assert dialogo.ollama_campo.text() == "http://192.168.3.250:11434"
+        assert dialogo.perms["ia_ollama_url"] == "http://192.168.3.250:11434"
+        dialogo.ollama_campo.setText("ftp://nada")
+        dialogo.ollama_campo.editingFinished.emit()
+        assert dialogo.perms["ia_ollama_url"] == "http://192.168.3.250:11434"      # recusado: fica o anterior
+        assert dialogo.chave_estado.objectName() == "erro"
+        monkeypatch.setattr(provedores, "testar_ollama", lambda endereco, modelo: (True, f"ok {endereco}"))
+        dialogo.ollama_botao.click()
+        assert dialogo.chave_estado.objectName() == "ok" and "192.168.3.250" in dialogo.chave_estado.text()
+        dialogo.provedor_combo.setCurrentIndex(dialogo.provedor_combo.findData("claude"))
+        assert dialogo.ollama_linha.isHidden()
+    finally:
+        dialogo.close()
+
+
+def test_visao_recria_o_cliente_ao_trocar_o_endereco(qapp, pet):
+    app, _falso = pet
+    del app.visao.cliente                       # volta ao método de verdade (o fixture troca por um falso)
+    app.apply_perms({"ia_provedor": "ollama", "ia_ollama_url": "http://192.168.3.250:11434"})
+    assert app.visao.cliente().base_url == "http://192.168.3.250:11434/v1"
+    assert "192.168.3.250" in app.visao.descricao()
+    app.apply_perms({"ia_ollama_url": ""})
+    assert app.visao.cliente().base_url == "http://localhost:11434/v1"
 
 
 def test_tela_de_configuracoes_trava_o_que_depende_da_ia(qapp, tmp_path):

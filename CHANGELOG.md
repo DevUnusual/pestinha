@@ -12,6 +12,9 @@
 - **Rede:** cinco canais sensoriais novos (`VISAO_GRACA`, `VISAO_ERRO`, `VISAO_FOCO`, `VISAO_NOVO`,
   `CONVERSA`), agora 500 neurônios. A IA descreve a tela; a rede decide o que ele sente. Ver você focado
   inibe travessuras.
+- **Ollama em outro computador:** campo **Endereço** (aceita só o IP, completa `http://` e a porta) e botão
+  **Testar conexão**, que diz se o Ollama respondeu e se o modelo está instalado. `gemma4:e4b` é o modelo
+  recomendado para o Ollama.
 - **Balão de fala** em cima do pet para os comentários e as respostas.
 - **Chat por texto** pelo menu do pet (Conversar), e "O que você está vendo?" para pedir uma olhada agora.
 - Cada personagem tem uma `persona` em `pets/<pet>.json`. O Jorge continua sátira: nunca vende nem pede nada.

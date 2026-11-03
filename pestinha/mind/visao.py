@@ -105,7 +105,10 @@ class VisaoController(QObject):
         provedor = self.perms["ia_provedor"]
         modelo = provedores.modelo_de(provedor, self.perms["ia_modelo"])
         olhos = "vendo sua tela" if self.vendo() else "sem ver sua tela"
-        return f"{provedores.info(provedor)['nome']} · {modelo} · {olhos}"
+        nome = provedores.info(provedor)["nome"]
+        if provedor == "ollama":
+            nome = f"Ollama em {provedores.endereco_ollama(self.perms['ia_ollama_url']) or '?'}"
+        return f"{nome} · {modelo} · {olhos}"
 
     def cancelar(self):
         """Pânico, pausa ou IA desligada: esquece o que estava a caminho."""
@@ -120,7 +123,7 @@ class VisaoController(QObject):
 
     def cliente(self):
         """O cliente do provedor escolhido (recriado se você trocar de provedor ou modelo)."""
-        chave = (self.perms["ia_provedor"], self.perms["ia_modelo"])
+        chave = (self.perms["ia_provedor"], self.perms["ia_modelo"], self.perms["ia_ollama_url"])
         if self._cliente is None or self._cliente_de != chave:
             self._cliente = provedores.criar_cliente(*chave)
             self._cliente_de = chave

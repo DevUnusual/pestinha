@@ -96,7 +96,7 @@ e a chave some da tela). **Ver minha tela** é separado: sem ele, ele conversa m
 | **Claude** (padrão) | Sim | Chave da Anthropic (`ANTHROPIC_API_KEY`). Modelo padrão `claude-opus-5-5`; `claude-haiku-5-5` sai bem mais barato. |
 | **OpenAI** | Sim | Chave da OpenAI (`OPENAI_API_KEY`). Modelo padrão `gpt-5-mini`. |
 | **DeepSeek** | Não (só o nome do programa e o título da janela) | Chave do DeepSeek (`DEEPSEEK_API_KEY`). A API do DeepSeek não aceita imagem. |
-| **Ollama** (local) | Sim, com modelo de visão | Sem chave e sem internet. Instale o [Ollama](https://ollama.com) e rode `ollama pull qwen2.5vl:7b` (ou `gemma3`, `minicpm-v`, `llava`). Precisa de uma placa de vídeo com uns 8 GB para responder em poucos segundos. |
+| **Ollama** (local) | Sim, com modelo de visão | Sem chave e sem internet. Instale o [Ollama](https://ollama.com) neste ou em outro computador da rede e baixe um modelo de visão. **Recomendado: `ollama pull gemma4:e4b`** (testado numa RTX 3070 de 8 GB: ~5 s por olhada, ~3 s no chat). Para usar outro PC, ponha o endereço dele em **Endereço** (ex.: `192.168.0.10`) e clique em **Testar conexão**; lá, o Ollama precisa de `OLLAMA_HOST=0.0.0.0`. |
 
 A chave é gravada no arquivo `.env` da pasta do Pestinha, que fica fora do git e da pasta `memory/`, e
 vale na hora. Também dá para usar uma variável de ambiente com o mesmo nome; se as duas existirem, vale a
