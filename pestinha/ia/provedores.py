@@ -178,8 +178,8 @@ class ClienteClaude:
 class ClienteOpenAI:
     """OpenAI, DeepSeek e Ollama: todos falam o formato de chat da OpenAI."""
 
-    def __init__(self, chave, modelo, base_url=None, ve_imagem=True, ollama=False):
-        """Cria o cliente; `base_url` aponta para o DeepSeek ou para o Ollama (deste ou de outro computador)."""
+    def __init__(self, chave, modelo, base_url=None, ve_imagem=True, ollama=False, tempo=TEMPO_LIMITE):
+        """Cria o cliente; `base_url` aponta para o DeepSeek, o Ollama ou o Hermes (deste ou de outro computador)."""
         try:
             import openai
         except ImportError as erro:
@@ -189,7 +189,7 @@ class ClienteOpenAI:
         self.ve_imagem = ve_imagem
         self.ollama = ollama
         self.base_url = base_url
-        self.cliente = openai.OpenAI(api_key=chave, base_url=base_url, timeout=TEMPO_LIMITE, max_retries=1)
+        self.cliente = openai.OpenAI(api_key=chave, base_url=base_url, timeout=tempo, max_retries=1)
 
     def responder(self, sistema, mensagens, imagem=None):
         """Manda a conversa (o print vai junto da última mensagem, se o modelo vê imagem) e devolve o texto."""

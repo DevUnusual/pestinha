@@ -1,5 +1,19 @@
 # Histórico de versões
 
+## Pesquisa na internet pelo Hermes
+
+- **Pesquisar na internet (Hermes)** (desligado por padrão, precisa de Usar IA e Ver minha tela): quando
+  algo na tela chama a atenção dele (um jogo, um item, um erro), a olhada devolve um termo em
+  `"pesquisar"`; o [Hermes](https://github.com/NousResearch/hermes-agent) pesquisa e a dica aparece no balão.
+  Vai para o Hermes só o termo e o resumo da olhada, nunca o print nem o título. No máximo uma pesquisa a
+  cada 10 min (1 min no modo teste); pânico e pausa descartam a que estiver a caminho.
+- **Endereço do Hermes**, **Chave do Hermes** (a `API_SERVER_KEY` dele, guardada como `HERMES_API_KEY` no
+  `.env`) e **Testar Hermes** nas Configurações. Novo `pestinha/ia/pesquisa.py`.
+- Com **Lembrar o que viu**, as lembranças dos seus computadores vão junto: rodando o Hermes no mesmo
+  servidor da memória, todos os computadores falam com o mesmo Hermes (e a memória dele).
+- Testado com o Hermes 0.22.2 (DeepSeek) no servidor da casa, com o api_server só com a ferramenta
+  `search`: ~10 s por dica; pedido para rodar um comando, ele recusa (não tem a ferramenta).
+
 ## O mesmo pet em todos os computadores
 
 - **Serviço de memória** em `servidor/memoria/` (só Python, nada para instalar): guarda a rede, a memória,

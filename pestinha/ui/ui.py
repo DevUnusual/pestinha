@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import config, memoria_remota
-from ..ia import chaves, provedores, voz
+from ..ia import chaves, pesquisa, provedores, voz
 from ..sense import timeline
 from ..core.emotion import EYE_SHAPES
 from ..body.pet import draw_face
@@ -182,6 +182,7 @@ class SettingsDialog(QDialog):
             if group_title == "Visão e conversa (IA)":
                 self._montar_provedor(layout)
                 self._montar_voz(layout)
+                self._montar_pesquisa(layout)
             if group_title == "Memória em outro computador":
                 self._montar_memoria(layout)
             root.addWidget(group)
@@ -284,6 +285,94 @@ class SettingsDialog(QDialog):
         self.voz_estado.setWordWrap(True)
         self.voz_estado.setVisible(False)
         layout.addWidget(self.voz_estado)
+
+    def _montar_pesquisa(self, layout):
+        """Onde fica o Hermes, que pesquisa na internet para ele, e a chave da API dele."""
+        linha = QHBoxLayout()
+        linha.addWidget(QLabel("Endereço do Hermes:"))
+        self.hermes_campo = QLineEdit(self.perms["hermes_url"])
+        self.hermes_campo.setPlaceholderText(f"vazio = este computador ({pesquisa.HERMES_PADRAO})")
+        self.hermes_campo.setMaxLength(200)
+        self.hermes_campo.editingFinished.connect(self._trocar_endereco_hermes)
+        linha.addWidget(self.hermes_campo, 1)
+        self.hermes_botao = QPushButton("Testar Hermes")
+        self.hermes_botao.clicked.connect(self._testar_hermes)
+        linha.addWidget(self.hermes_botao)
+        layout.addLayout(linha)
+        linha = QHBoxLayout()
+        linha.addWidget(QLabel("Chave do Hermes:"))
+        self.hermes_chave = QLineEdit()
+        self.hermes_chave.setEchoMode(QLineEdit.Password)
+        self.hermes_chave.setMaxLength(400)
+        final = chaves.final_da_chave(pesquisa.CHAVE)
+        self.hermes_chave.setPlaceholderText(f"salva (termina em …{final})" if final
+                                             else "cole aqui a API_SERVER_KEY do Hermes")
+        self.hermes_chave.returnPressed.connect(self._salvar_chave_hermes)
+        linha.addWidget(self.hermes_chave, 1)
+        self.hermes_salvar = QPushButton("Salvar chave")
+        self.hermes_salvar.clicked.connect(self._salvar_chave_hermes)
+        linha.addWidget(self.hermes_salvar)
+        layout.addLayout(linha)
+        dica = QLabel("O Hermes é um agente com ferramentas que roda num computador seu (hermes gateway, com "
+                      "API_SERVER_KEY no .env dele). Deixe a plataforma api_server dele só com a ferramenta "
+                      "de pesquisa: o que aparece na tela pode tentar dar ordens a ele.")
+        dica.setObjectName("hint")
+        dica.setWordWrap(True)
+        layout.addWidget(dica)
+        self.hermes_estado = QLabel()
+        self.hermes_estado.setWordWrap(True)
+        self.hermes_estado.setVisible(False)
+        layout.addWidget(self.hermes_estado)
+
+    def _trocar_endereco_hermes(self):
+        """Grava o endereço do Hermes já completo (http:// e a porta); um endereço ruim é recusado."""
+        base = pesquisa.endereco_hermes(self.hermes_campo.text().strip())
+        if base is None:
+            self._mostrar_estado_hermes("Endereço inválido. Exemplos: 192.168.0.10 ou http://192.168.0.10:8642",
+                                        erro=True)
+            self.hermes_campo.setText(self.perms["hermes_url"])
+            return
+        valor = "" if base == pesquisa.HERMES_PADRAO else base
+        self.hermes_campo.setText(valor)
+        if valor != self.perms["hermes_url"]:
+            self._set("hermes_url", valor)
+            self._mostrar_estado_hermes("")
+
+    def _salvar_chave_hermes(self):
+        """Grava a chave do Hermes no .env e apaga do campo."""
+        valor = self.hermes_chave.text().strip()
+        self.hermes_chave.clear()
+        if not valor:
+            self._mostrar_estado_hermes("Cole a chave no campo antes de salvar.", erro=True)
+            return
+        try:
+            chaves.salvar_chave(self.paths.env, pesquisa.CHAVE, valor)
+        except (ValueError, OSError) as erro:
+            self._mostrar_estado_hermes(f"Não salvou: {erro}", erro=True)
+            return
+        self.hermes_chave.setPlaceholderText(f"salva (termina em …{valor[-4:]})")
+        self._mostrar_estado_hermes(f"✔ Chave salva (termina em …{valor[-4:]}). Já está valendo.")
+        self.chave_salva.emit(pesquisa.CHAVE)
+
+    def _testar_hermes(self):
+        """Pergunta ao Hermes se ele responde e aceita a chave (espera uns segundos no máximo)."""
+        self._trocar_endereco_hermes()
+        self.hermes_botao.setEnabled(False)
+        self.hermes_botao.setText("Testando...")
+        QApplication.processEvents()
+        try:
+            ok, mensagem = pesquisa.testar_hermes(self.perms["hermes_url"])
+        finally:
+            self.hermes_botao.setText("Testar Hermes")
+            self._sync_enabled()
+        self._mostrar_estado_hermes(("✔ " if ok else "") + mensagem, erro=not ok)
+
+    def _mostrar_estado_hermes(self, texto, erro=False):
+        """Linha de aviso do Hermes: verde quando deu certo, vermelha quando não."""
+        self.hermes_estado.setObjectName("erro" if erro else "ok")
+        self.hermes_estado.setStyleSheet("")
+        self.hermes_estado.setText(texto)
+        self.hermes_estado.setVisible(bool(texto))
 
     def _montar_memoria(self, layout):
         """Onde fica o serviço de memória (servidor/memoria/), que guarda o pet para todos os computadores."""
@@ -553,6 +642,11 @@ class SettingsDialog(QDialog):
         self.boxes["comentarios"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["voz"].setEnabled(ia and self.perms["conversa"])
         self.boxes["lembrar"].setEnabled(ia and self.perms["ver_tela"])
+        self.boxes["pesquisar"].setEnabled(ia and self.perms["ver_tela"])
+        if hasattr(self, "hermes_campo"):
+            com_pesquisa = ia and self.perms["ver_tela"] and self.perms["pesquisar"]
+            for campo in (self.hermes_campo, self.hermes_botao, self.hermes_chave, self.hermes_salvar):
+                campo.setEnabled(com_pesquisa)
         if hasattr(self, "memoria_campo"):
             for campo in (self.memoria_campo, self.memoria_botao):
                 campo.setEnabled(self.perms["memoria_compartilhada"])

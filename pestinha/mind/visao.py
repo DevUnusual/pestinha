@@ -6,6 +6,7 @@ Dois caminhos, os dois em thread para o pet não travar enquanto o modelo pensa:
                da janela e pergunta ao modelo o que você está fazendo. A resposta vira sinais para a rede
                (VISAO_*) e, às vezes, um comentário no balão.
     conversar  você escreve pelo chat; ele responde no chat e no balão, e a conversa vira o canal CONVERSA.
+    pesquisar  se a olhada pedir (campo "pesquisar"), o Hermes pesquisa na internet e a dica vai para o balão.
 
 Nos dois, o estado da rede vai junto (mind/sincronia.py): quem sente é a rede, o modelo só dá voz.
 
@@ -13,6 +14,8 @@ Política (as permissões ficam em config.py):
     - nada sai do computador sem "Usar IA"; print e título só com "Ver minha tela";
     - não olha com o pet escondido, em tela cheia, dormindo, pausado, no pânico ou com você longe;
     - o print fica só na memória: nunca é gravado, nem o que o modelo disse sobre ele (nem no log);
+    - para o Hermes vão só o termo e o resumo, nunca o print nem o título, e no máximo uma pesquisa por
+      `pesquisa_intervalo`;
     - pânico, pausa ou desligar a IA descartam a resposta que ainda estava a caminho.
 """
 
@@ -23,8 +26,8 @@ import time
 from PySide6.QtCore import QBuffer, QIODevice, QObject, QPoint, Qt, Signal
 from PySide6.QtGui import QGuiApplication
 
-from ..ia import provedores
-from ..ia.mente import Conversa, ler_observacao, limpar_fala, pedido_observacao, prompt_sistema
+from ..ia import pesquisa, provedores
+from ..ia.mente import Conversa, ler_dica, ler_observacao, limpar_fala, pedido_dica, pedido_observacao, prompt_sistema
 from ..log import log
 from .sincronia import descrever_temperamento, estado_agora
 from ..sense import senses
@@ -84,11 +87,15 @@ class VisaoController(QObject):
         self.proxima = 0.0                  # primeira olhada assim que tudo estiver ligado
         self.olhando = False                # uma olhada a caminho
         self.respondendo = False            # uma resposta do chat a caminho
+        self.pesquisando = False            # uma pesquisa do Hermes a caminho
+        self.ultima_pesquisa = float("-inf")
         self.geracao = 0                    # muda no pânico/pausa: respostas antigas são descartadas
         self._pedido_seu = False            # a olhada a caminho foi pedida por você (pelo menu)
         self._pergunta = ""                 # a mensagem do chat que está sendo respondida
         self._cliente = None
         self._cliente_de = None
+        self._hermes = None
+        self._hermes_de = None
         self._avisos = {}
         self._pronto.connect(self._ao_pronto)
 
@@ -107,6 +114,11 @@ class VisaoController(QObject):
         """Pode olhar a tela agora (permissão)."""
         return self.ligada() and self.perms["ver_tela"]
 
+    def pode_pesquisar(self, now):
+        """Permissão ligada, nada a caminho e já passou o intervalo desde a última pesquisa."""
+        return (self.vendo() and self.perms["pesquisar"] and not self.pesquisando
+                and now - self.ultima_pesquisa >= self.app.prof["pesquisa_intervalo"])
+
     def descricao(self):
         """Uma linha para o chat: quem responde e se ele está vendo a tela."""
         provedor = self.perms["ia_provedor"]
@@ -120,11 +132,11 @@ class VisaoController(QObject):
     def cancelar(self):
         """Pânico, pausa ou IA desligada: esquece o que estava a caminho."""
         self.geracao += 1
-        self.olhando = self.respondendo = False
+        self.olhando = self.respondendo = self.pesquisando = False
 
     def chave_nova(self):
         """Você salvou uma chave: recria o cliente e olha de novo logo (sem esperar o tempo de erro)."""
-        self._cliente = None
+        self._cliente = self._hermes = None
         self._avisos.clear()
         self.proxima = min(self.proxima, time.monotonic() + ESPERA_TROCA)
 
@@ -135,6 +147,13 @@ class VisaoController(QObject):
             self._cliente = provedores.criar_cliente(*chave)
             self._cliente_de = chave
         return self._cliente
+
+    def hermes(self):
+        """O cliente do Hermes (recriado se você trocar o endereço)."""
+        if self._hermes is None or self._hermes_de != self.perms["hermes_url"]:
+            self._hermes = pesquisa.criar_cliente(self.perms["hermes_url"])
+            self._hermes_de = self.perms["hermes_url"]
+        return self._hermes
 
     def estado(self):
         """O estado da rede agora, em texto (sincronia rede -> IA). Vazio se algo ainda não existe."""
@@ -179,7 +198,7 @@ class VisaoController(QObject):
         imagem = self._print() if cliente.ve_imagem else None
         pergunta = pedido_observacao(senses.get_active_app(), senses.get_active_title(), self.app.activity,
                                      self.app.pet_state.emotion, self.ultimo_resumo,
-                                     self.estado(), self.ja_disse, self.lembrado())
+                                     self.estado(), self.ja_disse, self.lembrado(), self.pode_pesquisar(now))
         self.olhando = True
         self._em_thread("observacao", cliente, [{"role": "user", "content": pergunta}], imagem)
 
@@ -218,6 +237,20 @@ class VisaoController(QObject):
         self._em_thread("conversa", cliente, mensagens, imagem)
         return True
 
+    # ---------------- pesquisar ----------------
+
+    def pesquisar(self, termo, now):
+        """O Hermes pesquisa `termo` na internet (em outra thread). Leva só o termo e o resumo."""
+        self.ultima_pesquisa = now
+        try:
+            cliente = self.hermes()
+        except provedores.ErroIA as erro:
+            self._avisar(f"[pesquisa] {erro}", str(erro), now)
+            return
+        self.pesquisando = True
+        pedido = pedido_dica(termo, self.ultimo_resumo, self.estado(), self.lembrado())
+        self._em_thread("pesquisa", cliente, [{"role": "user", "content": pedido}], None)
+
     # ---------------- thread ----------------
 
     def _em_thread(self, tipo, cliente, mensagens, imagem):
@@ -248,6 +281,15 @@ class VisaoController(QObject):
                 self._falhou(str(resultado), now)
             elif self.vendo() and not self.app._congelado():
                 self._entender(ler_observacao(resultado), pedido)
+        elif tipo == "pesquisa":
+            self.pesquisando = False
+            if isinstance(resultado, Exception):
+                self._avisar(f"[pesquisa] {resultado}", f"pesquisa: {resultado}", now)
+            elif self.vendo() and self.perms["pesquisar"] and not self.app._congelado():
+                dica = ler_dica(resultado)
+                if dica:
+                    self.ja_disse = (self.ja_disse + [dica])[-JA_DISSE:]
+                    self.fala.emit(dica)
         else:
             self.respondendo = False
             if isinstance(resultado, Exception):
@@ -268,6 +310,9 @@ class VisaoController(QObject):
             app.drives.stimulate("novelty", novidade)  # coisa nova na tela também tira o tédio
         if self.debugging():
             log("[visão] sinais " + " ".join(f"{k[6:].lower()}={v:.2f}" for k, v in obs.sinais.items()))
+        now = time.monotonic()
+        if obs.pesquisar and self.pode_pesquisar(now):
+            self.pesquisar(obs.pesquisar, now)
         comentario = obs.comentario or (obs.resumo if pedido else "")
         if comentario and (pedido or self.perms["comentarios"]):
             self.ja_disse = (self.ja_disse + [comentario])[-JA_DISSE:]
@@ -289,7 +334,11 @@ class VisaoController(QObject):
     def _falhou(self, motivo, now):
         """Falha da olhada: espera um tempo e avisa na bandeja (sem repetir o mesmo aviso toda hora)."""
         self.proxima = now + max(ESPERA_APOS_ERRO, self.app.prof["visao_intervalo"])
-        log(f"[visão] {motivo}")
+        self._avisar(f"[visão] {motivo}", motivo, now)
+
+    def _avisar(self, linha, motivo, now):
+        """Loga e avisa na bandeja, sem repetir o mesmo aviso toda hora."""
+        log(linha)
         if now - self._avisos.get(motivo, float("-inf")) >= REPETE_AVISO:
             self._avisos[motivo] = now
             self.aviso.emit(motivo)

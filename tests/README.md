@@ -43,6 +43,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_nucleo.py` | Testes dos módulos puros: nada de Qt, nada de Windows. |
 | `test_paineis.py` | Painéis do menu (monitor neural e painel de protesto): abrir à mão deve manter o painel na tela. |
 | `test_pedido.py` | Pedir para trabalhar: o neurônio SENTAR decide. |
+| `test_pesquisa.py` | Pesquisa na internet pelo Hermes: o prompt, o cliente (com um servidor HTTP falso nesta máquina) e o controlador dentro do app de verdade (Qt offscreen, Hermes falso). |
 | `test_plataforma.py` | Plataforma: cada sistema expõe as mesmas funções, e as leituras de texto (wmctrl, xdotool, ioreg, janelas do Quartz) são testadas com saídas de exemplo, em qualquer sistema. |
 | `test_robustez.py` | Robustez: arquivo corrompido, assets faltando, log em arquivo. |
 | `test_robustez_v2.py` | Falhas do relatório técnico (docs/auditorias/ANALISE_TECNICA.md): cada caso tem um teste que reproduz o problema. |

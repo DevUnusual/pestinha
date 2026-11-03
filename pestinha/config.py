@@ -55,6 +55,8 @@ DEFAULT_PERMISSIONS = {
     "ver_tela": False,         # print da tela + título da janela vão para o modelo de IA
     "comentarios": True,       # ele comenta em balão o que vê (só com ver_tela)
     "conversa": True,          # chat por texto pelo menu do pet
+    "pesquisar": False,        # ele pesquisa na internet pelo Hermes o que chamou a atenção na tela; precisa de ia e ver_tela
+    "hermes_url": "",          # onde está a API do Hermes; vazio: este computador, porta 8642
     "ia_provedor": "claude",   # claude, openai, deepseek ou ollama (ver ia/provedores.py)
     "ia_modelo": "",           # vazio: o modelo padrão do provedor
     "ia_ollama_url": "",       # vazio: o Ollama deste computador; ou outro PC da rede (ex.: 192.168.0.10)
@@ -102,6 +104,10 @@ PERMISSION_GROUPS = [
          "De tempos em tempos ele tira um print da tela e lê o título da janela ativa, e manda para o modelo "
          "descrever o que você está fazendo. O print não é gravado em disco."),
         ("comentarios", "Comentar o que vê", "Às vezes ele comenta num balãozinho o que você está fazendo."),
+        ("pesquisar", "Pesquisar na internet (Hermes)",
+         "Quando algo na tela chama a atenção dele (um jogo, um item, um erro), ele pede ao Hermes para "
+         "pesquisar e te dá uma dica no balão. Vai para o Hermes só o termo da pesquisa e o resumo do que "
+         "você está fazendo, nunca o print nem o título da janela. No máximo uma pesquisa a cada 10 minutos."),
         ("conversa", "Conversar por texto", "Botão direito nele, Conversar: você escreve e ele responde."),
         ("voz", "Falar com ele (voz para texto)",
          f"Segure {PTT_HOTKEY_TEXT} e fale, ou use o botão de microfone do chat: a sua fala vira texto e ele "
@@ -188,6 +194,7 @@ PROFILES = {
         # visão (IA): quanto tempo entre uma olhada e outra
         "visao_intervalo": 25.0,     # s entre olhadas
         "visao_apos_troca": 8.0,     # s depois de você trocar de programa (se já deu o mínimo)
+        "pesquisa_intervalo": 60.0,  # s mínimos entre uma pesquisa na internet e outra
     },
     "normal": {
         "mischief_interval": (300.0, 900.0),
@@ -219,6 +226,7 @@ PROFILES = {
         "stage_hyst": 0.12,
         "visao_intervalo": 150.0,    # ~2,5 min entre olhadas: o custo da API fica baixo
         "visao_apos_troca": 45.0,
+        "pesquisa_intervalo": 600.0,     # no máximo uma pesquisa a cada 10 min
     },
 }
 

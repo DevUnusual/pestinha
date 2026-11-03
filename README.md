@@ -120,6 +120,33 @@ Configurações, ponha o endereço dele em **Servidor da voz** (ex.: `192.168.0.
 **Testar voz**. Testado numa RTX 3070 de 8 GB junto com o `gemma4:e4b`: ~0,2 s para transcrever uma frase
 e cerca de 6 GB de VRAM somando os dois.
 
+### Pesquisar na internet (Hermes)
+
+Desligado por padrão, e só funciona com **Usar IA** e **Ver minha tela** ligados. Quando algo na tela chama
+a atenção dele, ele pede ao [Hermes](https://github.com/NousResearch/hermes-agent) (um agente com
+ferramentas, rodando num computador seu) para pesquisar e te dá uma dica no balão. Quem olha a tela
+continua sendo o provedor de IA escolhido; o Hermes recebe só o termo, o resumo e (com **Lembrar o que
+viu**) as lembranças dos seus computadores. Rode o Hermes no mesmo servidor da memória e da voz: todos os
+computadores usam o mesmo Hermes, com a memória dele.
+
+No Hermes, uma vez:
+
+1. No `.env` dele, `API_SERVER_KEY=<uma senha longa>` (a API fica só em `127.0.0.1:8642`; para outro
+   computador da rede, `API_SERVER_HOST=0.0.0.0`).
+2. No `config.yaml` dele, a plataforma da API **só com a pesquisa** (o texto da tela pode tentar dar
+   ordens a ele; assim ele não tem terminal, arquivos nem controle do computador):
+
+   ```yaml
+   platform_toolsets:
+     api_server:
+       - search
+   ```
+
+3. `hermes gateway run` (ou `hermes gateway install` para ficar sempre ligado).
+
+No Pestinha: Configurações, marque **Pesquisar na internet (Hermes)**, cole a mesma senha em **Chave do
+Hermes**, **Salvar chave** e **Testar Hermes**.
+
 ### O mesmo pet em todos os computadores
 
 Com **Compartilhar a memória dele** (desligado por padrão), a rede, o humor, o que ele aprendeu e a

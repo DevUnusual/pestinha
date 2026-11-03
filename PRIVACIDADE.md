@@ -64,6 +64,23 @@ a sua fala em texto.
 - O pânico, a pausa ou desligar a voz fecham o microfone na hora e descartam o texto que ainda estava a
   caminho.
 
+## Pesquisar na internet pelo Hermes (desligado por padrão)
+
+Só vale com **Usar IA**, **Ver minha tela** e **Pesquisar na internet (Hermes)** ligados.
+
+- **O que vai para o Hermes:** o termo da pesquisa (até 80 caracteres, escolhido pelo modelo que olhou a
+  tela, que é instruído a não pôr nomes, e-mails, senhas, números nem dados pessoais), o resumo curto da
+  última olhada, o estado da rede e, com **Lembrar o que viu**, as lembranças dos seus computadores (os
+  mesmos resumos curtos do serviço de memória). **Nunca** o print nem o título da janela. Com o Hermes em
+  outro computador da rede, isso passa sem criptografia (http), a não ser que você use um endereço https.
+- **Para onde vai depois:** o Hermes manda o termo para o motor de busca configurado nele e manda o
+  pedido para o modelo de IA dele (no teste, DeepSeek). O Hermes guarda as sessões no histórico dele
+  (`hermes sessions`); o Pestinha não grava nada disso em `memory/` nem no log.
+- **Quantas vezes:** no máximo uma pesquisa a cada 10 minutos.
+- Deixe a API do Hermes só com a ferramenta de pesquisa (veja o README): assim, nada que apareça na tela
+  consegue fazer ele rodar comandos ou mexer em arquivos.
+- O pânico, a pausa ou desligar a pesquisa descartam a dica que ainda estava a caminho.
+
 ## Memória em outro computador (desligado por padrão)
 
 Com **Compartilhar a memória dele** e o endereço do **Servidor da memória** (ver `servidor/memoria/`), os
