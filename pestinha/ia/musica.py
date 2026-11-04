@@ -66,33 +66,44 @@ def _normal(texto):
     return " ".join(texto.lower().split()).strip(" .!?,;:~")
 
 
-# o pedido vem no começo da frase (depois de no máximo duas palavras: "pestinha, toca...", "por favor toca...")
-_INICIO = r"^(?:[\w-]+,?\s+){0,2}?"
-_TOCA = re.compile(_INICIO + r"(?:toca|toque|tocar|quero ouvir|bota pra tocar|coloca pra tocar|poe pra tocar)\b\s*"
-                   r"(?P<resto>.*)")
-_BOTA = re.compile(_INICIO + r"(?:bota|coloca|poe)\s+(?P<resto>.*\b(?:musica|musicas|playlist|som)\b.*)")
-_PERGUNTA = re.compile(r"^(?:quem|qual|quais|que|o que|onde|como|quando|por que|porque|sera)\b")
-_ABERTURA = re.compile(r"^(?:(?:um|uma|uns|umas|o|a|os|as|algo|alguma|algumas|ai|la)\s+)*"
+# O pedido vem no começo da frase, depois de no máximo quatro palavras ("Bryan, você pode tocar...",
+# "por favor, toca..."): a voz transcreve a frase inteira, com vírgula e ponto de interrogação.
+_INICIO = r"^(?P<antes>(?:[\w-]+\s+){0,4}?)"
+_TOCA = re.compile(_INICIO + r"(?:toca|toque|tocar|tocasse|reproduz|reproduza|reproduzir|play|"
+                   r"quero ouvir|quero escutar|bora ouvir|vamos ouvir)\b\s*(?P<resto>.*)")
+_BOTA = re.compile(_INICIO + r"(?:bota|botar|coloca|colocar|coloque|poe|por|ponha)\s+"
+                   r"(?P<resto>.*\b(?:musica|musicas|playlist|som|sons)\b.*)")
+# "quem toca essa música?" e "que música é essa?" são perguntas sobre música, não pedidos ("que tal" é pedido)
+_PERGUNTA = re.compile(r"^(?:quem|qual|quais|que(?! tal)|o que|onde|quando|por que|porque)\b")
+_NEGA = re.compile(r"\b(?:nao|nunca|para de|pare de)\b")
+_ABERTURA = re.compile(r"^(?:(?:um|uma|uns|umas|o|a|os|as|algo|alguma|algumas|alguns|ai|la|me)\s+)*"
                        r"(?:(?:musica|musicas|playlist|som|sons|cancao|cancoes)\b\s*)?"
-                       r"(?:(?:de|do|da|dos|das|no estilo|estilo|tipo|pra|para)\s+)?")
-_RABO = re.compile(r"\s+(?:pra mim|para mim|por favor|pfv|pf|ai|agora|ae)$")
-_VAZIO = {"", "algo", "alguma coisa", "qualquer", "qualquer coisa", "musica", "uma musica", "isso"}
+                       r"(?:(?:de|do|da|dos|das|no estilo|estilo|tipo)\s+)?")
+_RABO = re.compile(r"(?:^|\s+)(?:pra mim|para mim|pra gente|por favor|pfv|pf|ai|agora|ae|ali|aqui|"
+                   r"pra tocar|para tocar|pra ouvir|para ouvir|pra eu ouvir|pra escutar)$")
+_VAZIO = {"", "algo", "alguma coisa", "qualquer", "qualquer coisa", "musica", "uma musica", "isso", "som"}
+
+
+def _sem_rabo(texto):
+    """Tira 'pra mim', 'por favor', 'aí'... do fim, quantos houver."""
+    while True:
+        limpo = _RABO.sub("", texto).strip()
+        if limpo == texto:
+            return texto
+        texto = limpo
 
 
 def pedido_de_musica(texto):
     """O estilo pedido ('toca um lo-fi' -> 'lo-fi'), '' se pediu música sem estilo, None se não pediu."""
-    normal = _normal(texto)
-    if "?" in (texto or "") or _PERGUNTA.match(normal):
-        return None                             # "quem toca essa música?" é pergunta, não pedido
-    achado = _TOCA.match(normal) or _BOTA.match(normal)
-    if not achado:
+    normal = _normal(re.sub(r"[,!?;:]", " ", texto or ""))
+    if _PERGUNTA.match(normal):
         return None
-    estilo = _ABERTURA.sub("", achado.group("resto").strip())
-    while True:
-        limpo = _RABO.sub("", estilo).strip()
-        if limpo == estilo:
-            break
-        estilo = limpo
+    achado = _TOCA.match(normal) or _BOTA.match(normal)
+    if not achado or _NEGA.search(achado.group("antes")):
+        return None                             # "não toca isso" não é pedido
+    if achado.group("antes") and not achado.group("resto"):
+        return None                             # "o celular toca" também não
+    estilo = _sem_rabo(_ABERTURA.sub("", _sem_rabo(achado.group("resto").strip())))
     return "" if estilo in _VAZIO else estilo[:60]
 
 
@@ -104,13 +115,14 @@ _COMANDOS = (
     ("continuar", r"(?:continua|continuar|despausa|volta a tocar|solta o som)"),
     ("parar", r"(?:para|pare|parar|chega|desliga)"),
 )
-_COMANDO = [(nome, re.compile(rf"(?:\w+,?\s+)?{padrao}(?:\s+(?:essa|isso|a musica|essa musica|o som|a playlist))?"))
+_COMANDO = [(nome, re.compile(rf"(?:\w+\s+){{0,2}}?{padrao}"
+                              r"(?:\s+(?:essa|isso|a musica|essa musica|o som|a playlist))?(?:\s+por favor)?"))
             for nome, padrao in _COMANDOS]
 
 
 def comando_de_musica(texto):
     """'pula' -> 'pular', 'não gostei' -> 'nao_gostei'... Só frases curtas inteiras: o resto é conversa."""
-    normal = _normal(texto)
+    normal = _normal(re.sub(r"[,!?;:]", " ", texto or ""))
     if len(normal) > 40:
         return None
     for nome, padrao in _COMANDO:

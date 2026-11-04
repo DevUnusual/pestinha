@@ -33,8 +33,20 @@ QApplication.instance() or QApplication([])
     ("bota um som de forró aí", "forro"),
     ("toca algo animado", "animado"),
     ("toca música", ""),
+    # pela voz: frase inteira, com nome, vírgula e ponto de interrogação
+    ("pode tocar um rock?", "rock"),
+    ("Bryan, você pode tocar um lo-fi?", "lo-fi"),
+    ("Você poderia tocar uma música pra mim?", ""),
+    ("Ei Bryan, por favor, toca um forró aí.", "forro"),
+    ("Que tal tocar um samba?", "samba"),
+    ("bota uma musica ai", ""),
+    ("coloca uma música de rock pra tocar", "rock"),
+    ("reproduz um jazz", "jazz"),
     ("quem toca essa música?", None),
     ("que música toca no jogo", None),
+    ("o celular toca", None),
+    ("não toca isso de novo", None),
+    ("você consegue me ouvir?", None),
     ("bota o notebook ali", None),
     ("oi, tudo bem?", None),
 ])
@@ -44,6 +56,7 @@ def test_pedido_de_musica(texto, estilo):
 
 @pytest.mark.parametrize("texto, comando", [
     ("pula", "pular"), ("Próxima!", "pular"), ("pestinha, pula essa", "pular"),
+    ("Ei Bryan, pula essa música.", "pular"), ("Bryan, não gostei.", "nao_gostei"),
     ("gostei", "gostei"), ("👍", "gostei"), ("não gostei", "nao_gostei"), ("essa não", "nao_gostei"),
     ("pausa", "pausar"), ("continua", "continuar"), ("para a música", "parar"), ("chega", "parar"),
     ("para de olhar minha tela", None), ("gostei muito do que você falou ontem", None), ("oi", None),
