@@ -8,6 +8,8 @@ Sem Qt e sem rede: só texto. Três peças:
     pedido_dica(...)          para o Hermes: "pesquise isto e me dê uma dica" (só o termo e o resumo)
     sistema_hermes(...)       a persona do pet + como usar as ferramentas do Hermes (pesquisa, memória)
     separar_imagem(texto)     a resposta sem a linha "IMAGEM: <link>", e o link (ou None)
+    separar_tocar(texto)      a resposta sem a linha "TOCAR: <estilo>", e o estilo (ou None): é assim que a
+                              IA começa a música quando você pede de um jeito que o Pestinha não reconheceu
     Conversa                  o histórico curto do chat por texto
 
 Os sinais da observação viram canais sensoriais da rede (VISAO_*): a IA descreve, a rede decide.
@@ -28,6 +30,15 @@ SINAIS = {
 MAX_COMENTARIO = 160               # caracteres no balão
 MAX_TURNOS = 8                     # mensagens guardadas no chat (só na memória, nunca em disco)
 MAX_TERMO = 80                     # caracteres do termo de pesquisa que vai para o Hermes
+
+INSTRUCOES_MUSICA = (
+    "Você toca música de verdade (pelo YouTube Music, no próprio programa). Se a pessoa pedir para tocar, "
+    "colocar ou soltar música, de qualquer jeito que ela falar, aceite numa frase curta e termine com uma "
+    "linha só com: TOCAR: <o estilo, artista ou clima>. Se ela não disser qual, escolha você uma que combine "
+    "com o seu humor e a hora. Nunca diga que não consegue tocar música nem peça para ela dar o play. Se ela "
+    "não pediu música, não use essa linha."
+)
+_TOCAR = re.compile(r"^\s*TOCAR\s*:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
 
 PERSONA_PADRAO = ("Você é um bichinho de tela curioso e brincalhão. Tem opinião própria, é carinhoso "
                   "e às vezes implicante, mas nunca maldoso.")
@@ -62,9 +73,11 @@ def prompt_sistema(nome, persona=None, temperamento="", exemplos=(), evitar=()):
         partes.append("Nunca diga nada parecido com: " + " | ".join(f'"{e}"' for e in evitar))
     partes.append(
         "Regras: responda sempre em português do Brasil, em no máximo duas frases curtas. Você não "
-        "consegue clicar, digitar nem mexer em nada: só observa e conversa. Não repita dados pessoais, "
-        "senhas, números ou nomes que aparecerem na tela. Se não entender a tela, diga isso com graça."
+        "consegue clicar, digitar nem mexer em nada no computador: só observa, conversa e toca música. Não "
+        "repita dados pessoais, senhas, números ou nomes que aparecerem na tela. Se não entender a tela, diga "
+        "isso com graça."
     )
+    partes.append(INSTRUCOES_MUSICA)
     return "\n".join(partes)
 
 
@@ -168,6 +181,17 @@ def separar_imagem(texto):
     return limpo, achado.group(1)
 
 
+def separar_tocar(texto):
+    """('resposta sem a linha TOCAR', 'estilo') quando a IA decidiu tocar música ('' = ela não escolheu);
+    (texto, None) se não."""
+    achado = _TOCAR.search(texto or "")
+    if not achado:
+        return texto, None
+    limpo = (texto[:achado.start()] + texto[achado.end():]).strip()
+    estilo = achado.group(1).strip(" .\"'<>")
+    return limpo, "" if estilo in ("", "-") else estilo[:60]
+
+
 @dataclass
 class Observacao:
     """O que o pet entendeu da tela: um resumo, talvez um comentário, e os sinais para a rede."""
@@ -188,12 +212,16 @@ def _numero(valor):
 _ECO = re.compile(r"\[\s*(?:Seu estado agora|Suas lembranças|Seu registro recente|O que você viu na tela por último)"
                   r"\s*:[^\]]*\]?\s*",
                   re.IGNORECASE)
+_ROTULO = re.compile(r"^\[[^\]]{1,40}\]\s*:?\s*")    # um rótulo curto entre colchetes no começo da fala
 
 
 def limpar_fala(texto):
     """Uma linha só, sem aspas em volta e sem os blocos de contexto que o modelo ecoou, no tamanho do balão."""
     texto = " ".join(str(texto or "").split()).strip()
-    texto = _ECO.sub("", texto).strip().strip('"').strip()
+    texto = _ECO.sub("", texto).strip()
+    while _ROTULO.match(texto):                     # "[Seu estado agora]: ..." / "[Alerta de curiosidade] ..."
+        texto = _ROTULO.sub("", texto, count=1).strip()
+    texto = texto.strip('"').strip()
     if len(texto) > MAX_COMENTARIO:
         texto = texto[:MAX_COMENTARIO - 1].rstrip() + "…"
     return texto

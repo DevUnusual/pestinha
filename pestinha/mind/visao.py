@@ -41,7 +41,7 @@ from ..ia import pesquisa, provedores
 from ..ia.imagem import baixar as baixar_imagem, buscar as buscar_imagem_na_web, pedido_de_imagem as imagem_pedida
 from ..ia.imagem import titulo_do_link
 from ..ia.mente import (Conversa, ler_dica, ler_observacao, limpar_fala, pedido_dica, pedido_observacao,
-                        prompt_sistema, separar_imagem, sistema_hermes)
+                        prompt_sistema, separar_imagem, separar_tocar, sistema_hermes)
 from ..log import log, recentes as log_recente
 from .sincronia import descrever_temperamento, estado_agora
 from ..sense import senses
@@ -109,6 +109,7 @@ class VisaoController(QObject):
     erro_conversa = Signal(str)     # o chat falhou (mostrado no próprio chat)
     aviso = Signal(str)             # problema de configuração (mostrado na bandeja)
     imagem = Signal(str, bytes)     # (título, bytes) da imagem que você pediu, para projetar
+    tocar = Signal(str)             # a IA decidiu tocar música (linha "TOCAR:"): o estilo, '' se ela não escolheu
     _pronto = Signal(str, object, int)      # da thread para a thread do Qt: (tipo, resultado, geração)
     _ferramenta = Signal(bool, int)         # o Hermes começou (True) ou terminou de usar uma ferramenta
 
@@ -468,7 +469,10 @@ class VisaoController(QObject):
             if isinstance(resultado, Exception):
                 self.erro_conversa.emit(str(resultado))
             elif not self.app._congelado():
-                self._respondido(limpar_fala(resultado) or "...")
+                resultado, estilo = separar_tocar(resultado)
+                self._respondido(limpar_fala(resultado) or "Bora!")
+                if estilo is not None:
+                    self.tocar.emit(estilo)             # a IA entendeu que você pediu música
 
     def _entender(self, obs, pedido=False):
         """O que ele viu vira sinal para a rede e, às vezes, um comentário."""

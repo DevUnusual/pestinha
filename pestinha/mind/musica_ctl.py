@@ -16,6 +16,7 @@ tenta uma vez de onde parou. O que acontece (música, opinião, corte) vai para 
 conta o que houve quando você pergunta.
 """
 
+import random
 import threading
 from pathlib import Path
 
@@ -80,20 +81,31 @@ class MusicaController(QObject):
     # ---------------- o que você pede ----------------
 
     def pedir(self, estilo):
-        """Começa uma playlist de `estilo` ('' deixa ele escolher pelo seu gosto)."""
+        """
+        Começa uma playlist de `estilo`. Sem estilo ('') ele escolhe: às vezes puxa o rádio de uma música que
+        você curtiu, às vezes um estilo do humor dele (curioso, arrisca mais). Devolve o estilo que ficou
+        ('' quando foi pelo rádio de uma curtida).
+        """
         self._parar_player()
         self.geracao += 1
         self.lista += 1
         self._enchendo = False
+        semente = None
+        if not estilo:
+            if self.gosto.curtidas and random.random() > self.curiosidade():
+                semente = random.choice(self.gosto.curtidas[-20:])
+            else:
+                estilo = musica.estilo_dele(getattr(self.app.pet_state, "emotion", ""))
         self.estilo = estilo
         self.fila, self.atual, self.opiniao, self.pausada, self.falhas = [], None, None, False, 0
         self.carregando = True
-        semente = self.gosto.curtidas[-1] if not estilo and self.gosto.curtidas else None
+        log(f"[música] playlist de {estilo}" if estilo else "[música] playlist puxada de uma que você curtiu")
         if semente:
-            self._rodar("fila", lambda: musica.radio(semente) or musica.buscar(""))
+            self._rodar("fila", lambda: musica.radio(semente) or musica.buscar(musica.estilo_dele("")))
         else:
             self._rodar("fila", lambda: musica.buscar(estilo))
         self.mudou.emit()
+        return estilo
 
     def comando(self, nome):
         """Um comando do chat, da voz ou do cartão ('gostei', 'pular'...). Devolve o que ele responde."""

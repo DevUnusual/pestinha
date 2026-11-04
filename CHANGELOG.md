@@ -10,6 +10,14 @@
   "pula", "pausa", "continua", "para". 👍 sobe o artista, 👎 bane a música e pula, pular sem opinião desce um
   pouco e ouvir até o fim sobe um pouco: não precisa fazer nada para ele aprender. O gosto fica em
   `memory/pets/<pet>/musica.json` (`ia/musica.py`, `mind/musica_ctl.py`, `world/tocando.py`).
+- **Ele entende o pedido do jeito que se fala:** "coloca uma musiquinha aí pra nós ouvir", "bota um som aí
+  pra gente curtir", "solta um sonzinho", "toca o que você quiser". Sem estilo, ele escolhe: às vezes puxa
+  parecidas com uma que você curtiu, às vezes um estilo do humor dele (bravo vai de rock pesado, curioso
+  arrisca city pop ou afrobeat).
+- **Se só a IA entender, ela dá o play:** o prompt agora diz que ele toca música de verdade e nunca deve
+  pedir para você dar o play; quando você pede música de um jeito que o Pestinha não reconheceu, ela
+  responde e termina com `TOCAR: <estilo>`, que vira a playlist. Rótulos que o modelo põe no começo da fala
+  ("[Alerta de curiosidade]") saem do balão.
 - **A música não corta mais no meio:** tocar direto do link do YouTube dava "Demuxing failed" quando o
   servidor derrubava a conexão. Agora o áudio é baixado inteiro antes (uns 2 s, ~3 MB, em
   `memory/cache/musica`, só a da vez) e, se mesmo assim cortar, ele recomeça uma vez de onde parou.

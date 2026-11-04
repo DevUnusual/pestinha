@@ -80,6 +80,9 @@ def test_limpar_fala_tira_o_contexto_que_o_modelo_ecoou():
            "[Suas lembranças: no notebook, jogando]\nÉ o LampLight, eu acho!")
     assert mente.limpar_fala(eco) == "É o LampLight, eu acho!"
     assert mente.limpar_fala("[Seu estado agora: emoção: observando, vê f") == ""
+    assert mente.limpar_fala("[Seu estado agora]: Puxa, vou te animar!") == "Puxa, vou te animar!"
+    assert mente.limpar_fala("[Alerta de curiosidade] Meu dia foi cheio!") == "Meu dia foi cheio!"
+    assert mente.limpar_fala("Gosto de [colchetes] no meio.") == "Gosto de [colchetes] no meio."
 
 
 def test_conversa_guarda_pouco_e_sem_o_contexto_da_tela():

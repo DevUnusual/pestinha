@@ -42,6 +42,16 @@ QApplication.instance() or QApplication([])
     ("bota uma musica ai", ""),
     ("coloca uma música de rock pra tocar", "rock"),
     ("reproduz um jazz", "jazz"),
+    # do jeito que se fala em casa: sem estilo, ele escolhe
+    ("Coloca uma musiquinha aí pra nós ouvir.", ""),
+    ("bota um som aí pra gente curtir", ""),
+    ("solta um sonzinho", ""),
+    ("manda uma música boa aí", ""),
+    ("toca o que você quiser", ""),
+    ("coloca uma música que você ache legal", ""),
+    ("toca uma música pra relaxar", "musica pra relaxar"),
+    ("toca um rock pra nós", "rock"),
+    ("coloca o som mais alto", None),
     ("quem toca essa música?", None),
     ("que música toca no jogo", None),
     ("o celular toca", None),
@@ -282,6 +292,35 @@ def test_cortou_no_meio_recomeca_de_onde_parou_e_conta_no_log(app):
     assert esperar(lambda: len(app.tocou) == 2)
     assert app.musica.atual != atual and "pulando para a próxima" in " ".join(log_mod.recentes())
     app.musica._player = None
+
+
+def test_sem_estilo_ele_escolhe_pelo_humor(app):
+    app.pet_state.emotion = "bravo"
+    resposta = app._musica_pelo_chat("Coloca uma musiquinha aí pra nós ouvir")
+    assert app.musica.estilo in musica.ESTILOS_DELE["bravo"]
+    assert resposta == f"Deixa comigo! Tô no clima de {app.musica.estilo}."
+    assert esperar(lambda: app.tocou)
+
+
+def test_a_ia_da_o_play_quando_so_ela_entendeu(app, monkeypatch):
+    from pestinha.ia import mente
+
+    class IA:
+        ve_imagem = False
+
+        def responder(self, sistema, mensagens, imagem=None):
+            assert "TOCAR:" in sistema                              # ela sabe que pode tocar
+            return "Fechou, vou de samba raiz!\nTOCAR: samba raiz"
+
+    monkeypatch.setattr(app.visao, "cliente", lambda: IA())
+    falas = []
+    app.visao.resposta.connect(falas.append)
+    assert app._musica_pelo_chat("Bryan, dá aquela animada no ambiente") is None   # o Pestinha não entendeu...
+    assert app.visao.perguntar("Bryan, dá aquela animada no ambiente")
+    assert esperar(lambda: app.musica.ativa())                                      # ...a IA sim
+    assert app.musica.estilo == "samba raiz" and falas == ["Fechou, vou de samba raiz!"]
+    assert mente.separar_tocar("Escolhi pra você!\nTOCAR: -") == ("Escolhi pra você!", "")
+    assert mente.separar_tocar("Oi!") == ("Oi!", None)
 
 
 def test_panico_para_a_musica(app):

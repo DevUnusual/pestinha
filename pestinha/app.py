@@ -208,6 +208,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.tocando = Tocando(self.paths.panels)
         self.tocando.comando.connect(self._comando_do_cartao)
         self.musica.mudou.connect(lambda: self.tocando.atualizar(self.musica))
+        self.visao.tocar.connect(self.tocar_musica)     # pedido de música que só a IA entendeu
 
         # ----- reflexos e medições -----
         self.in_flight = False      # voando depois de um arremesso

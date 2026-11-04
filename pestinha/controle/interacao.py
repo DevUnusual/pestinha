@@ -261,8 +261,17 @@ class InteracaoMixin:
         estilo = pedido_de_musica(texto)
         if estilo is None:
             return None
-        self.musica.pedir(estilo)
-        return f"Bora de {estilo}! Procurando..." if estilo else "Deixa comigo, vou escolher pelo seu gosto!"
+        return self.tocar_musica(estilo)
+
+    def tocar_musica(self, estilo):
+        """Começa a playlist (pedida por você, ou escolhida pela IA na conversa) e diz o que vai tocar."""
+        escolhido = self.musica.pedir(estilo)
+        self.tocando.atualizar(self.musica)
+        if estilo:
+            return f"Bora de {estilo}! Procurando..."
+        if escolhido:
+            return f"Deixa comigo! Tô no clima de {escolhido}."
+        return "Deixa comigo, vou puxar umas parecidas com as que você curtiu!"
 
     def _comando_do_cartao(self, comando):
         """Um botão do cartão 'tocando agora' (👍 👎 ⏭ ⏸ ✕)."""

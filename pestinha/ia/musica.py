@@ -71,19 +71,30 @@ def _normal(texto):
 # O pedido vem no começo da frase, depois de no máximo quatro palavras ("Bryan, você pode tocar...",
 # "por favor, toca..."): a voz transcreve a frase inteira, com vírgula e ponto de interrogação.
 _INICIO = r"^(?P<antes>(?:[\w-]+\s+){0,4}?)"
+# "música" do jeito que se fala: musiquinha, sonzinho, um som, uma playlist, um modão...
+_MUSICA = (r"(?:musicas?|musiquinhas?|musicazinhas?|som|sons|sonzinhos?|playlists?|cancao|cancoes|cancaozinha|"
+           r"modao|modinha|batidas?|trilha sonora)")
 _TOCA = re.compile(_INICIO + r"(?:toca|toque|tocar|tocasse|reproduz|reproduza|reproduzir|play|"
                    r"quero ouvir|quero escutar|bora ouvir|vamos ouvir)\b\s*(?P<resto>.*)")
-_BOTA = re.compile(_INICIO + r"(?:bota|botar|coloca|colocar|coloque|poe|por|ponha)\s+"
-                   r"(?P<resto>.*\b(?:musica|musicas|playlist|som|sons)\b.*)")
+_BOTA = re.compile(_INICIO + r"(?:bota|botar|coloca|colocar|coloque|poe|por|ponha|manda|solta|liga|escolhe|"
+                   r"seleciona|ouvir|escutar)\s+(?P<resto>.*\b" + _MUSICA + r"\b.*)")
 # "quem toca essa música?" e "que música é essa?" são perguntas sobre música, não pedidos ("que tal" é pedido)
 _PERGUNTA = re.compile(r"^(?:quem|qual|quais|que(?! tal)|o que|onde|quando|por que|porque)\b")
 _NEGA = re.compile(r"\b(?:nao|nunca|para de|pare de)\b")
-_ABERTURA = re.compile(r"^(?:(?:um|uma|uns|umas|o|a|os|as|algo|alguma|algumas|alguns|ai|la|me)\s+)*"
-                       r"(?:(?:musica|musicas|playlist|som|sons|cancao|cancoes)\b\s*)?"
+_VOLUME = re.compile(r"\b(?:volume|mais alto|mais baixo|abaixa|aumenta)\b")    # "coloca o som mais alto"
+_ABERTURA = re.compile(r"^(?:(?:um|uma|uns|umas|o|a|os|as|algo|alguma|algumas|alguns|ai|la|me|boa|bom|"
+                       r"qualquer|outra|outro|mais)\s+)*"
+                       r"(?:" + _MUSICA + r"\b\s*)?"
+                       r"(?:(?:legal|boa|bom|bacana|massa|top|qualquer)\b\s*)?"
                        r"(?:(?:de|do|da|dos|das|no estilo|estilo|tipo)\s+)?")
-_RABO = re.compile(r"(?:^|\s+)(?:pra mim|para mim|pra gente|por favor|pfv|pf|ai|agora|ae|ali|aqui|"
-                   r"pra tocar|para tocar|pra ouvir|para ouvir|pra eu ouvir|pra escutar)$")
-_VAZIO = {"", "algo", "alguma coisa", "qualquer", "qualquer coisa", "musica", "uma musica", "isso", "som"}
+# "pra mim", "pra nós ouvir", "pra gente curtir", "aí", "por favor"... (mas "pra relaxar" é estilo: fica)
+_RABO = re.compile(r"(?:^|\s+)(?:(?:pra|para)(?:\s+(?:mim|nos|nois|a gente|gente|eu))?"
+                   r"(?:\s+(?:ouvir|escutar|curtir|tocar))?|por favor|pfv|pf|ai|agora|ae|ali|aqui|la|"
+                   r"vai|ok|tipo assim|qualquer|que voce (?:achar|quiser|gostar)|que voce ache legal|"
+                   r"que (?:for|seja) legal|que tu (?:achar|quiser))$")
+_VAZIO = {"", "algo", "alguma coisa", "qualquer", "qualquer coisa", "coisa", "isso", "legal", "boa", "o", "a",
+          "um", "uma", "a sua escolha", "voce escolhe", "o que voce quiser", "o que quiser", "aleatoria",
+          "aleatorio"}
 
 
 def _sem_rabo(texto):
@@ -98,7 +109,7 @@ def _sem_rabo(texto):
 def pedido_de_musica(texto):
     """O estilo pedido ('toca um lo-fi' -> 'lo-fi'), '' se pediu música sem estilo, None se não pediu."""
     normal = _normal(re.sub(r"[,!?;:]", " ", texto or ""))
-    if _PERGUNTA.match(normal):
+    if _PERGUNTA.match(normal) or _VOLUME.search(normal):
         return None
     achado = _TOCA.match(normal) or _BOTA.match(normal)
     if not achado or _NEGA.search(achado.group("antes")):
@@ -106,7 +117,11 @@ def pedido_de_musica(texto):
     if achado.group("antes") and not achado.group("resto"):
         return None                             # "o celular toca" também não
     estilo = _sem_rabo(_ABERTURA.sub("", _sem_rabo(achado.group("resto").strip())))
-    return "" if estilo in _VAZIO else estilo[:60]
+    if estilo in _VAZIO or re.fullmatch(_MUSICA, estilo):
+        return ""                               # pediu música sem dizer qual: ele escolhe
+    if re.match(r"(?:pra|para)\s", estilo):
+        estilo = "musica " + estilo             # "pra relaxar" busca melhor como "musica pra relaxar"
+    return estilo[:60]
 
 
 _COMANDOS = (
@@ -199,6 +214,25 @@ def escolher(faixas, gosto, tocadas=(), curiosidade=0.4, sorteio=random):
         return None
     pesos = [math.exp(0.9 * gosto.nota(f)) * (1.0 + 1.5 * curiosidade * (not gosto.conhece(f))) for f in livres]
     return sorteio.choices(livres, weights=pesos, k=1)[0]
+
+
+# Quando você não diz o estilo, ele escolhe um conforme o humor da rede dele agora.
+ESTILOS_DELE = {
+    "feliz": ("pop brasileiro animado", "pagode", "rock nacional anos 2000", "funk melody", "disco", "axé"),
+    "contente": ("mpb", "lo-fi", "reggae", "indie folk", "bossa nova", "chillhop"),
+    "observando": ("lo-fi", "mpb", "indie", "chillhop", "acústico", "city pop"),
+    "curioso": ("city pop", "synthwave", "afrobeat", "jazz fusion", "indie brasileiro", "kpop", "forró pé de serra"),
+    "triste": ("mpb triste", "lo-fi chuva", "piano calmo", "indie melancólico"),
+    "bravo": ("rock pesado", "punk rock", "metal", "rap nacional"),
+    "assustado": ("piano calmo", "lo-fi", "música ambiente"),
+    "dramatico": ("trilha sonora épica", "ópera rock", "power ballad"),
+    "dormindo": ("lo-fi para dormir", "piano calmo"),
+}
+
+
+def estilo_dele(emocao, sorteio=random):
+    """Um estilo que ele acha legal agora (pelo humor); sem humor conhecido, um do jeito 'observando'."""
+    return sorteio.choice(ESTILOS_DELE.get(emocao, ESTILOS_DELE["observando"]))
 
 
 def semente(faixas, gosto, tocadas):
