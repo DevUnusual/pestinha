@@ -1,5 +1,59 @@
 # Histórico de versões
 
+## Música e imagem que fica
+
+- **Música pelo chat e pela voz:** "toca um lo-fi" (ou "quero ouvir samba", "coloca uma playlist de jazz")
+  busca no YouTube Music e toca direto no Pestinha, sem conta e sem anúncio. Quando a fila acaba, ele puxa o
+  rádio da música mais bem vista até ali, então a playlist vai mudando com o seu gosto e o humor dele
+  (curioso, arrisca artistas novos). Precisa de `pip install yt-dlp ytmusicapi`.
+- **Cartão "tocando agora"** ao lado do pet, com 👍 👎 ⏭ ⏸ ✕; no chat ou na voz valem "gostei", "não gostei",
+  "pula", "pausa", "continua", "para". 👍 sobe o artista, 👎 bane a música e pula, pular sem opinião desce um
+  pouco e ouvir até o fim sobe um pouco: não precisa fazer nada para ele aprender. O gosto fica em
+  `memory/pets/<pet>/musica.json` (`ia/musica.py`, `mind/musica_ctl.py`, `world/tocando.py`).
+- **A imagem pedida fica:** o pet para e fica projetando até você cutucar, pegar ou fazer carinho nele, e a
+  imagem aparece também no chat.
+- O balão não mostra mais o `[Seu estado agora: ...]` quando o modelo repete o começo da mensagem.
+
+## Pet e Hermes conectados
+
+- **"Pesquisar na internet" virou "Conectar ao Hermes (pesquisa e memória)":** o chat e a voz passam pelo
+  Hermes, com a persona do pet. Ele pesquisa quando precisa, lê páginas e lembra de você: toda chamada leva
+  a sessão `X-Hermes-Session-Key: pestinha-<pet>`, a mesma em todos os computadores. A permissão não
+  depende mais de Ver minha tela (a tela só entra como resumo).
+- **Transição invisível:** se o Hermes cair, o provedor de IA escolhido responde a mesma mensagem no lugar
+  (só um aviso na bandeja); o histórico do chat continua o mesmo.
+- **Rosto em tempo real:** o Hermes responde em streaming e avisa quando usa uma ferramenta
+  (`hermes.tool.progress`). O pet é detetive enquanto ele pensa e vira IA vilã só enquanto ele pesquisa.
+- **Imagem pelo Hermes:** se a resposta merece uma imagem, ele termina com `IMAGEM: <link>`. O Pestinha
+  tira a linha do texto, baixa o link (do Wikimedia, a miniatura de 500 px) e projeta o holograma. A
+  Wikipédia fica de reserva.
+- Pesquisas espontâneas pela tela: no máximo uma a cada 2 min (eram 10). No Hermes, recomendado
+  `api_server: [web, memory, session_search]` (ver README).
+
+## Animações da mente
+
+O rosto agora mostra o que a IA e a voz estão fazendo (tempo em `body/animacoes.py`, fantasias em
+`body/desenho_fantasias.py`; prévia em
+`docs/imagens/animacoes_mente.gif`). Tudo entra suave e sai mais rápido do que entra; sem IA, o visual é
+o mesmo de antes.
+
+- **Olhando a tela:** uma linha de leitura varre a telinha (desce devagar, sobe rápido) e os olhos leem
+  junto, de um lado ao outro. Quando a olhada volta, uma piscada lenta de quem entendeu.
+- **Pensando = detetive:** esperando a resposta do chat ou a transcrição da sua fala, o chapéu de caçador
+  xadrez cai na cabeça (quica e assenta torto), a capa abre atrás e o cachimbo solta baforadas.
+- **Pesquisando = IA vilã:** a casca vira metal, os olhos ficam vermelhos, bravos e com brilho, a grade da
+  boca pulsa e uma varredura vermelha passa; os olhos calculam de um lado ao outro.
+- **Ouvindo:** ao segurar o atalho de falar, uma orelha aparece do lado, gira para a frente e as
+  ondinhas do som chegam nela; a cabeça inclina.
+- **Acompanhando o jogo = cinema:** óculos 3D de papelão descem nos olhos e um balde de pipoca sobe do
+  canto; de vez em quando uma pipoca pula para dentro da tela e ele mastiga.
+- **Holograma:** peça no chat ou pela voz "pesquisa o que é manga" (ou "me mostra uma foto de...") com
+  o Hermes conectado: ele acha o link de uma imagem (`ia/imagem.py`), baixa e
+  projeta acima dele por 10 s (`world/holograma.py`), com olhos de holograma, feixe de luz, falha de sinal
+  ao abrir e linhas de varredura. Vai para a Wikipédia só o termo (ver PRIVACIDADE.md).
+- **Falando:** o balão cresce a partir da pontinha com um pop e o texto é digitado; o pet achata, estica
+  e assenta, e os olhos "falam" no mesmo ritmo da digitação.
+
 ## Acompanhar jogos
 
 - **Visão ~10× mais rápida no Ollama:** o Pestinha pede para o modelo responder sem "pensar" antes

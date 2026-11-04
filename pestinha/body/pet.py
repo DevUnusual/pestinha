@@ -28,7 +28,8 @@ from ..ajustes import (
     DESLOCAMENTO_CARINHO as RUB_MIN_TRAVEL,
 )
 
-from .desenho_rosto import BODY_H, BODY_W, PADRAO, draw_face, draw_zzz, lerp_shape
+from .desenho_fantasias import aparencia_da_mente
+from .desenho_rosto import BODY_H, BODY_W, PADRAO, draw_face, draw_mente, draw_zzz, lerp_shape
 
 CX, CY = WIN / 2, WIN / 2 - 6   # centro do corpo dentro da janela
 
@@ -119,6 +120,7 @@ class PetWindow(QWidget):
             target["inner"] = min(0.8, target["inner"] + droop)
             target["outer"] = min(0.8, target["outer"] + droop)
         st.shape = lerp_shape(st.shape, target, 0.22)
+        st.anim.passo(now, st.mente | ({"ouvindo"} if st.ouvindo else set()))
         if now >= self.next_blink:
             st.blink_until = now + 0.13
             self.next_blink = now + random.uniform(2.5, 6.0)
@@ -151,12 +153,30 @@ class PetWindow(QWidget):
         if st.emotion == "dormindo":
             jitter_y += 1.5 * math.sin(time.monotonic() * 1.6)     # respirando devagar
 
+        agora = time.monotonic()
+        pose = st.anim.pose(agora)
+        shape = st.shape
+        if pose.forma is not None:                  # uma fantasia que muda o jeito do olho (a IA vilã fica brava)
+            shape = lerp_shape(shape, EYE_SHAPES[pose.forma], pose.peso_forma)
+        shape = dict(shape, w=shape["w"] * pose.olho_x, h=shape["h"] * pose.olho_y)
+        aparencia = aparencia_da_mente(self.aparencia, st.anim)
+        gaze = st.gaze
+        if pose.olhar is not None:
+            k = pose.peso_olhar
+            gaze = (gaze[0] + (pose.olhar[0] - gaze[0]) * k, gaze[1] + (pose.olhar[1] - gaze[1]) * k)
+
         p.save()
         p.translate(CX + jitter_x, CY + jitter_y)
-        p.rotate(self.body.angle + sway)
-        blink = 0.08 if time.monotonic() < st.blink_until else 1.0
-        draw_face(p, st.shape, st.gaze, blink, st.emotion, carinho=st.feliz_fechado(), aparencia=self.aparencia,
-                  ouvindo=st.ouvindo)
+        p.rotate(self.body.angle + sway + pose.inclinacao)
+        # achata e estica a partir da base, como quem tem os pés no chão
+        p.translate(0, BODY_H / 2)
+        p.scale(pose.escala_x, pose.escala_y)
+        p.translate(0, -BODY_H / 2)
+        blink = 0.08 if agora < st.blink_until else 1.0
+        draw_mente(p, st.anim, agora, aparencia, frente=False)
+        draw_face(p, shape, gaze, blink, st.emotion, carinho=st.feliz_fechado(), aparencia=aparencia,
+                  ouvindo=st.ouvindo, mente=st.anim, agora=agora)
+        draw_mente(p, st.anim, agora, aparencia, frente=True)
         p.restore()
 
         if st.emotion == "dormindo":

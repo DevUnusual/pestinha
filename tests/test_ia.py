@@ -56,6 +56,13 @@ def test_fala_vira_uma_linha_curta():
     assert "\n" not in fala and len(fala) == mente.MAX_COMENTARIO and fala.endswith("…")
 
 
+def test_limpar_fala_tira_o_contexto_que_o_modelo_ecoou():
+    eco = ("[Seu estado agora: emoção: observando (valência +0.2, ativação +0.1); energia médio]\n"
+           "[Suas lembranças: no notebook, jogando]\nÉ o LampLight, eu acho!")
+    assert mente.limpar_fala(eco) == "É o LampLight, eu acho!"
+    assert mente.limpar_fala("[Seu estado agora: emoção: observando, vê f") == ""
+
+
 def test_conversa_guarda_pouco_e_sem_o_contexto_da_tela():
     conversa = mente.Conversa()
     msgs = conversa.mensagens("oi", contexto="lendo e-mail")

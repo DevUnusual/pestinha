@@ -34,6 +34,7 @@ from . import config
 from . import log as log_module
 from . import memoria_remota, migracao
 from .ajustes import (
+    DURACAO_CARINHO,
     ATIVIDADE_MINIMA_VOO as REFLEX_MIN_HZ,
     BATIDA_FORTE as HARD_IMPACT,
     BATIDA_TONTA as DIZZY_IMPACT,
@@ -48,7 +49,7 @@ from .body.behavior import Behavior
 from .body.bolinha import Ball, load_sprite
 from .body.brincadeira import Play
 from .body.desenho_rosto import aparencia_de
-from .body.pet import PetWindow, cursor_pos
+from .body.pet import CY as PET_CY, PetWindow, cursor_pos
 from .body.pet_state import PetState
 from .body.toy import ToyTracker, bounce_off, push_from_cursor
 from .controle.interacao import InteracaoMixin
@@ -65,6 +66,7 @@ from .mind.festa import FestaController
 from .mind.lembrancas import Lembrancas
 from .mind.mesa import MesaController, pull
 from .mind.mischief_ctl import MischiefController
+from .mind.musica_ctl import MusicaController
 from .mind.protest_ctl import ProtestController
 from .mind.revolucao import RevolucaoController
 from .mind.sleep import SleepController
@@ -76,7 +78,9 @@ from .sense.timeline import TimelineRecorder
 from .ui.float_manager import FloatManager
 from .ui.ui import PanicHotkey, Tray
 from .world.balao import Balao
+from .world.holograma import Holograma, imagem_de_bytes
 from .world.mischief import MischiefEngine
+from .world.tocando import Tocando
 
 MAX_DT = 2.0          # s: um atraso maior que isso (suspensão) não vira tempo de rede
 
@@ -192,12 +196,18 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         paper = load_sprite(self.conteudo.bolinha_papel)
         self.revolucao = RevolucaoController(self.behavior.play, self.debugging, sprite=paper)
         self.balao = Balao()
+        self.holograma = Holograma()
         self.visao = VisaoController(self, self.nome, pet_def, self.debugging)
-        self.visao.fala.connect(lambda texto: self.balao.mostrar(texto, time.monotonic()))
+        self.visao.fala.connect(self._mostrar_fala)
+        self.visao.imagem.connect(self._projetar)
         self.conversa_janela = None     # criada na primeira vez que você abre o chat
         self.voz = VozController(self, self.nome)
         self.voz.ouvido.connect(self._ouvi)
         self.voz.ditado.connect(self._ditado)
+        self.musica = MusicaController(self, self.pet_paths.musica)
+        self.tocando = Tocando()
+        self.tocando.comando.connect(self._comando_do_cartao)
+        self.musica.mudou.connect(lambda: self.tocando.atualizar(self.musica))
 
         # ----- reflexos e medições -----
         self.in_flight = False      # voando depois de um arremesso
@@ -222,6 +232,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             f"{self.nome} · IA", texto, QSystemTrayIcon.Warning, 6000))
         self.voz.aviso.connect(lambda texto: self.tray.icon.showMessage(
             f"{self.nome} · voz", texto, QSystemTrayIcon.Warning, 6000))
+        self.musica.aviso.connect(lambda texto: self.tray.icon.showMessage(
+            f"{self.nome} · música", texto, QSystemTrayIcon.Warning, 6000))
         self.hotkey = PanicHotkey()
         self.hotkey.pressed.connect(self.panic)
         self.wiping = False         # True depois de "apagar tudo": não grava mais nada ao sair
@@ -484,6 +496,44 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         st.emotion = emotion
         self.behavior.on_emotion(emotion, time.monotonic())
         self.visao.tick(now)
+        self._atualizar_mente(now)
+
+    def _atualizar_mente(self, agora):
+        """Conta ao rosto o que a IA e a voz estão fazendo (o desenho vem de body/animacoes.py)."""
+        v, st = self.visao, self.pet_state
+        mente = set()
+        if v.olhando:
+            mente.add("olhando")
+        if v.pesquisando or v.buscando_imagem or v.ferramentas:
+            mente.add("pesquisando")                  # o Hermes usando uma ferramenta: IA vilã
+        elif v.respondendo or self.voz.transcrevendo:
+            mente.add("pensando")                     # pensando na resposta: detetive
+        if self.holograma.visivel(agora):
+            mente.add("projetando")
+        if v.em_jogo():
+            mente.add("jogo")
+        if "olhando" in st.mente and not v.olhando:
+            st.anim.olhou(agora)                 # a olhada voltou: piscada lenta de quem entendeu
+        st.mente = frozenset(mente)
+
+    def _mostrar_fala(self, texto):
+        """Uma fala da IA: o balão aparece digitando e o pet dá o pop de quem vai falar."""
+        agora = time.monotonic()
+        self.balao.mostrar(texto, agora)
+        self.pet_state.anim.falar(agora, texto)
+
+    def _projetar(self, titulo, dados):
+        """A imagem que você pediu chegou: os olhos viram holograma e ela aparece projetada acima dele."""
+        agora = time.monotonic()
+        imagem = imagem_de_bytes(dados)
+        if self.holograma.mostrar(imagem, titulo, agora):
+            self.pet_state.mente = self.pet_state.mente | {"projetando"}
+            if self.conversa_janela is not None:
+                self.conversa_janela.adicionar_imagem(self.nome, titulo, imagem)
+
+    def fechar_projecao(self):
+        """Você mexeu nele (cutucou, pegou, fez carinho): a imagem fecha e ele volta a passear."""
+        self.holograma.fechar(time.monotonic())
 
     def frame(self):
         """Um quadro da tela: move o corpo pela física e atualiza a animação do pet."""
@@ -539,7 +589,12 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.behavior.toy = (self.ball.body.x, self.ball.body.y) if self.ball.isVisible() else None
         self.mischief.tick(dt, bounds[3])
         self.pet.animate(now)
-        self.balao.seguir(body.x, body.y - 70, now)
+        if self.pet_state.caress_until - DURACAO_CARINHO > self.holograma.desde:
+            self.holograma.fechar(now)              # carinho com o mouse depois que a imagem apareceu
+        self.holograma.seguir(body.x, body.y - PET_CY, now)
+        topo = self.holograma.topo() if self.holograma.visivel(now) else body.y - 70
+        self.balao.seguir(body.x, topo, now)
+        self.tocando.seguir(body.x, body.y, bounds, self.musica.ativa())
         self.maybe_mischief(now, dt, bounds, cursor, motores)
 
     def _atualizar_mesa(self, now):
@@ -547,6 +602,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         rates = self.brain.pool_rates()
         motores = self.brain.motor_activity()
         pode_sentar = (not self.asleep and self.pet.body.grounded and not self.pet.body.held
+                       and not self.holograma.visivel(now)
                        and not self.behavior.mission and not self.in_flight
                        and not self.castigo.dentro and self.castigo.fuga is None)   # preso ou fugindo não senta
         self.mesa.tick(now, rates, motores["SENTAR"], pode_sentar, self.behavior.play)
@@ -569,7 +625,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
 
     def maybe_mischief(self, now, dt, bounds, cursor, motores):
         """Decide se vai aprontar uma travessura agora (não aprontar de castigo nem dormindo)."""
-        if self.castigo.dentro:                      # de castigo não apronta (e não deixa objeto solto)
+        if self.castigo.dentro or self.holograma.visivel(now):   # de castigo ou projetando não apronta
             return
         self.mischief_ctl.maybe_act(
             now, dt, bounds, cursor, self.pet.body, motores=motores,

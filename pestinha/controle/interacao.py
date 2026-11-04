@@ -11,6 +11,7 @@ from ..log import log
 import time
 from PySide6.QtWidgets import QMenu
 from ..body.pet import cursor_pos
+from ..ia.musica import comando_de_musica, pedido_de_musica
 from ..ui.conversa import ConversaJanela
 from ..ajustes import (
     INSATISFACAO_NOTEBOOK,
@@ -25,6 +26,7 @@ class InteracaoMixin:
     """Ações do usuário sobre o pet: cutucar, arrastar, arremessar, dispensar travessuras e o menu do botão direito. Vira atributo de PestinhaApp."""
     def on_poke(self):
         """Você cutucou o pet: ele reage e a rede recebe o toque (ignorado na pausa)."""
+        self.fechar_projecao()
         if self._congelado():
             return
         now = time.monotonic()
@@ -68,6 +70,7 @@ class InteracaoMixin:
 
     def on_drag_started(self):
         """Você pegou o pet: ele sente o arraste e a insatisfação baixa um pouco (você está interagindo)."""
+        self.fechar_projecao()
         if self._congelado():
             return
         self.sad.grievance = max(0.0, self.sad.grievance - 0.1)
@@ -132,6 +135,9 @@ class InteracaoMixin:
         item("Conversar...", self.menu_conversar, perms["ia"] and perms["conversa"])
         item("O que você está vendo?", self.visao.olhar_agora,
              perms["ia"] and perms["ver_tela"] and not self.visao.olhando)
+        if self.musica.ativa():
+            item("Pular a música", lambda: self._comando_do_cartao("pular"))
+            item("Parar a música", lambda: self._comando_do_cartao("parar"))
         menu.addSeparator()
         item("Cantinho do castigo", lambda: self.castigo.toggle(self.bounds()))
         item("Painel de protesto", lambda: self.floats.toggle("greve"))
@@ -149,6 +155,7 @@ class InteracaoMixin:
 
     def menu_caress(self):
         """Menu: 'Fazer carinho' (conta como carinho na rede, se não estiver pausado)."""
+        self.fechar_projecao()
         if self._congelado():
             return
         self.pet_state.mark_caress()
@@ -210,6 +217,11 @@ class InteracaoMixin:
         """Você mandou uma mensagem: ele começa a pensar (ou explica por que não dá agora)."""
         janela = self.conversa_janela
         janela.set_aviso(self.visao.descricao())
+        resposta = self._musica_pelo_chat(texto)
+        if resposta:
+            janela.adicionar(self.nome, resposta)
+            self._mostrar_fala(resposta)
+            return
         if self.visao.perguntar(texto):
             janela.set_ocupado(True)
         elif not self.visao.respondendo:
@@ -222,11 +234,42 @@ class InteracaoMixin:
         janela = self.conversa_janela
         if janela is not None and janela.isVisible():
             janela.adicionar("Você", texto)
+        resposta = self._musica_pelo_chat(texto)
+        if resposta:
+            if janela is not None and janela.isVisible():
+                janela.adicionar(self.nome, resposta)
+            self._mostrar_fala(resposta)
+            return
         if self.visao.perguntar(texto):
             if janela is not None:
                 janela.set_ocupado(True)
         elif janela is not None and janela.isVisible() and not self.visao.respondendo:
             janela.adicionar(self.nome, f"o {self.nome} está pausado ou desligado agora", erro=True)
+
+    def _musica_pelo_chat(self, texto):
+        """
+        'toca um lo-fi' começa uma playlist; com música tocando, 'pula', 'gostei', 'para'... viram comando.
+        Devolve o que ele responde, ou None se a mensagem não era sobre música (aí vai para a IA).
+        """
+        if self._congelado() or not (self.perms["ia"] and self.perms["conversa"]):
+            return None
+        comando = comando_de_musica(texto) if self.musica.ativa() else None
+        if comando:
+            resposta = self.musica.comando(comando)
+            self.tocando.atualizar(self.musica)
+            return resposta
+        estilo = pedido_de_musica(texto)
+        if estilo is None:
+            return None
+        self.musica.pedir(estilo)
+        return f"Bora de {estilo}! Procurando..." if estilo else "Deixa comigo, vou escolher pelo seu gosto!"
+
+    def _comando_do_cartao(self, comando):
+        """Um botão do cartão 'tocando agora' (👍 👎 ⏭ ⏸ ✕)."""
+        resposta = self.musica.comando(comando)
+        self.tocando.atualizar(self.musica)
+        if resposta and comando in ("gostei", "nao_gostei"):
+            self._mostrar_fala(resposta)
 
     def atualizar_microfone(self):
         """O botão de microfone do chat segue a permissão de voz e o que a voz está fazendo."""

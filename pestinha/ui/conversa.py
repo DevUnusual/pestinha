@@ -9,10 +9,13 @@ ao modelo é mind/visao.py. Com a voz ligada, o botão de microfone grava e a fa
 
 import html
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtGui import QTextDocument
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextBrowser, QVBoxLayout, QWidget
 
 from .. import config
+
+LARGURA_IMAGEM = 300            # px: maior lado da imagem projetada, quando ela também aparece no chat
 
 ESTILO = """
 QWidget#conversa { background: #0c1f13; }
@@ -41,6 +44,7 @@ class ConversaJanela(QWidget):
         """Monta a janela; `nome` é o do personagem (quem responde)."""
         super().__init__(None, Qt.Tool | Qt.WindowStaysOnTopHint)
         self.nome = nome
+        self._imagens = 0               # quantas imagens já entraram no histórico (cada uma com seu nome)
         self.setObjectName("conversa")
         self.setAttribute(Qt.WA_StyledBackground)
         self.setStyleSheet(ESTILO)
@@ -88,6 +92,16 @@ class ConversaJanela(QWidget):
         """Acrescenta uma fala ao histórico."""
         cor = "#ff9a8a" if erro else ("#63e56f" if quem == self.nome else "#9fd0ff")
         self.historico.append(f'<p><b style="color:{cor}">{html.escape(quem)}:</b> {html.escape(texto)}</p>')
+        self.historico.verticalScrollBar().setValue(self.historico.verticalScrollBar().maximum())
+
+    def adicionar_imagem(self, quem, titulo, imagem):
+        """Acrescenta ao histórico a imagem que ele projetou (QImage), com o título embaixo."""
+        self._imagens += 1
+        nome = QUrl(f"imagem-{self._imagens}.png")
+        reduzida = imagem.scaled(LARGURA_IMAGEM, LARGURA_IMAGEM, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.historico.document().addResource(QTextDocument.ImageResource, nome, reduzida)
+        self.historico.append(f'<p><b style="color:#63e56f">{html.escape(quem)}:</b><br>'
+                              f'<img src="{nome.toString()}"><br><i>{html.escape(titulo)}</i></p>')
         self.historico.verticalScrollBar().setValue(self.historico.verticalScrollBar().maximum())
 
     def set_microfone(self, ligado, gravando=False, transcrevendo=False):

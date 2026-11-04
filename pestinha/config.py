@@ -56,7 +56,7 @@ DEFAULT_PERMISSIONS = {
     "comentarios": True,       # ele comenta em balão o que vê (só com ver_tela)
     "jogos": False,            # em jogo, ele olha bem mais seguido para acompanhar a partida (só com ver_tela)
     "conversa": True,          # chat por texto pelo menu do pet
-    "pesquisar": False,        # ele pesquisa na internet pelo Hermes o que chamou a atenção na tela; precisa de ia e ver_tela
+    "pesquisar": False,        # "Conectar ao Hermes": o chat passa por ele (pesquisa, memória) e ele pesquisa o que vê na tela
     "hermes_url": "",          # onde está a API do Hermes; vazio: este computador, porta 8642
     "ia_provedor": "claude",   # claude, openai, deepseek ou ollama (ver ia/provedores.py)
     "ia_modelo": "",           # vazio: o modelo padrão do provedor
@@ -110,10 +110,13 @@ PERMISSION_GROUPS = [
          "com uma API paga, mais devagar, por causa do custo) para perceber itens, conquistas e jogadas e "
          "comentar. Se a tela quase não mudou, ele não manda o print. Para ele aparecer por cima do jogo, "
          "ligue também \"Aparecer em tela cheia\" e jogue em janela sem borda."),
-        ("pesquisar", "Pesquisar na internet (Hermes)",
-         "Quando algo na tela chama a atenção dele (um jogo, um item, um erro), ele pede ao Hermes para "
-         "pesquisar e te dá uma dica no balão. Vai para o Hermes só o termo da pesquisa e o resumo do que "
-         "você está fazendo, nunca o print nem o título da janela. No máximo uma pesquisa a cada 10 minutos."),
+        ("pesquisar", "Conectar ao Hermes (pesquisa e memória)",
+         "O chat e a voz passam pelo Hermes: ele responde como o pet, pesquisa na internet quando precisa e "
+         "vai aprendendo sobre você (a memória dele é a mesma em todos os seus computadores). Se o Hermes "
+         "cair, o provedor de IA responde no lugar. Quando algo na tela chama a atenção (um jogo, um item, "
+         "um erro), ele também pesquisa sozinho e te dá uma dica no balão. Peça \"pesquisa o que é manga\" e "
+         "ele projeta uma imagem como holograma. Vai para o Hermes a conversa, o resumo do que você está "
+         "fazendo e o estado do pet; nunca o print nem o título da janela."),
         ("conversa", "Conversar por texto", "Botão direito nele, Conversar: você escreve e ele responde."),
         ("voz", "Falar com ele (voz para texto)",
          f"Segure {PTT_HOTKEY_TEXT} e fale, ou use o botão de microfone do chat: a sua fala vira texto e ele "
@@ -235,7 +238,7 @@ PROFILES = {
         "stage_hyst": 0.12,
         "visao_intervalo": 150.0,    # ~2,5 min entre olhadas: o custo da API fica baixo
         "visao_apos_troca": 45.0,
-        "pesquisa_intervalo": 600.0,     # no máximo uma pesquisa a cada 10 min
+        "pesquisa_intervalo": 120.0,     # no máximo uma pesquisa espontânea a cada 2 min
         "visao_jogo": 8.0,           # Ollama: ~0,7 s por olhada no gemma4:e4b, sobra placa para o jogo
         "visao_jogo_nuvem": 60.0,    # API paga: ~1 olhada por minuto em jogo
         "fala_jogo": 45.0,           # olhar rápido não é falar sem parar

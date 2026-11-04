@@ -55,6 +55,11 @@ class PetPaths:
         return self.base / "preferences.json"
 
     @property
+    def musica(self):
+        """O seu gosto musical que ele aprendeu: nota por artista, músicas curtidas e banidas."""
+        return self.base / "musica.json"
+
+    @property
     def drives(self):
         """Homeostase: energia, estimulação e carência."""
         return self.base / "drives.json"

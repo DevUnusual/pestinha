@@ -179,8 +179,18 @@ class Behavior:
             self.next_roam = now + 1.0
             return
 
+        # projetando a imagem que você pediu: paradinho, olhando para ela, até você mexer nele
+        if "projetando" in st.mente:
+            self.drop_carried()
+            body.vx = 0.0
+            self.target_x = None
+            self.crossing_screen = False
+            st.gaze = (0.0, -0.9)
+            self.next_roam = now + 1.0
+            return
+
         # tonto, dormindo ou ganhando carinho: fica paradinho
-        if st.at_desk:                                  # sentado no notebook: trabalha, sem passear
+        if st.at_desk:                                 # sentado no notebook: trabalha, sem passear
             body.vx = 0.0
             st.gaze = (0.0, 0.9)
             self.next_roam = now + 1.0

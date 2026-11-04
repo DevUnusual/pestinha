@@ -12,6 +12,7 @@ Objetos que aparecem na tela: post-its, memes, cartazes, notebook, fogos, o bal�
 | `balao.py` | O balãozinho de fala em cima do pet (comentários da IA e respostas do chat). |
 | `cartazes.py` | Os cartazes e a bandeira que o pet levanta. |
 | `fireworks.py` | O fogo de artifício do bichinho feliz. |
+| `holograma.py` | A imagem que você pediu no chat, projetada pelos olhos do pet como um holograma. |
 | `mischief.py` | Memes, fotos e bilhetes que o pet espalha pela tela. |
 | `notebook.py` | O notebook do pet (só o desenho e o arrastar). |
 | `objetos.py` | Os post-its, memes e fotos que o pet traz, como janelas na tela. |

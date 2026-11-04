@@ -139,32 +139,42 @@ Configurações, ponha o endereço dele em **Servidor da voz** (ex.: `192.168.0.
 **Testar voz**. Testado numa RTX 3070 de 8 GB junto com o `gemma4:e4b`: ~0,2 s para transcrever uma frase
 e cerca de 6 GB de VRAM somando os dois.
 
-### Pesquisar na internet (Hermes)
+### Conectar ao Hermes (pesquisa e memória)
 
-Desligado por padrão, e só funciona com **Usar IA** e **Ver minha tela** ligados. Quando algo na tela chama
-a atenção dele, ele pede ao [Hermes](https://github.com/NousResearch/hermes-agent) (um agente com
-ferramentas, rodando num computador seu) para pesquisar e te dá uma dica no balão. Quem olha a tela
-continua sendo o provedor de IA escolhido; o Hermes recebe só o termo, o resumo e (com **Lembrar o que
-viu**) as lembranças dos seus computadores. Rode o Hermes no mesmo servidor da memória e da voz: todos os
-computadores usam o mesmo Hermes, com a memória dele.
+Desligado por padrão; precisa de **Usar IA** e **Conversar por texto**. O
+[Hermes](https://github.com/NousResearch/hermes-agent) é um agente com ferramentas rodando num computador
+seu. Conectado, ele e o pet viram um só, e você não percebe a troca:
+
+- **O chat e a voz passam pelo Hermes.** Ele responde com a persona do pet, pesquisa na internet quando a
+  pergunta precisa, lê páginas e vai **aprendendo sobre você**: toda conversa leva a mesma sessão
+  (`X-Hermes-Session-Key: pestinha-<pet>`), então a memória dele é a mesma em todos os seus computadores.
+  Enquanto ele pensa, o pet vira detetive; enquanto usa uma ferramenta, vira a IA vilã.
+- **Imagens:** peça "pesquisa o que é manga" ou "me mostra uma foto de um gato". O Hermes devolve o link de
+  uma imagem e o pet projeta como holograma; sem link, a imagem vem da Wikipédia.
+- **Pela tela:** com **Ver minha tela**, quando algo chama a atenção dele (um jogo, um item, um erro), ele
+  pesquisa sozinho e te dá uma dica no balão (no máximo uma a cada 2 min).
+- **Se o Hermes cair**, o provedor de IA escolhido responde no lugar (só aparece um aviso na bandeja).
+
+Quem olha a tela continua sendo o provedor de IA escolhido: o Hermes nunca recebe o print nem o título da
+janela, só o resumo do que você está fazendo.
 
 No Hermes, uma vez:
 
 1. No `.env` dele, `API_SERVER_KEY=<uma senha longa>` (a API fica só em `127.0.0.1:8642`; para outro
    computador da rede, `API_SERVER_HOST=0.0.0.0`).
-2. No `config.yaml` dele, a plataforma da API **só com a pesquisa** (o texto da tela pode tentar dar
-   ordens a ele; assim ele não tem terminal, arquivos nem controle do computador):
+2. No `config.yaml` dele, a plataforma da API com **pesquisa, leitura de páginas e memória**, sem
+   terminal nem arquivos (assim nada que apareça numa página consegue mexer no computador dele):
 
    ```yaml
    platform_toolsets:
-     api_server:
-       - search
+     api_server: [web, memory, session_search]
    ```
 
+   Com só `[search]`, tudo funciona, mas ele não lê páginas nem guarda o que aprende sobre você.
 3. `hermes gateway run` (ou `hermes gateway install` para ficar sempre ligado).
 
-No Pestinha: Configurações, marque **Pesquisar na internet (Hermes)**, cole a mesma senha em **Chave do
-Hermes**, **Salvar chave** e **Testar Hermes**.
+No Pestinha: Configurações, marque **Conectar ao Hermes (pesquisa e memória)**, cole a mesma senha em
+**Chave do Hermes**, **Salvar chave** e **Testar Hermes**.
 
 ### O mesmo pet em todos os computadores
 

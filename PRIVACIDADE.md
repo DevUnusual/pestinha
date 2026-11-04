@@ -68,22 +68,52 @@ a sua fala em texto.
 - O pânico, a pausa ou desligar a voz fecham o microfone na hora e descartam o texto que ainda estava a
   caminho.
 
-## Pesquisar na internet pelo Hermes (desligado por padrão)
+## Conectar ao Hermes (desligado por padrão)
 
-Só vale com **Usar IA**, **Ver minha tela** e **Pesquisar na internet (Hermes)** ligados.
+Só vale com **Usar IA**, **Conversar por texto** e **Conectar ao Hermes (pesquisa e memória)** ligados.
 
-- **O que vai para o Hermes:** o termo da pesquisa (até 80 caracteres, escolhido pelo modelo que olhou a
-  tela, que é instruído a não pôr nomes, e-mails, senhas, números nem dados pessoais), o resumo curto da
-  última olhada, o estado da rede e, com **Lembrar o que viu**, as lembranças dos seus computadores (os
-  mesmos resumos curtos do serviço de memória). **Nunca** o print nem o título da janela. Com o Hermes em
-  outro computador da rede, isso passa sem criptografia (http), a não ser que você use um endereço https.
-- **Para onde vai depois:** o Hermes manda o termo para o motor de busca configurado nele e manda o
-  pedido para o modelo de IA dele (no teste, DeepSeek). O Hermes guarda as sessões no histórico dele
-  (`hermes sessions`); o Pestinha não grava nada disso em `memory/` nem no log.
-- **Quantas vezes:** no máximo uma pesquisa a cada 10 minutos.
-- Deixe a API do Hermes só com a ferramenta de pesquisa (veja o README): assim, nada que apareça na tela
-  consegue fazer ele rodar comandos ou mexer em arquivos.
-- O pânico, a pausa ou desligar a pesquisa descartam a dica que ainda estava a caminho.
+- **O que vai para o Hermes no chat e na voz:** o que você escreve ou fala, as últimas trocas da conversa,
+  o resumo curto da última olhada na tela (com **Ver minha tela**), o estado da rede do pet e, com
+  **Lembrar o que viu**, as lembranças dos seus computadores. **Nunca** o print nem o título da janela.
+- **Nas pesquisas espontâneas** (com **Ver minha tela**): o termo escolhido pelo modelo que olhou a tela
+  (até 80 caracteres, instruído a não pôr nomes, e-mails, senhas, números nem dados pessoais), o resumo, o
+  estado e as lembranças. No máximo uma a cada 2 minutos.
+- **O que o Hermes guarda:** tudo vai com a sessão `pestinha-<pet>`. O Hermes guarda as conversas no
+  histórico dele (`hermes sessions`) e, com a ferramenta `memory` ligada nele, anota o que aprende sobre
+  você (gostos, projetos, jeito de falar) para usar nas próximas conversas, de qualquer computador. Isso
+  fica no computador do Hermes; apague com os comandos de sessão e de memória dele. O Pestinha não grava
+  nada disso em `memory/` nem no log.
+- **Para onde vai depois:** o Hermes manda as pesquisas para o motor de busca configurado nele, pode abrir
+  as páginas que achar e manda o pedido para o modelo de IA dele (no teste, DeepSeek). Com o Hermes em
+  outro computador da rede, a conversa passa sem criptografia (http), a não ser que você use um endereço
+  https.
+- **Se o Hermes cair**, a mesma mensagem vai para o provedor de IA escolhido, como no chat sem o Hermes.
+- Deixe a API do Hermes sem terminal nem arquivos (`[web, memory, session_search]`, veja o README): o
+  que aparecer numa página pode tentar dar ordens a ele, mas não consegue mexer no computador.
+- O pânico, a pausa ou desligar o Hermes descartam a resposta que ainda estava a caminho.
+
+### Imagens
+
+Quando você pede para ver algo ("pesquisa o que é manga", "me mostra uma foto de um gato"), ou quando o
+Hermes acha que a resposta merece uma imagem, ele devolve um link e o Pestinha baixa e projeta acima dele
+até você mexer nele (e mostra também no chat, se ele estiver aberto). Sem link (ou com o link quebrado), o
+Pestinha busca na Wikipédia, para onde vai só o termo que você pediu.
+
+- O Pestinha só baixa links `http(s)` do tipo `image/*` com até 8 MB; do Wikimedia, pede a miniatura de
+  500 px. O site da imagem vê o seu IP, como em qualquer visita.
+- A imagem fica só na memória: não é gravada, nem no log. O pânico e a pausa descartam a que estava a
+  caminho e apagam a projeção.
+
+### Música
+
+Quando você pede música no chat ou pela voz ("toca um lo-fi"), o Pestinha busca no YouTube Music e toca o
+áudio direto (sem conta, pelo `ytmusicapi` e pelo `yt-dlp`, que são não oficiais).
+
+- Para o YouTube vão só o estilo que você pediu e os ids das músicas: nunca a conversa, a tela ou o seu
+  gosto. O YouTube vê o seu IP, como em qualquer visita.
+- O gosto que ele aprende (nota por artista e ids das músicas curtidas e das que você deu 👎) fica em
+  `memory/pets/<pet>/musica.json`, neste computador. "Apagar tudo" apaga junto.
+- O pânico para a música; a pausa pausa.
 
 ## Memória em outro computador (desligado por padrão)
 

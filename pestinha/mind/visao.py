@@ -7,6 +7,13 @@ Dois caminhos, os dois em thread para o pet não travar enquanto o modelo pensa:
                (VISAO_*) e, às vezes, um comentário no balão.
     conversar  você escreve pelo chat; ele responde no chat e no balão, e a conversa vira o canal CONVERSA.
     pesquisar  se a olhada pedir (campo "pesquisar"), o Hermes pesquisa na internet e a dica vai para o balão.
+    Hermes     com "Conectar ao Hermes", o chat passa por ele: a mesma persona, mas com pesquisa na internet,
+               leitura de páginas e a memória dele sobre você (a sessão "pestinha-<pet>" é a mesma em todos
+               os computadores). Enquanto ele usa uma ferramenta, o pet vira a IA vilã. Se o Hermes cair, o
+               provedor escolhido responde no lugar, sem você perceber (só um aviso na bandeja).
+    imagem     se você pedir para ver algo ("pesquisa o que é manga"), o Hermes devolve o link de uma imagem
+               (linha "IMAGEM:"); sem link ou sem Hermes, o link vem da Wikipédia. Uma thread baixa e o pet
+               projeta como holograma (ia/imagem.py, world/holograma.py).
     jogo       com "Acompanhar jogos", em jogo ele olha a cada poucos segundos (visao_jogo), pula o print
                se a tela quase não mudou e fala no máximo a cada `fala_jogo`.
 
@@ -18,6 +25,8 @@ Política (as permissões ficam em config.py):
     - o print fica só na memória: nunca é gravado, nem o que o modelo disse sobre ele (nem no log);
     - para o Hermes vão só o termo e o resumo, nunca o print nem o título, e no máximo uma pesquisa por
       `pesquisa_intervalo`;
+    - com "Conectar ao Hermes", o chat (com o resumo da tela, o estado da rede e as lembranças) vai para o
+      Hermes; para a Wikipédia, só o termo que você pediu;
     - pânico, pausa ou desligar a IA descartam a resposta que ainda estava a caminho.
 """
 
@@ -29,7 +38,10 @@ from PySide6.QtCore import QBuffer, QIODevice, QObject, QPoint, Qt, Signal
 from PySide6.QtGui import QGuiApplication, QImage
 
 from ..ia import pesquisa, provedores
-from ..ia.mente import Conversa, ler_dica, ler_observacao, limpar_fala, pedido_dica, pedido_observacao, prompt_sistema
+from ..ia.imagem import baixar as baixar_imagem, buscar as buscar_imagem_na_web, pedido_de_imagem as imagem_pedida
+from ..ia.imagem import titulo_do_link
+from ..ia.mente import (Conversa, ler_dica, ler_observacao, limpar_fala, pedido_dica, pedido_observacao,
+                        prompt_sistema, separar_imagem, sistema_hermes)
 from ..log import log
 from .sincronia import descrever_temperamento, estado_agora
 from ..sense import senses
@@ -96,7 +108,9 @@ class VisaoController(QObject):
     resposta = Signal(str)          # resposta do chat
     erro_conversa = Signal(str)     # o chat falhou (mostrado no próprio chat)
     aviso = Signal(str)             # problema de configuração (mostrado na bandeja)
+    imagem = Signal(str, bytes)     # (título, bytes) da imagem que você pediu, para projetar
     _pronto = Signal(str, object, int)      # da thread para a thread do Qt: (tipo, resultado, geração)
+    _ferramenta = Signal(bool, int)         # o Hermes começou (True) ou terminou de usar uma ferramenta
 
     def __init__(self, app, nome, pet_def, debugging):
         """`app` é o PestinhaApp (permissões, sentidos, homeostase); `pet_def` é o pets/<pet>.json carregado."""
@@ -106,6 +120,7 @@ class VisaoController(QObject):
         self.sistema = prompt_sistema(nome, pet_def.get("persona"),
                                       descrever_temperamento(pet_def.get("temperamento")),
                                       pet_def.get("exemplos", ()), pet_def.get("evitar", ()))
+        self.sessao = f"pestinha-{pet_def.get('id') or nome}".lower()   # a memória do Hermes sobre você
         self.ja_disse = []                  # comentários recentes (para ele não se repetir)
         self.debugging = debugging
         self.conversa = Conversa()
@@ -115,6 +130,8 @@ class VisaoController(QObject):
         self.olhando = False                # uma olhada a caminho
         self.respondendo = False            # uma resposta do chat a caminho
         self.pesquisando = False            # uma pesquisa do Hermes a caminho
+        self.buscando_imagem = False        # uma imagem pedida no chat a caminho
+        self.ferramentas = 0                # ferramentas do Hermes rodando agora (o pet vira a IA vilã)
         self.ultima_pesquisa = float("-inf")
         self.ultimo_envio = float("-inf")   # quando um print foi de fato para o modelo
         self.ultima_fala = float("-inf")    # último comentário espontâneo (freio em jogo)
@@ -128,6 +145,7 @@ class VisaoController(QObject):
         self._hermes_de = None
         self._avisos = {}
         self._pronto.connect(self._ao_pronto)
+        self._ferramenta.connect(self._ao_usar_ferramenta)
 
     # ---------------- estado ----------------
 
@@ -148,6 +166,10 @@ class VisaoController(QObject):
         """Permissão ligada, nada a caminho e já passou o intervalo desde a última pesquisa."""
         return (self.vendo() and self.perms["pesquisar"] and not self.pesquisando
                 and now - self.ultima_pesquisa >= self.app.prof["pesquisa_intervalo"])
+
+    def com_hermes(self):
+        """O chat passa pelo Hermes: IA, conversa e "Conectar ao Hermes" ligados."""
+        return self.ligada() and self.perms["conversa"] and self.perms["pesquisar"]
 
     def em_jogo(self):
         """"Acompanhar jogos" ligado e você jogando (pela lista de jogos ou pelo título, no Minecraft Java)."""
@@ -171,12 +193,15 @@ class VisaoController(QObject):
         nome = provedores.info(provedor)["nome"]
         if provedor == "ollama":
             nome = f"Ollama em {provedores.endereco_ollama(self.perms['ia_ollama_url']) or '?'}"
+        if self.com_hermes():
+            return f"Hermes (pesquisa e memória) + {nome} · {modelo} · {olhos}"
         return f"{nome} · {modelo} · {olhos}"
 
     def cancelar(self):
         """Pânico, pausa ou IA desligada: esquece o que estava a caminho."""
         self.geracao += 1
-        self.olhando = self.respondendo = self.pesquisando = False
+        self.olhando = self.respondendo = self.pesquisando = self.buscando_imagem = False
+        self.ferramentas = 0
 
     def chave_nova(self):
         """Você salvou uma chave: recria o cliente e olha de novo logo (sem esperar o tempo de erro)."""
@@ -195,7 +220,7 @@ class VisaoController(QObject):
     def hermes(self):
         """O cliente do Hermes (recriado se você trocar o endereço)."""
         if self._hermes is None or self._hermes_de != self.perms["hermes_url"]:
-            self._hermes = pesquisa.criar_cliente(self.perms["hermes_url"])
+            self._hermes = pesquisa.criar_cliente(self.perms["hermes_url"], self.sessao)
             self._hermes_de = self.perms["hermes_url"]
         return self._hermes
 
@@ -275,21 +300,102 @@ class VisaoController(QObject):
     # ---------------- conversar ----------------
 
     def perguntar(self, texto):
-        """Você escreveu no chat: ele responde (vendo a tela, se puder)."""
+        """Você escreveu no chat: ele responde (pelo Hermes, se estiver conectado; vendo a tela, se puder)."""
         if self.respondendo or not self.ligada() or not self.perms["conversa"] or self.app._congelado():
             return False
+        hermes = cliente = None
+        if self.com_hermes():
+            try:
+                hermes = self.hermes()
+            except provedores.ErroIA as erro:          # sem chave ou endereço ruim: segue sem ele
+                self._avisar(f"[hermes] {erro}", str(erro), time.monotonic())
         try:
             cliente = self.cliente()
         except provedores.ErroIA as erro:
-            self.erro_conversa.emit(str(erro))
-            return False
-        imagem = self._print() if self.vendo() and cliente.ve_imagem else None
+            if hermes is None:
+                self.erro_conversa.emit(str(erro))
+                return False
+        imagem = self._print() if cliente is not None and self.vendo() and cliente.ve_imagem else None
         mensagens = self.conversa.mensagens(texto, self.ultimo_resumo if self.vendo() else "", self.estado(),
                                             self.lembrado())
         self.respondendo = True
         self._pergunta = texto
-        self._em_thread("conversa", cliente, mensagens, imagem)
+        termo = imagem_pedida(texto) if self.perms["pesquisar"] else None
+        if hermes is not None:
+            self._conversar_pelo_hermes(hermes, cliente, mensagens, imagem, termo)
+        else:
+            self._em_thread("conversa", cliente, mensagens, imagem)
+            if termo and not self.buscando_imagem:
+                self.buscar_imagem(termo)
         return True
+
+    def _conversar_pelo_hermes(self, hermes, reserva, mensagens, imagem, termo):
+        """
+        O Hermes responde (pesquisando e lembrando de você); se ele cair, o provedor `reserva` responde no
+        lugar. Depois, se veio um link de imagem (ou você pediu uma), a mesma thread baixa para projetar.
+        """
+        geracao = self.geracao
+        sistema = sistema_hermes(self.sistema)
+
+        def trabalho():
+            """Roda numa thread: resposta, depois a imagem; nunca levanta."""
+            link = None
+            try:
+                texto = hermes.conversar(sistema, mensagens,
+                                         lambda _ferramenta, rodando: self._ferramenta.emit(rodando, geracao))
+                resultado, link = separar_imagem(texto)
+            except Exception as erro:                  # Hermes fora do ar, chave errada, bug...
+                motivo = str(erro) if isinstance(erro, provedores.ErroIA) else f"{type(erro).__name__}: {erro}"
+                self._pronto.emit("hermes_caiu", motivo, geracao)
+                resultado = self._responder_com(reserva, mensagens, imagem)
+            self._pronto.emit("conversa", resultado, geracao)
+            if link or termo:
+                self._pronto.emit("imagem_vindo", None, geracao)
+                self._pronto.emit("imagem", self._achar_imagem(link, termo), geracao)
+
+        threading.Thread(target=trabalho, name="pestinha-hermes", daemon=True).start()
+
+    def _responder_com(self, cliente, mensagens, imagem):
+        """O provedor escolhido responde (no lugar do Hermes); a falha vira o resultado."""
+        if cliente is None:
+            return provedores.ErroIA("o Hermes não respondeu e não há outro provedor configurado")
+        try:
+            return cliente.responder(self.sistema, mensagens, imagem)
+        except provedores.ErroIA as erro:
+            return erro
+        except Exception as erro:
+            return provedores.ErroIA(f"falha inesperada: {type(erro).__name__}: {erro}")
+
+    @staticmethod
+    def _achar_imagem(link, termo):
+        """(título, bytes): primeiro o link que o Hermes deu, depois a Wikipédia pelo termo. None se nada deu."""
+        if link:
+            try:
+                return (termo or titulo_do_link(link)).strip().capitalize(), baixar_imagem(link)
+            except Exception as erro:                  # link quebrado ou que não é imagem: tenta a Wikipédia
+                log(f"[imagem] o link do Hermes não deu: {erro}")
+        if termo:
+            try:
+                return buscar_imagem_na_web(termo)
+            except Exception as erro:
+                return provedores.ErroIA(f"falha inesperada na imagem: {type(erro).__name__}: {erro}")
+        return None
+
+    def buscar_imagem(self, termo):
+        """Acha o link de uma imagem de `termo` e baixa (em outra thread); vai só o termo."""
+        geracao = self.geracao
+        self.buscando_imagem = True
+
+        def trabalho():
+            """Roda numa thread: devolve (título, bytes), None ou a falha, nunca levanta."""
+            self._pronto.emit("imagem", self._achar_imagem(None, termo), geracao)
+
+        threading.Thread(target=trabalho, name="pestinha-imagem", daemon=True).start()
+
+    def _ao_usar_ferramenta(self, rodando, geracao):
+        """O Hermes começou ou terminou de usar uma ferramenta (pesquisa, página, memória)."""
+        if geracao == self.geracao:
+            self.ferramentas = max(0, self.ferramentas + (1 if rodando else -1))
 
     # ---------------- pesquisar ----------------
 
@@ -335,6 +441,18 @@ class VisaoController(QObject):
                 self._falhou(str(resultado), now)
             elif self.vendo() and not self.app._congelado():
                 self._entender(ler_observacao(resultado), pedido)
+        elif tipo == "hermes_caiu":
+            self._avisar(f"[hermes] {resultado}", f"Hermes: {resultado}", now)
+        elif tipo == "imagem_vindo":
+            self.buscando_imagem = True
+        elif tipo == "imagem":
+            self.buscando_imagem = False
+            if isinstance(resultado, Exception):
+                self._avisar(f"[imagem] {resultado}", f"imagem: {resultado}", now)
+            elif resultado is None:
+                log("[imagem] não achei uma imagem")
+            elif self.ligada() and self.perms["pesquisar"] and not self.app._congelado():
+                self.imagem.emit(*resultado)
         elif tipo == "pesquisa":
             self.pesquisando = False
             if isinstance(resultado, Exception):
@@ -346,6 +464,7 @@ class VisaoController(QObject):
                     self.fala.emit(dica)
         else:
             self.respondendo = False
+            self.ferramentas = 0
             if isinstance(resultado, Exception):
                 self.erro_conversa.emit(str(resultado))
             elif not self.app._congelado():

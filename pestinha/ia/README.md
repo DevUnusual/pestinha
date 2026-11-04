@@ -9,6 +9,7 @@ Visão e conversa por um modelo de IA (Claude, OpenAI, DeepSeek ou Ollama local)
 | Arquivo | O que faz |
 |---|---|
 | `chaves.py` | As chaves de API no arquivo .env da pasta do Pestinha. |
+| `imagem.py` | Quando você pede no chat para ele pesquisar algo, ele acha uma imagem na Wikipédia para projetar. |
 | `mente.py` | O que o pet pergunta ao modelo e como ele entende a resposta. |
 | `pesquisa.py` | O pet pesquisa na internet pelo Hermes (um agente com ferramentas), no formato da OpenAI. |
 | `provedores.py` | Quem responde pelo pet: Claude, OpenAI, DeepSeek ou um modelo local no Ollama. |

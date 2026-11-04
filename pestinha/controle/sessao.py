@@ -75,7 +75,9 @@ class SessaoMixin:
         self.castigo.set_visible(visible)
         if not visible:
             self.revolucao.esconder()
-            self.balao.esconder()                    # o balão só segue o pet enquanto ele aparece
+            self.balao.esconder()                    # o balão e a projeção só seguem o pet enquanto ele aparece
+            self.holograma.esconder()
+            self.tocando.hide()                      # a música continua; o cartão volta com ele
         self.floats.sync(self.floats_allowed(), self.floats_base())
         self.protest_ctl.set_visible(visible, self.asleep)
         self.sad_ctl.set_visible(visible, self.asleep)
@@ -113,7 +115,9 @@ class SessaoMixin:
             self._pausado_em = now
             self.visao.cancelar()
             self.voz.cancelar()
+            self.musica.pausar()
             self.balao.esconder()
+            self.holograma.esconder()
         else:
             if self._pausado_em is not None:
                 parado = now - self._pausado_em
@@ -145,7 +149,10 @@ class SessaoMixin:
         self.store.panic()
         self.visao.cancelar()                      # nada da IA chega depois do pânico
         self.voz.cancelar()                        # o microfone fecha na hora
+        self.musica.parar()                        # e o som para
         self.balao.esconder()
+        self.holograma.esconder()
+        self.tocando.hide()
         if self.conversa_janela:
             self.conversa_janela.hide()
         self.pet.cancel_interaction()
@@ -252,7 +259,10 @@ class SessaoMixin:
         self._enviar_memoria(agora=True)
         self.visao.cancelar()
         self.voz.cancelar()
+        self.musica.parar()
         self.balao.esconder()
+        self.holograma.esconder()
+        self.tocando.close()
         if self.conversa_janela:
             self.conversa_janela.close()
         self.mesa.fechar()
