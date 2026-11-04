@@ -1,5 +1,18 @@
 # Histórico de versões
 
+## Assistindo você jogar
+
+- Com **Acompanhar jogos** e um jogo na tela, ele vai para o monitor mais à direita que não é o do jogo,
+  perto da borda virada para a partida (com um monitor só, para o canto de baixo à direita), e fica parado
+  lá olhando para o jogo e comentando no balão: sem passear, sem bolinha, sem travessuras e sem sentar no
+  notebook (`mind/assistir.py`).
+- Vai andando; se não der para chegar andando em 3 s (monitores desalinhados, ele em cima de uma janela),
+  aparece direto no lugar.
+- A tela cheia do jogo num monitor não esconde mais o pet que está assistindo de outro. Como o print é do
+  monitor do jogo, ele também não aparece nos prints que a visão manda.
+- Se você arrastar ele, ele fica onde você soltou por 20 s e depois volta para o lugar dele. Castigo e sono
+  continuam passando na frente.
+
 ## Música e imagem que fica
 
 - **Música pelo chat e pela voz:** "toca um lo-fi" (ou "quero ouvir samba", "coloca uma playlist de jazz")

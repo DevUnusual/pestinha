@@ -44,6 +44,7 @@ class PetState:
         self.desk_top = None        # y (na tela) da tampa do notebook quando ele está sentado: o corpo para ali
         self.castigo = False        # no cantinho do castigo: parado, sem passear
         self.ouvindo = False        # você está segurando a tecla de falar: ele mostra que está ouvindo
+        self.assistindo = None      # (x do lugar, ponto do jogo) quando está assistindo você jogar (mind/assistir.py)
         self.mente = frozenset()    # atividades da IA/voz agora (animacoes.ATIVIDADES): olhando, pensando...
         self.anim = Animacoes()     # como essas atividades e as falas aparecem no corpo, quadro a quadro
 

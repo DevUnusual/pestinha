@@ -61,6 +61,7 @@ from .core.homeostasis import Drives
 from .core.nervous_system import LIFBrain
 from .core.protesto import Protesto
 from .log import log
+from .mind.assistir import AssistirController
 from .mind.castigo_ctl import CastigoController
 from .mind.festa import FestaController
 from .mind.lembrancas import Lembrancas
@@ -147,7 +148,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.tracker = senses.ActivityTracker()
         self.activity = "IDLE"
         self.idle_seconds = 0.0
-        self.fullscreen = False
+        self.fullscreen = False         # tela cheia que esconde o pet (a de outro monitor não esconde quem assiste)
+        self.tela_cheia_bruta = False   # alguma janela em tela cheia, em qualquer monitor
         self.platforms = []
         self.keyboard_active = False
         self.last_cursor = (0, 0)
@@ -197,6 +199,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.revolucao = RevolucaoController(self.behavior.play, self.debugging, sprite=paper)
         self.balao = Balao()
         self.holograma = Holograma()
+        self.assistir = AssistirController()     # jogando: ele assiste do monitor ao lado
+        self.pet.drag_ended.connect(lambda: self.assistir.arrastado(time.monotonic()))
         self.visao = VisaoController(self, self.nome, pet_def, self.debugging)
         self.visao.fala.connect(self._mostrar_fala)
         self.visao.imagem.connect(self._projetar)
@@ -371,7 +375,9 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             if rect:
                 self.behavior.look_at((rect[0] + rect[2]) / 2 / dpr, (rect[1] + rect[3]) / 2 / dpr,
                                       time.monotonic())
-        fullscreen = senses.is_fullscreen()
+        self.tela_cheia_bruta = senses.is_fullscreen()
+        # assistindo você jogar de outro monitor: a tela cheia do jogo não esconde ele (mind/assistir.py)
+        fullscreen = self.tela_cheia_bruta and not self.assistir.libera_tela_cheia()
         if fullscreen != self.fullscreen:
             self.fullscreen = fullscreen
             self.update_visibility()
@@ -511,11 +517,27 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             mente.add("pensando")                     # pensando na resposta: detetive
         if self.holograma.visivel(agora):
             mente.add("projetando")
-        if v.em_jogo():
+        jogando = v.em_jogo()
+        if jogando:
             mente.add("jogo")
+        self._atualizar_assistir(agora, jogando)
         if "olhando" in st.mente and not v.olhando:
             st.anim.olhou(agora)                 # a olhada voltou: piscada lenta de quem entendeu
         st.mente = frozenset(mente)
+
+    def _atualizar_assistir(self, agora, jogando):
+        """Jogando: escolhe de onde ele assiste (mind/assistir.py); com tela cheia em outro monitor, ele aparece."""
+        centro = None
+        if jogando:
+            dpr = QGuiApplication.primaryScreen().devicePixelRatio()
+            rect = senses.foreground_rect(dpr)
+            if rect:
+                centro = ((rect[0] + rect[2]) / 2 / dpr, (rect[1] + rect[3]) / 2 / dpr)
+        self.assistir.atualizar(agora, jogando, self.screen_bounds(), centro, self.pet.body, self.tela_cheia_bruta)
+        fullscreen = self.tela_cheia_bruta and not self.assistir.libera_tela_cheia()
+        if fullscreen != self.fullscreen:
+            self.fullscreen = fullscreen
+            self.update_visibility()
 
     def _mostrar_fala(self, texto):
         """Uma fala da IA: o balão aparece digitando e o pet dá o pop de quem vai falar."""
@@ -563,6 +585,10 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
                 self.pet_state.dizzy_until = now + DIZZY_SECONDS
         motores = self.brain.motor_activity()
         self.behavior.canto = motores["CANTO"] >= LIMIAR_CANTO_HZ
+        if self.castigo.dentro or self.asleep:
+            self.pet_state.assistindo = None          # de castigo ou dormindo, não vai assistir
+        else:
+            self.assistir.agir(now, body, self.pet_state)
         self.behavior.tick(dt, now, cursor, bounds, self.prof, self.platforms)
         self.castigo.act(now, body, bounds, cursor, self.pet_state, motores, asleep=self.asleep)
         preso = self.castigo.dentro                  # no cantinho, nada de greve
@@ -603,7 +629,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         rates = self.brain.pool_rates()
         motores = self.brain.motor_activity()
         pode_sentar = (not self.asleep and self.pet.body.grounded and not self.pet.body.held
-                       and not self.holograma.visivel(now)
+                       and not self.holograma.visivel(now) and not self.assistir.ativo
                        and not self.behavior.mission and not self.in_flight
                        and not self.castigo.dentro and self.castigo.fuga is None)   # preso ou fugindo não senta
         self.mesa.tick(now, rates, motores["SENTAR"], pode_sentar, self.behavior.play)
@@ -626,7 +652,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
 
     def maybe_mischief(self, now, dt, bounds, cursor, motores):
         """Decide se vai aprontar uma travessura agora (não aprontar de castigo nem dormindo)."""
-        if self.castigo.dentro or self.holograma.visivel(now):   # de castigo ou projetando não apronta
+        if self.castigo.dentro or self.holograma.visivel(now) or self.assistir.ativo:   # nem assistindo
             return
         self.mischief_ctl.maybe_act(
             now, dt, bounds, cursor, self.pet.body, motores=motores,

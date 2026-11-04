@@ -19,6 +19,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_aparencia.py` | Etapa 5 do multipet: cores e acessórios por pet, numa camada por cima do rosto. |
 | `test_app.py` | Testes de integração do app, com Qt em modo offscreen e tudo numa pasta temporária. |
 | `test_arquitetura.py` | Regra de camadas do pacote `pestinha`: cada camada só importa das que estão abaixo dela. |
+| `test_assistir.py` | Assistindo você jogar: com "Acompanhar jogos" e um jogo na tela, ele vai para o monitor ao lado (o mais à direita que não é o do jogo), fica parado olhando para a partida e comenta, sem passear nem aprontar. |
 | `test_atividade.py` | Programas de trabalho: VS Code, Claude e Codex contam como programação. |
 | `test_auditoria_30.py` | Contratos dos 30 bugs da auditoria (docs/auditorias/AUDITORIA_30_BUGS.md). |
 | `test_bolinha.py` | Testes da bolinha e da tristeza (abandono). |

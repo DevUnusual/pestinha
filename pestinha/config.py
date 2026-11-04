@@ -108,8 +108,11 @@ PERMISSION_GROUPS = [
         ("jogos", "Acompanhar jogos",
          "Quando você está jogando, ele olha a tela bem mais seguido (com o Ollama, a cada poucos segundos; "
          "com uma API paga, mais devagar, por causa do custo) para perceber itens, conquistas e jogadas e "
-         "comentar. Se a tela quase não mudou, ele não manda o print. Para ele aparecer por cima do jogo, "
-         "ligue também \"Aparecer em tela cheia\" e jogue em janela sem borda."),
+         "comentar. Se a tela quase não mudou, ele não manda o print. Enquanto você joga, ele vai para o "
+         "monitor da direita (com um monitor só, para o canto de baixo) e fica parado lá assistindo e "
+         "comentando, sem passear nem aprontar; a tela cheia do jogo não esconde ele no outro monitor. Com um "
+         "monitor só, para ele aparecer por cima do jogo, ligue também \"Aparecer em tela cheia\" e jogue em "
+         "janela sem borda."),
         ("pesquisar", "Conectar ao Hermes (pesquisa e memória)",
          "O chat e a voz passam pelo Hermes: ele responde como o pet, pesquisa na internet quando precisa e "
          "vai aprendendo sobre você (a memória dele é a mesma em todos os seus computadores). Se o Hermes "

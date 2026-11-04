@@ -189,8 +189,26 @@ class Behavior:
             self.next_roam = now + 1.0
             return
 
+        # assistindo você jogar (mind/assistir.py): vai até o lugar dele e fica lá, virado para o jogo
+        if st.assistindo is not None and self.emotion != "dormindo":
+            self.drop_carried()
+            self.mission = None
+            self.target_x = None
+            self.crossing_screen = False
+            self.next_roam = now + 1.0
+            x, jogo = st.assistindo
+            if abs(body.x - x) > 14:
+                self._slide_to(x, 240.0)
+            else:
+                body.vx = 0.0
+            if jogo is not None and not dizzy and self.look is None:
+                dx, dy = jogo[0] - body.x, jogo[1] - body.y
+                dist = math.hypot(dx, dy) or 1.0
+                st.gaze = (dx / dist, dy / dist)
+            return
+
         # tonto, dormindo ou ganhando carinho: fica paradinho
-        if st.at_desk:                                 # sentado no notebook: trabalha, sem passear
+        if st.at_desk:                                # sentado no notebook: trabalha, sem passear
             body.vx = 0.0
             st.gaze = (0.0, 0.9)
             self.next_roam = now + 1.0
