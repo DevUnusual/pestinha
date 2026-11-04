@@ -3,14 +3,23 @@ LOG - um lugar só para mensagens do app: terminal e arquivo em memory/logs/.
 
 O arquivo é aparado quando passa de 1 MB (fica com a metade mais recente).
 Se o arquivo não puder ser escrito, a mensagem vai só para o terminal.
+
+As últimas linhas também ficam na memória (`recentes`): é assim que o pet lê o próprio registro no chat e
+consegue contar o que aconteceu ("a música cortou em 1:32 e eu recomecei"). Linhas de depuração do modo
+teste (homeostase, aprendizado...) e os episódios de travessura ficam de fora: são ruído para ele.
 """
 
+import collections
 import datetime
 import os
+import re
 from pathlib import Path
 
 MAX_BYTES = 1_000_000
+MAX_RECENTES = 200
 _file = None
+_recentes = collections.deque(maxlen=MAX_RECENTES)      # (quando, texto)
+_RUIDO = re.compile(r"^\[(?:homeostase|condicionamento|aprendizado|cutucada|assets|pânico)\]|^\[memória\] \w+\|")
 
 
 def setup(path):
@@ -38,6 +47,7 @@ def _trim():
 def log(*parts):
     """Escreve uma mensagem no terminal e no arquivo do log (uma linha por chamada)."""
     text = " ".join(str(p) for p in parts)
+    _recentes.append((datetime.datetime.now(), text))
     try:
         print(text)
     except UnicodeEncodeError:
@@ -52,3 +62,19 @@ def log(*parts):
         _trim()
     except OSError:
         pass
+
+
+def recentes(minutos=30, maximo=10, agora=None):
+    """
+    As últimas linhas do log (no máximo `maximo`, dos últimos `minutos`), sem o ruído de depuração, como
+    texto para o pet ler: '01:21 música: cortou ... em 1:32'. Sem colchetes (o bloco que leva isso já usa).
+    """
+    agora = agora or datetime.datetime.now()
+    desde = agora - datetime.timedelta(minutes=minutos)
+    linhas = []
+    for quando, texto in _recentes:
+        if quando < desde or _RUIDO.match(texto):
+            continue
+        texto = re.sub(r"^\[([^\]]+)\]\s*", r"\1: ", texto).replace("[", "(").replace("]", ")")
+        linhas.append(f"{quando:%H:%M} {texto}")
+    return linhas[-maximo:]

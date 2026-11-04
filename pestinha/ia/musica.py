@@ -10,7 +10,8 @@ mind/musica_ctl.py).
     escolher(faixas, gosto, tocadas, curiosidade)   a próxima: o gosto pesa, a curiosidade arrisca
     buscar(estilo)             músicas do estilo (busca no YouTube Music)
     radio(video_id)            músicas parecidas com uma (o "rádio" do YouTube Music)
-    link_de_audio(video_id)    o link do áudio (m4a) pelo yt-dlp, para o QMediaPlayer tocar
+    baixar_audio(video_id, pasta)   baixa o áudio (m4a) pelo yt-dlp numa pasta temporária, para o
+                               QMediaPlayer tocar do disco (do link direto, cortava no meio)
 
 Para o YouTube vai só o estilo que você pediu e os ids das músicas: nunca a conversa, a tela ou o
 gosto guardado. ytmusicapi e yt-dlp são opcionais: sem eles, ErroMusica explica o que instalar.
@@ -22,6 +23,7 @@ import random
 import re
 import unicodedata
 from dataclasses import dataclass
+from pathlib import Path
 
 DURACAO_MIN = 60                # s: menos que isso é vinheta
 DURACAO_MAX = 600               # s: mais que isso é compilação de horas ("3 hours of lofi")
@@ -263,19 +265,41 @@ def radio(video_id, cliente=None):
     return [f for f in map(faixa_de, dados.get("tracks") or []) if f and f.video_id != video_id]
 
 
-def link_de_audio(video_id):
-    """O link direto do áudio (m4a de preferência: o Qt toca sem problema). Expira em algumas horas."""
+def baixar_audio(video_id, pasta):
+    """
+    Baixa o áudio inteiro (m4a de preferência: o Qt toca sem problema) para `pasta` e devolve o caminho.
+    Tocar direto do link do YouTube cortava no meio ("Demuxing failed" quando o servidor derruba a
+    conexão); baixado, leva o mesmo tempo (uns 2 s, 3 MB) e não corta.
+    """
     try:
         import yt_dlp
     except ImportError as erro:
         raise ErroMusica(INSTALAR) from erro
-    opcoes = {"format": "bestaudio[ext=m4a]/bestaudio", "quiet": True, "no_warnings": True,
-              "noplaylist": True, "skip_download": True}
+    opcoes = {"format": "bestaudio[ext=m4a]/bestaudio", "quiet": True, "no_warnings": True, "noprogress": True,
+              "noplaylist": True, "outtmpl": str(Path(pasta) / "%(id)s.%(ext)s")}
     try:
         with yt_dlp.YoutubeDL(opcoes) as ydl:
-            info = ydl.extract_info(f"https://music.youtube.com/watch?v={video_id}", download=False)
+            info = ydl.extract_info(f"https://music.youtube.com/watch?v={video_id}", download=True)
+        caminho = Path(info["requested_downloads"][0]["filepath"])
     except Exception as erro:
-        raise ErroMusica(f"não consegui o áudio dessa música ({type(erro).__name__})") from erro
-    if not info or not info.get("url"):
+        raise ErroMusica(f"não consegui baixar essa música ({type(erro).__name__}: {erro})") from erro
+    if not caminho.is_file():
         raise ErroMusica("o YouTube não devolveu o áudio dessa música")
-    return info["url"]
+    return caminho
+
+
+def limpar_pasta(pasta, manter=()):
+    """Apaga os áudios baixados antes (menos os de `manter`): a pasta nunca cresce."""
+    manter = {Path(c).resolve() for c in manter}
+    for arquivo in Path(pasta).glob("*"):
+        if arquivo.is_file() and arquivo.resolve() not in manter:
+            try:
+                arquivo.unlink()
+            except OSError:
+                pass                            # ainda aberto pelo player: sai na próxima
+
+
+def tempo(segundos):
+    """205 -> '3:25' (para o log e para ele contar o que aconteceu)."""
+    segundos = max(0, int(segundos))
+    return f"{segundos // 60}:{segundos % 60:02d}"

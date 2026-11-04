@@ -56,6 +56,25 @@ def test_fala_vira_uma_linha_curta():
     assert "\n" not in fala and len(fala) == mente.MAX_COMENTARIO and fala.endswith("…")
 
 
+def test_ele_le_o_proprio_log_sem_o_ruido():
+    import datetime
+    from pestinha import log as log_mod
+    log_mod.log("[homeostase] energia 0.5")                       # depuração: fica de fora
+    log_mod.log("[memória] IDLE|observando -> atravessar")         # episódio de travessura: fica de fora
+    log_mod.log("[música] cortou Só Os Loucos Sabem · Charlie Brown Jr. em 1:32 (Demuxing failed)")
+    linhas = log_mod.recentes()
+    assert linhas[-1].endswith("música: cortou Só Os Loucos Sabem · Charlie Brown Jr. em 1:32 (Demuxing failed)")
+    assert not any("homeostase" in l or "IDLE|" in l for l in linhas)
+    daqui_a_uma_hora = datetime.datetime.now() + datetime.timedelta(hours=1)
+    assert log_mod.recentes(agora=daqui_a_uma_hora) == []          # só o que é recente
+
+    conversa = mente.Conversa().mensagens("o que aconteceu com a música?", registro=linhas[-1:])
+    assert "[Seu registro recente: " in conversa[-1]["content"] and "Demuxing" in conversa[-1]["content"]
+    assert "registro recente" in mente.prompt_sistema("Bryan")
+    eco = f"[Seu registro recente: {linhas[-1]}] A música cortou e eu recomecei."
+    assert mente.limpar_fala(eco) == "A música cortou e eu recomecei."
+
+
 def test_limpar_fala_tira_o_contexto_que_o_modelo_ecoou():
     eco = ("[Seu estado agora: emoção: observando (valência +0.2, ativação +0.1); energia médio]\n"
            "[Suas lembranças: no notebook, jogando]\nÉ o LampLight, eu acho!")

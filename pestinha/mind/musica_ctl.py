@@ -10,10 +10,14 @@ Você pede um estilo ("toca um lo-fi"): ele busca no YouTube Music e começa. Qu
     deixar tocar até o fim  o artista sobe um pouco (você não precisa fazer nada)
 
 As buscas rodam em threads; o resultado volta pelo sinal _pronto, já na thread do Qt, e é descartado se
-você pediu outra coisa (ou parou) no meio do caminho. Quem toca é o QMediaPlayer, criado na primeira música.
+você pediu outra coisa (ou parou) no meio do caminho. Quem toca é o QMediaPlayer, criado na primeira música,
+a partir do áudio baixado em `pasta` (só a música da vez fica lá). Se mesmo assim cortar no meio, ele
+tenta uma vez de onde parou. O que acontece (música, opinião, corte) vai para o log: é por ele que o pet
+conta o que houve quando você pergunta.
 """
 
 import threading
+from pathlib import Path
 
 from PySide6.QtCore import QObject, QUrl, Signal
 
@@ -23,6 +27,8 @@ from ..log import log
 VOLUME = 0.5
 FILA_MINIMA = 5         # menos músicas livres que isso: puxa mais pelo rádio
 MAX_FALHAS = 3          # músicas seguidas que não tocaram: para e avisa
+MAX_RETOMADAS = 1       # cortou no meio: recomeça de onde parou esta quantidade de vezes, depois pula
+EVENTO_NO_LOG = {"gostei": "você gostou de", "nao_gostei": "você não gostou de", "pulou": "você pulou"}
 CURIOSIDADE = {"curioso": 0.8, "feliz": 0.6, "contente": 0.5, "observando": 0.4, "triste": 0.15, "bravo": 0.2}
 
 
@@ -33,11 +39,15 @@ class MusicaController(QObject):
     aviso = Signal(str)                 # algo deu errado (vai para a bandeja)
     _pronto = Signal(str, object, int)  # (tipo, resultado, geração) de uma thread
 
-    def __init__(self, app, arquivo=None):
-        """`arquivo` é o musica.json do pet (o gosto aprendido); None guarda só na memória."""
+    def __init__(self, app, arquivo=None, pasta=None):
+        """`arquivo` é o musica.json do pet (o gosto aprendido; None guarda só na memória); `pasta`, onde
+        fica o áudio da música da vez (o padrão é memory/cache/musica)."""
         super().__init__()
         self.app = app
         self.gosto = musica.Gosto(arquivo).carregar()
+        self.pasta = Path(pasta) if pasta else Path(app.paths.memory) / "cache" / "musica"
+        self._retomar_em = None         # ms: depois de um corte, recomeça daqui
+        self._retomadas = 0             # quantas vezes já recomeçou a música da vez
         self.estilo = None              # None: sem música; '' : sem estilo (ele escolhe)
         self.fila = []                  # músicas candidatas (Faixa), na ordem em que chegaram
         self.tocadas = []               # ids que já tocaram nesta sessão
@@ -138,6 +148,8 @@ class MusicaController(QObject):
         self._parar_player()
         self.estilo, self.fila, self.atual, self.opiniao = None, [], None, None
         self.carregando = self.pausada = self._enchendo = False
+        if self.pasta.is_dir():
+            musica.limpar_pasta(self.pasta)             # o áudio baixado não fica para trás
         self.mudou.emit()
         return "Parei a música."
 
@@ -148,6 +160,8 @@ class MusicaController(QObject):
         self.gosto.notar(self.atual, evento)
         if evento in ("gostei", "nao_gostei"):
             self.opiniao = evento
+        if evento != "ouviu":
+            log(f"[música] {EVENTO_NO_LOG[evento]}: {self.atual.nome()}")
         try:
             self.gosto.salvar()
         except OSError as erro:
@@ -167,7 +181,8 @@ class MusicaController(QObject):
             return
         self.tocadas.append(faixa.video_id)
         self.carregando = True
-        self._rodar("audio", lambda: musica.link_de_audio(faixa.video_id))
+        self._retomar_em, self._retomadas = None, 0
+        self._rodar("audio", lambda: musica.baixar_audio(faixa.video_id, self.pasta))
         self._encher()
         self.mudou.emit()
 
@@ -230,7 +245,9 @@ class MusicaController(QObject):
             self._proxima()
         elif tipo == "audio":
             self.carregando = False
-            self._tocar_url(resultado)
+            musica.limpar_pasta(self.pasta, manter=[resultado])
+            log(f"[música] tocando {self.atual.nome()}")
+            self._tocar(resultado)
             self.mudou.emit()
 
     def _juntar(self, faixas):
@@ -253,8 +270,8 @@ class MusicaController(QObject):
 
     # ---------------- player ----------------
 
-    def _tocar_url(self, url):
-        """Toca o link do áudio no QMediaPlayer (criado na primeira vez)."""
+    def _tocar(self, caminho):
+        """Toca o áudio baixado no QMediaPlayer (criado na primeira vez)."""
         if self._player is None:
             from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
             self._player = QMediaPlayer(self)
@@ -263,7 +280,7 @@ class MusicaController(QObject):
             self._player.setAudioOutput(self._saida)
             self._player.mediaStatusChanged.connect(self._ao_status)
             self._player.errorOccurred.connect(lambda _erro, texto: self._ao_erro(texto))
-        self._player.setSource(QUrl(url))
+        self._player.setSource(QUrl.fromLocalFile(str(caminho)))
         self._player.play()
 
     def _parar_player(self):
@@ -280,11 +297,26 @@ class MusicaController(QObject):
             if self.opiniao is None:
                 self._notar("ouviu")
             self._proxima()
-        elif status == QMediaPlayer.BufferedMedia:
+        elif status in (QMediaPlayer.LoadedMedia, QMediaPlayer.BufferedMedia):
             self.falhas = 0
+            if self._retomar_em is not None:        # recomeçando depois de um corte: volta para onde estava
+                self._player.setPosition(self._retomar_em)
+                self._retomar_em = None
 
     def _ao_erro(self, texto):
-        """O player não conseguiu tocar (link expirado, formato...): vai para a próxima."""
-        if self.atual is not None and not self.carregando:
-            log(f"[música] o player falhou: {texto}")
-            self._falhou()
+        """O player falhou: no meio da música, recomeça de onde parou (uma vez); senão, vai para a próxima."""
+        if self.atual is None or self.carregando:
+            return
+        ms = self._player.position() if self._player is not None else 0
+        onde = f"em {musica.tempo(ms / 1000)}" + (f" de {musica.tempo(self.atual.duracao)}" if self.atual.duracao else "")
+        if ms > 0 and self._retomadas < MAX_RETOMADAS:
+            self._retomadas += 1
+            log(f"[música] cortou {self.atual.nome()} {onde} ({texto}); recomeçando de onde parou")
+            self._retomar_em = ms
+            fonte = self._player.source()
+            self._player.setSource(QUrl())
+            self._player.setSource(fonte)
+            self._player.play()
+            return
+        log(f"[música] não consegui tocar {self.atual.nome()} {onde} ({texto}); pulando para a próxima")
+        self._falhou()

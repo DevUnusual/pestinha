@@ -50,7 +50,10 @@ def prompt_sistema(nome, persona=None, temperamento="", exemplos=(), evitar=()):
         "Você tem uma rede neural de verdade: é ela que sente. Cada mensagem traz [Seu estado agora], "
         "lido da rede naquele instante. Fale a partir dele, sem inventar outro humor: se está bravo, "
         "responda bravo; se perguntarem por que, conte o motivo que estiver lá. Se perguntarem do seu "
-        "temperamento, use o que está descrito acima, com as suas palavras."
+        "temperamento, use o que está descrito acima, com as suas palavras. Às vezes a mensagem traz também "
+        "[Seu registro recente]: o seu log, o que aconteceu por dentro do programa (a música que tocou ou "
+        "cortou, a voz, o Hermes, a internet). Se perguntarem o que aconteceu ou por que algo falhou, explique "
+        "com base nele, em palavras simples e sem inventar; se não estiver lá, diga que não sabe."
     )
     if exemplos:
         partes.append("Exemplos do seu jeito de falar (não copie, só pegue o tom): "
@@ -73,6 +76,11 @@ def bloco_estado(estado):
 def bloco_lembrancas(lembrancas):
     """O que ele viu em outros computadores, como prefixo de uma mensagem (vazio se não houver)."""
     return f"[Suas lembranças: {lembrancas}]\n" if lembrancas else ""
+
+
+def bloco_registro(linhas):
+    """As últimas linhas do log dele (log.recentes), como prefixo de uma mensagem (vazio se não houver)."""
+    return f"[Seu registro recente: {'; '.join(linhas)}]\n" if linhas else ""
 
 
 def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", estado="", ja_disse=(),
@@ -177,7 +185,8 @@ def _numero(valor):
 
 
 # Modelos pequenos às vezes repetem o começo da mensagem: "[Seu estado agora: ...]" não é fala dele.
-_ECO = re.compile(r"\[\s*(?:Seu estado agora|Suas lembranças|O que você viu na tela por último)\s*:[^\]]*\]?\s*",
+_ECO = re.compile(r"\[\s*(?:Seu estado agora|Suas lembranças|Seu registro recente|O que você viu na tela por último)"
+                  r"\s*:[^\]]*\]?\s*",
                   re.IGNORECASE)
 
 
@@ -223,10 +232,12 @@ class Conversa:
         """Começa sem nada."""
         self.turnos = []
 
-    def mensagens(self, texto, contexto="", estado="", lembrancas=""):
-        """Mensagens para o modelo: o histórico e a fala nova (com o estado da rede, as lembranças e a tela)."""
+    def mensagens(self, texto, contexto="", estado="", lembrancas="", registro=()):
+        """Mensagens para o modelo: o histórico e a fala nova (com o estado da rede, as lembranças, o log
+        recente dele e a tela)."""
         nova = texto if not contexto else f"[O que você viu na tela por último: {contexto}]\n{texto}"
-        return self.turnos + [{"role": "user", "content": bloco_estado(estado) + bloco_lembrancas(lembrancas) + nova}]
+        prefixo = bloco_estado(estado) + bloco_lembrancas(lembrancas) + bloco_registro(registro)
+        return self.turnos + [{"role": "user", "content": prefixo + nova}]
 
     def registrar(self, texto, resposta):
         """Guarda a troca (a fala da pessoa sem o contexto) e descarta as mais antigas."""

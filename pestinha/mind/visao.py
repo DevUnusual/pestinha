@@ -42,7 +42,7 @@ from ..ia.imagem import baixar as baixar_imagem, buscar as buscar_imagem_na_web,
 from ..ia.imagem import titulo_do_link
 from ..ia.mente import (Conversa, ler_dica, ler_observacao, limpar_fala, pedido_dica, pedido_observacao,
                         prompt_sistema, separar_imagem, sistema_hermes)
-from ..log import log
+from ..log import log, recentes as log_recente
 from .sincronia import descrever_temperamento, estado_agora
 from ..sense import senses
 
@@ -317,7 +317,7 @@ class VisaoController(QObject):
                 return False
         imagem = self._print() if cliente is not None and self.vendo() and cliente.ve_imagem else None
         mensagens = self.conversa.mensagens(texto, self.ultimo_resumo if self.vendo() else "", self.estado(),
-                                            self.lembrado())
+                                            self.lembrado(), log_recente())
         self.respondendo = True
         self._pergunta = texto
         termo = imagem_pedida(texto) if self.perms["pesquisar"] else None

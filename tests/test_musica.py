@@ -121,7 +121,7 @@ def test_sem_bibliotecas_explica_o_que_instalar(monkeypatch):
     with pytest.raises(musica.ErroMusica, match="pip install"):
         musica.buscar("lofi")
     with pytest.raises(musica.ErroMusica, match="pip install"):
-        musica.link_de_audio("x")
+        musica.baixar_audio("x", ".")
 
 
 # ---------------- dentro do app ----------------
@@ -135,12 +135,12 @@ def app(tmp_path, monkeypatch):
     store.update(dict(config.DEFAULT_PERMISSIONS, ia=True, conversa=True, modo_teste=True))
     a = PestinhaApp(store, paths)
     tocou = []
-    monkeypatch.setattr(a.musica, "_tocar_url", lambda url: tocou.append(url))
+    monkeypatch.setattr(a.musica, "_tocar", lambda caminho: tocou.append(Path(caminho).stem))
     monkeypatch.setattr(a.musica, "_parar_player", lambda: None)
     monkeypatch.setattr(musica, "buscar", lambda estilo: [A, B, C])
     monkeypatch.setattr(musica, "radio", lambda video_id: [Faixa(f"r{video_id}{i}", f"Rádio {i}", ("Novo",), 150)
                                                          for i in range(6)])
-    monkeypatch.setattr(musica, "link_de_audio", lambda video_id: f"https://audio/{video_id}")
+    monkeypatch.setattr(musica, "baixar_audio", lambda video_id, pasta: Path(pasta) / f"{video_id}.m4a")
     a.tocou = tocou
     a.pet.show()
     yield a
@@ -166,7 +166,7 @@ def test_toca_pelo_chat_e_aprende_com_os_botoes(app, monkeypatch):
     assert app._musica_pelo_chat("toca um lo-fi") == "Bora de lo-fi! Procurando..."
     assert esperar(lambda: app.tocou)
     primeira = app.musica.atual
-    assert app.tocou == [f"https://audio/{primeira.video_id}"] and app.musica.tocando()
+    assert app.tocou == [primeira.video_id] and app.musica.tocando()
     app.tocando.atualizar(app.musica)
     assert primeira.titulo in app.tocando.titulo.text()
 
@@ -230,6 +230,60 @@ def test_player_solto_fica_parado_e_lembra_onde(tmp_path):
     t.close()
 
 
+def test_limpar_pasta_deixa_so_a_musica_da_vez(tmp_path):
+    for nome in ("velha.m4a", "outra.webm", "atual.m4a"):
+        (tmp_path / nome).write_bytes(b"x")
+    musica.limpar_pasta(tmp_path, manter=[tmp_path / "atual.m4a"])
+    assert [p.name for p in tmp_path.iterdir()] == ["atual.m4a"]
+    assert musica.tempo(92) == "1:32" and musica.tempo(0) == "0:00"
+
+
+class PlayerFalso:
+    """O bastante do QMediaPlayer para simular um corte no meio da música."""
+
+    def __init__(self, ms):
+        self.ms, self.fontes, self.foi_para = ms, [], None
+
+    def position(self):
+        return self.ms
+
+    def source(self):
+        return self.fontes[-1] if self.fontes else None
+
+    def setSource(self, fonte):
+        self.fontes.append(fonte)
+
+    def play(self):
+        pass
+
+    def setPosition(self, ms):
+        self.foi_para = ms
+
+
+def test_cortou_no_meio_recomeca_de_onde_parou_e_conta_no_log(app):
+    from PySide6.QtCore import QUrl
+    from PySide6.QtMultimedia import QMediaPlayer
+    from pestinha import log as log_mod
+    app._musica_pelo_chat("toca charlie brown")
+    assert esperar(lambda: app.tocou)
+    atual = app.musica.atual
+    player = PlayerFalso(92_000)
+    player.fontes.append(QUrl.fromLocalFile(f"C:/x/{atual.video_id}.m4a"))
+    app.musica._player = player
+
+    app.musica._ao_erro("Demuxing failed")                         # primeiro corte: recomeça
+    assert app.musica.atual == atual and player.source() == QUrl.fromLocalFile(f"C:/x/{atual.video_id}.m4a")
+    app.musica._ao_status(QMediaPlayer.LoadedMedia)
+    assert player.foi_para == 92_000                               # de 1:32, não do começo
+    registro = " ".join(log_mod.recentes())
+    assert f"cortou {atual.nome()} em 1:32" in registro and "recomeçando" in registro
+
+    app.musica._ao_erro("Demuxing failed")                         # cortou de novo: desiste dessa
+    assert esperar(lambda: len(app.tocou) == 2)
+    assert app.musica.atual != atual and "pulando para a próxima" in " ".join(log_mod.recentes())
+    app.musica._player = None
+
+
 def test_panico_para_a_musica(app):
     app._musica_pelo_chat("toca um rock")
     assert esperar(lambda: app.tocou)
@@ -240,7 +294,7 @@ def test_panico_para_a_musica(app):
 def test_pedir_outra_descarta_o_que_estava_a_caminho(app, monkeypatch):
     import threading
     solta = threading.Event()
-    monkeypatch.setattr(musica, "link_de_audio", lambda video_id: solta.wait(2) and f"https://audio/{video_id}")
+    monkeypatch.setattr(musica, "baixar_audio", lambda video_id, pasta: solta.wait(2) and Path(pasta) / video_id)
     app._musica_pelo_chat("toca um lo-fi")
     assert esperar(lambda: app.musica.atual is not None)
     app.musica.parar()

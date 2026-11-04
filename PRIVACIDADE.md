@@ -113,7 +113,17 @@ Quando você pede música no chat ou pela voz ("toca um lo-fi"), o Pestinha busc
   gosto. O YouTube vê o seu IP, como em qualquer visita.
 - O gosto que ele aprende (nota por artista e ids das músicas curtidas e das que você deu 👎) fica em
   `memory/pets/<pet>/musica.json`, neste computador. "Apagar tudo" apaga junto.
+- O áudio da música da vez é baixado em `memory/cache/musica` (do link direto, cortava no meio) e apagado
+  na troca de música e quando você para.
 - O pânico para a música; a pausa pausa.
+- O que tocou, os seus 👍/👎 e os cortes vão para o log com o nome da música.
+
+### O log que ele lê
+
+Para conseguir explicar o que aconteceu ("por que a música parou?"), cada mensagem do chat leva as últimas
+linhas do log dele (até 10, dos últimos 30 minutos) para quem responde (o Hermes ou o provedor de IA). O log
+nunca tem conteúdo da tela nem a conversa: são avisos do programa (música, voz, Hermes, internet). As linhas
+de depuração do modo teste e os episódios de travessura ficam de fora.
 
 ## Memória em outro computador (desligado por padrão)
 

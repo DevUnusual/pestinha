@@ -10,6 +10,12 @@
   "pula", "pausa", "continua", "para". 👍 sobe o artista, 👎 bane a música e pula, pular sem opinião desce um
   pouco e ouvir até o fim sobe um pouco: não precisa fazer nada para ele aprender. O gosto fica em
   `memory/pets/<pet>/musica.json` (`ia/musica.py`, `mind/musica_ctl.py`, `world/tocando.py`).
+- **A música não corta mais no meio:** tocar direto do link do YouTube dava "Demuxing failed" quando o
+  servidor derrubava a conexão. Agora o áudio é baixado inteiro antes (uns 2 s, ~3 MB, em
+  `memory/cache/musica`, só a da vez) e, se mesmo assim cortar, ele recomeça uma vez de onde parou.
+- **Ele lê o próprio log:** as últimas linhas (30 min, sem a depuração) vão junto com cada mensagem do
+  chat, então ele consegue contar o que aconteceu ("cortou em 1:32 e eu recomecei"). A música que tocou, os
+  👍/👎 e os cortes vão para o log com o nome da música e o minuto.
 - **Player solto:** arraste o cartão (ou clique no 📌) e ele fica parado onde você deixou, em vez de seguir
   o pet; o 📌 de novo gruda ele de volta. A posição fica em `memory/panels.json`.
 - **A imagem pedida fica:** o pet para e fica projetando até você cutucar, pegar ou fazer carinho nele, e a
