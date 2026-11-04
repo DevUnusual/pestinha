@@ -205,7 +205,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.voz.ouvido.connect(self._ouvi)
         self.voz.ditado.connect(self._ditado)
         self.musica = MusicaController(self, self.pet_paths.musica)
-        self.tocando = Tocando()
+        self.tocando = Tocando(self.paths.panels)
         self.tocando.comando.connect(self._comando_do_cartao)
         self.musica.mudou.connect(lambda: self.tocando.atualizar(self.musica))
 

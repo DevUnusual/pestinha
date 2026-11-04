@@ -202,6 +202,34 @@ def test_quando_a_fila_acaba_o_radio_continua(app, monkeypatch):
     assert app.musica.atual.artista == "Novo" and app.musica.ativa()
 
 
+def test_player_solto_fica_parado_e_lembra_onde(tmp_path):
+    from PySide6.QtCore import QPoint, QPointF, Qt
+    from PySide6.QtGui import QMouseEvent
+    from pestinha.world.tocando import Tocando
+    arquivo = tmp_path / "panels.json"
+    t = Tocando(arquivo)
+    limites = (0, 0, 1920, 1080)
+    t.seguir(100, 300, limites)
+    assert t.pos() == QPoint(100 + 70, 300 - t.height() // 2)            # grudado: ao lado do pet
+
+    def mouse(tipo, x, y):
+        botoes = Qt.NoButton if tipo == QMouseEvent.MouseButtonRelease else Qt.LeftButton
+        return QMouseEvent(tipo, QPointF(5, 5), QPointF(x, y), Qt.LeftButton, botoes, Qt.NoModifier)
+
+    t.mousePressEvent(mouse(QMouseEvent.MouseButtonPress, 200, 300))
+    t.mouseMoveEvent(mouse(QMouseEvent.MouseMove, 250, 200))               # arrastou 50 → e 100 ↑
+    t.mouseReleaseEvent(mouse(QMouseEvent.MouseButtonRelease, 250, 200))
+    assert t.solto == (220, 200 - t.height() // 2) and t.botoes["fixar"].isChecked()
+    t.seguir(600, 700, limites)                                            # o pet andou: o player não
+    assert t.pos() == QPoint(*t.solto)
+
+    assert Tocando(arquivo).solto == t.solto                               # lembra na próxima vez
+    t.botoes["fixar"].click()                                              # 📌 de novo: gruda no pet
+    t.seguir(600, 700, limites)
+    assert t.solto is None and t.pos().x() == 670 and Tocando(arquivo).solto is None
+    t.close()
+
+
 def test_panico_para_a_musica(app):
     app._musica_pelo_chat("toca um rock")
     assert esperar(lambda: app.tocou)

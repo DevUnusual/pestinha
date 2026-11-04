@@ -10,6 +10,8 @@
   "pula", "pausa", "continua", "para". 👍 sobe o artista, 👎 bane a música e pula, pular sem opinião desce um
   pouco e ouvir até o fim sobe um pouco: não precisa fazer nada para ele aprender. O gosto fica em
   `memory/pets/<pet>/musica.json` (`ia/musica.py`, `mind/musica_ctl.py`, `world/tocando.py`).
+- **Player solto:** arraste o cartão (ou clique no 📌) e ele fica parado onde você deixou, em vez de seguir
+  o pet; o 📌 de novo gruda ele de volta. A posição fica em `memory/panels.json`.
 - **A imagem pedida fica:** o pet para e fica projetando até você cutucar, pegar ou fazer carinho nele, e a
   imagem aparece também no chat.
 - O balão não mostra mais o `[Seu estado agora: ...]` quando o modelo repete o começo da mensagem.
