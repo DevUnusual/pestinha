@@ -6,7 +6,8 @@ Sem Qt: só texto, um arquivo JSON e HTTP. As buscas bloqueiam: quem chama roda 
 mind/musica_ctl.py).
     pedido_de_musica(texto)    'toca um lo-fi pra mim' -> 'lo-fi'; 'toca música' -> ''; conversa -> None
     comando_de_musica(texto)   'pula' -> 'pular', 'gostei' -> 'gostei'... (só frases curtas; senão None)
-    Gosto                      nota por artista e músicas curtidas/banidas, em pets/<pet>/musica.json
+    volume_pedido(texto, atual)   'aumenta o volume' -> atual + 0.15; 'volume 30' -> 0.3 (None: não é volume)
+    Gosto                      nota por artista, músicas curtidas/banidas e o volume, em pets/<pet>/musica.json
     escolher(faixas, gosto, tocadas, curiosidade)   a próxima: o gosto pesa, a curiosidade arrisca
     buscar(estilo)             músicas do estilo (busca no YouTube Music)
     radio(video_id)            músicas parecidas com uma (o "rádio" do YouTube Music)
@@ -35,6 +36,8 @@ EVENTOS = {                     # quanto cada coisa mexe na nota do artista
     "ouviu": 0.25,              # deixou tocar até o fim, sem fazer nada
 }
 MAX_LISTA = 300                 # ids guardados em curtidas e banidas
+VOLUME_PADRAO = 0.5
+PASSO_VOLUME = 0.15             # "aumenta o volume" / "abaixa o som"
 INSTALAR = "para tocar música, instale: pip install yt-dlp ytmusicapi"
 
 
@@ -148,6 +151,37 @@ def comando_de_musica(texto):
     return "gostei" if "👍" in texto else "nao_gostei" if "👎" in texto else None
 
 
+_VOL_NUMERO = re.compile(r"\bvolume\b.*?\b(\d{1,3})\b|\b(\d{1,3})\s*(?:%|por cento)")
+_VOL_MAXIMO = re.compile(r"\b(?:volume|som)\b.*\b(?:maximo|no talo|todo)\b|\bno maximo\b")
+_VOL_MUDO = re.compile(r"\b(?:mudo|muta|sem som|volume zero|zera o volume)\b")
+_VOL_SOBE = re.compile(r"\b(?:aumenta|aumente|sobe|suba|mais alto|aumentar|subir)\b")
+_VOL_DESCE = re.compile(r"\b(?:abaixa|abaixe|diminui|diminua|baixa|mais baixo|abaixar|diminuir|baixinho)\b")
+_VOL_ASSUNTO = re.compile(r"\b(?:volume|som|musica|alto|baixo|baixinho|mudo|muta|maximo)\b")
+
+
+def volume_pedido(texto, atual):
+    """
+    O volume novo (0 a 1) que você pediu, ou None se a frase não é sobre volume: 'aumenta o volume' e 'mais
+    alto' sobem um passo, 'abaixa o som' desce, 'volume 30' (ou '30%') vai para 0.3, 'volume máximo' e 'mudo'.
+    """
+    normal = _normal(re.sub(r"[,!?;:]", " ", texto or ""))
+    curta = len(normal.split()) <= 2                # "aumenta", "Bryan, abaixa": com música tocando, é volume
+    if len(normal) > 60 or not (curta or _VOL_ASSUNTO.search(normal)):
+        return None
+    numero = _VOL_NUMERO.search(normal)
+    if numero:
+        return max(0.0, min(1.0, int(numero.group(1) or numero.group(2)) / 100))
+    if _VOL_MUDO.search(normal):
+        return 0.0
+    if _VOL_MAXIMO.search(normal):
+        return 1.0
+    if _VOL_SOBE.search(normal):
+        return min(1.0, atual + PASSO_VOLUME)
+    if _VOL_DESCE.search(normal):
+        return max(0.0, atual - PASSO_VOLUME)
+    return None
+
+
 # ---------------- gosto ----------------
 
 class Gosto:
@@ -159,6 +193,7 @@ class Gosto:
         self.artistas = {}
         self.curtidas = []
         self.banidas = []
+        self.volume = VOLUME_PADRAO     # 0 a 1: o último volume que você deixou (vale na próxima vez)
 
     def carregar(self):
         """Lê o arquivo (se existir e estiver bom); um arquivo estragado vira gosto vazio."""
@@ -171,6 +206,9 @@ class Gosto:
                              for k, v in (dados.get("artistas") or {}).items() if isinstance(v, (int, float))}
             self.curtidas = [str(i) for i in dados.get("curtidas") or []][-MAX_LISTA:]
             self.banidas = [str(i) for i in dados.get("banidas") or []][-MAX_LISTA:]
+            volume = dados.get("volume")
+            if isinstance(volume, (int, float)) and not isinstance(volume, bool) and volume == volume:
+                self.volume = max(0.0, min(1.0, float(volume)))
         return self
 
     def salvar(self):
@@ -178,7 +216,8 @@ class Gosto:
         if self.arquivo is None:
             return
         self.arquivo.parent.mkdir(parents=True, exist_ok=True)
-        dados = {"artistas": self.artistas, "curtidas": self.curtidas, "banidas": self.banidas}
+        dados = {"artistas": self.artistas, "curtidas": self.curtidas, "banidas": self.banidas,
+                 "volume": round(self.volume, 2)}
         self.arquivo.write_text(json.dumps(dados, ensure_ascii=False, indent=1), encoding="utf-8")
 
     def nota(self, faixa):

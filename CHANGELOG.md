@@ -23,6 +23,20 @@
   "pula", "pausa", "continua", "para". 👍 sobe o artista, 👎 bane a música e pula, pular sem opinião desce um
   pouco e ouvir até o fim sobe um pouco: não precisa fazer nada para ele aprender. O gosto fica em
   `memory/pets/<pet>/musica.json` (`ia/musica.py`, `mind/musica_ctl.py`, `world/tocando.py`).
+- **Volume da música:** barra de volume no cartão "tocando agora" (🔇 🔈 🔉 🔊 e a porcentagem), e pelo chat
+  ou pela voz com a música tocando: "aumenta o volume", "abaixa o som", "mais alto", "volume 30", "volume
+  no máximo", "deixa no mudo". O volume fica guardado em `musica.json` e vale na próxima vez.
+- **Reconhece qualquer jogo, não só os da lista:** é jogo o programa instalado numa biblioteca de jogos
+  (Steam `steamapps/common`, Epic, GOG, Xbox, Ubisoft, EA, Riot, itch, Amazon) ou um executável do Unreal
+  (`*-Win64-Shipping`). Phantom Blade Zero (`PBZ.exe`) não estava na lista e agora conta. Wallpaper Engine,
+  launchers e instaladores ficam de fora.
+- **Configurações à prova de rodinha:** as caixas de escolha (provedor, personagem, modelo) só mudam com a
+  rodinha do mouse depois de clicadas; rolando a página por cima delas, a página rola e nada muda.
+- **Cada provedor lembra o seu modelo** (`ia_modelos`): trocar de provedor sem querer e voltar traz de volta
+  o modelo que estava.
+- **Modelos do Ollama na lista:** o campo Modelo mostra os modelos instalados no servidor (`/api/tags`). Se
+  nenhum foi escolhido e o padrão não está instalado lá, ele escolhe o recomendado (ou o primeiro) e avisa;
+  se o escolhido não existe no servidor, avisa quais existem.
 - **Ele entende o pedido do jeito que se fala:** "coloca uma musiquinha aí pra nós ouvir", "bota um som aí
   pra gente curtir", "solta um sonzinho", "toca o que você quiser". Sem estilo, ele escolhe: às vezes puxa
   parecidas com uma que você curtiu, às vezes um estilo do humor dele (bravo vai de rock pesado, curioso

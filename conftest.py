@@ -3,6 +3,8 @@ Configuração comum dos testes (pasta tests/).
 
 - Qt sem janela: os testes rodam em qualquer máquina, sem abrir nada na tela.
 - Isolamento: apps e janelas criados num teste não continuam rodando nos seguintes.
+- Sem rede: a tela de Configurações pergunta ao Ollama quais modelos ele tem; nos testes, ele "não tem
+  nenhum" (o teste que precisa de uma lista troca isso).
 """
 import gc
 import os
@@ -10,6 +12,12 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _ollama_sem_rede(monkeypatch):
+    from pestinha.ia import provedores
+    monkeypatch.setattr(provedores, "modelos_ollama", lambda endereco, tempo=3.0: [])
 
 
 @pytest.fixture(autouse=True)

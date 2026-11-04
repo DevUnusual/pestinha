@@ -60,6 +60,33 @@ def get_active_app():
     return plataforma.processo_ativo()
 
 
+def get_active_path():
+    """Caminho do executável em primeiro plano ('' se não deu). Fica neste computador: só decide se é jogo."""
+    return plataforma.caminho_ativo()
+
+
+# Jogo novo não precisa estar na lista: basta estar instalado numa biblioteca de jogos (pela pasta) ou ser
+# um executável de jogo do Unreal ("<Projeto>-Win64-Shipping").
+PASTAS_DE_JOGOS = ("/steamapps/common/", "/epic games/", "/gog galaxy/games/", "/gog games/", "/xboxgames/",
+                   "/ubisoft game launcher/games/", "/ea games/", "/riot games/", "/games/heroic/",
+                   "/itch/apps/", "/amazon games/library/")
+NAO_SAO_JOGOS = {"wallpaper32", "wallpaper64", "launcher", "installer", "epicgameslauncher", "unitycrashhandler64",
+                 "unitycrashhandler32", "crashreportclient", "crashpad_handler", "epicwebhelper",
+                 "riotclientservices", "riotclientux", "steamwebhelper", "easyanticheat", "be_service",
+                 "vc_redist.x64", "dxsetup"}
+
+
+def jogo_pelo_caminho(caminho):
+    """Se o executável é um jogo: está numa pasta de biblioteca de jogos ou é um '-win64-shipping' do Unreal."""
+    if not caminho:
+        return False
+    normal = caminho.replace("\\", "/").lower()
+    nome = normal.rsplit("/", 1)[-1].removesuffix(".exe")
+    if nome in NAO_SAO_JOGOS:
+        return False
+    return nome.endswith("-win64-shipping") or any(pasta in normal for pasta in PASTAS_DE_JOGOS)
+
+
 # Jogos que rodam num programa genérico: só dá para saber pelo título (lido só com "Ver minha tela")
 JOGOS_POR_TITULO = {"javaw": "minecraft", "java": "minecraft"}
 
@@ -71,8 +98,9 @@ def jogo_pelo_titulo(app, titulo):
     return bool(palavra and palavra in (titulo or "").lower())
 
 
-def detect_activity(app, idle_seconds, away_after):
-    """Classifica o momento: AWAY se ficou ocioso demais; senão, a atividade do programa (ou IDLE)."""
+def detect_activity(app, idle_seconds, away_after, caminho=""):
+    """Classifica o momento: AWAY se ficou ocioso demais; senão, a atividade do programa (jogo também pela
+    pasta onde ele está instalado, ver jogo_pelo_caminho), ou IDLE."""
     if idle_seconds >= away_after:
         return "AWAY"
     nome = app.lower()
@@ -81,6 +109,8 @@ def detect_activity(app, idle_seconds, away_after):
     for activity, apps in ACTIVITY_APPS.items():
         if nome in apps:
             return activity
+    if jogo_pelo_caminho(caminho):
+        return "GAMING"
     return "IDLE"
 
 

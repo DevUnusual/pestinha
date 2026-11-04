@@ -11,7 +11,7 @@ from ..log import log
 import time
 from PySide6.QtWidgets import QMenu
 from ..body.pet import cursor_pos
-from ..ia.musica import comando_de_musica, pedido_de_musica
+from ..ia.musica import comando_de_musica, pedido_de_musica, volume_pedido
 from ..ui.conversa import ConversaJanela
 from ..ajustes import (
     INSATISFACAO_NOTEBOOK,
@@ -258,6 +258,9 @@ class InteracaoMixin:
             resposta = self.musica.comando(comando)
             self.tocando.atualizar(self.musica)
             return resposta
+        volume = volume_pedido(texto, self.musica.volume) if self.musica.ativa() else None
+        if volume is not None:
+            return self.musica.mudar_volume(volume)          # "aumenta o volume", "volume 30", "mais baixo"
         estilo = pedido_de_musica(texto)
         if estilo is None:
             return None

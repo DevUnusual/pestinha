@@ -49,6 +49,26 @@ def processo_ativo():
         return "unknown.exe"
 
 
+_caminhos = {}                  # pid -> caminho do executável (o caminho de um processo não muda)
+
+
+def caminho_ativo():
+    """Caminho do executável da janela ativa ('' se não deu): é por ele que um jogo novo é reconhecido."""
+    hwnd = win32gui.GetForegroundWindow()
+    if not hwnd:
+        return ""
+    try:
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        if pid not in _caminhos:
+            if len(_caminhos) > 200:
+                _caminhos.clear()
+            _caminhos[pid] = psutil.Process(pid).exe()
+        return _caminhos[pid]
+    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, ValueError, OSError,
+            pywintypes.error):
+        return ""
+
+
 def titulo_ativo():
     """Título da janela ativa. Só é lido com "Ver minha tela" ligado (ver mind/visao.py)."""
     hwnd = win32gui.GetForegroundWindow()

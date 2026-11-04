@@ -93,6 +93,27 @@ def test_jogos_da_lista_sao_gaming():
         assert senses.detect_activity(app, 0.0, 300.0) == "GAMING"
 
 
+@pytest.mark.parametrize("caminho, esperado", [
+    # qualquer jogo instalado numa biblioteca conta, sem estar na lista
+    (r"C:\Program Files (x86)\Steam\steamapps\common\PBZ\steam\PBZ.exe", True),         # Phantom Blade Zero
+    (r"D:\SteamLibrary\steamapps\common\ELDEN RING\Game\eldenring.exe", True),
+    (r"C:\Program Files\Epic Games\Fortnite\FortniteGame\Binaries\Win64\FortniteClient-Win64-Shipping.exe", True),
+    (r"C:\XboxGames\Forza Horizon 5\Content\ForzaHorizon5.exe", True),
+    (r"E:\Jogos\Wukong\b1\Binaries\Win64\b1-Win64-Shipping.exe", True),                 # Unreal, fora da biblioteca
+    ("/home/eu/.local/share/Steam/steamapps/common/Terraria/Terraria.bin.x86_64", True),
+    # não são jogos
+    (r"C:\Program Files (x86)\Steam\steamapps\common\wallpaper_engine\wallpaper64.exe", False),
+    (r"C:\Program Files (x86)\Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe", False),
+    (r"C:\Program Files (x86)\Steam\steam.exe", False),
+    (r"C:\Program Files\Mozilla Firefox\firefox.exe", False),
+    ("", False),
+])
+def test_jogo_pela_pasta_onde_esta_instalado(caminho, esperado):
+    assert senses.jogo_pelo_caminho(caminho) is esperado
+    nome = caminho.replace("\\", "/").rsplit("/", 1)[-1]
+    assert (senses.detect_activity(nome, 0.0, 300.0, caminho) == "GAMING") is esperado
+
+
 def test_pedido_de_jogo_so_com_o_modo_jogo():
     com = mente.pedido_observacao("javaw", "Minecraft", "GAMING", "curioso", jogo=True)
     sem = mente.pedido_observacao("javaw", "Minecraft", "GAMING", "curioso")

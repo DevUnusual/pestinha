@@ -424,6 +424,77 @@ def test_endereco_do_ollama_na_tela(qapp, tmp_path, monkeypatch):
         dialogo.close()
 
 
+def test_trocar_de_provedor_sem_querer_nao_perde_o_modelo(qapp, tmp_path, monkeypatch):
+    from PySide6.QtCore import QPoint, QPointF, Qt
+    from PySide6.QtGui import QWheelEvent
+    from pestinha.ui.ui import SettingsDialog
+    perms = dict(config.DEFAULT_PERMISSIONS, ia=True, ia_provedor="ollama", ia_modelo="gemma4:e4b")
+    dialogo = SettingsDialog(perms, Paths(root=tmp_path), first_run=False)
+    try:
+        combo = dialogo.provedor_combo
+        rodinha = QWheelEvent(QPointF(5, 5), QPointF(5, 5), QPoint(), QPoint(0, -120), Qt.NoButton,
+                              Qt.NoModifier, Qt.NoScrollPhase, False)
+        combo.wheelEvent(rodinha)                                     # rolando a página por cima dela
+        assert dialogo.perms["ia_provedor"] == "ollama" and not rodinha.isAccepted()
+
+        combo.setCurrentIndex(combo.findData("claude"))               # trocou mesmo (ou sem querer)...
+        assert dialogo.perms["ia_modelo"] == "" and dialogo.perms["ia_modelos"]["ollama"] == "gemma4:e4b"
+        combo.setCurrentIndex(combo.findData("ollama"))               # ...e voltou: o modelo volta junto
+        assert dialogo.perms["ia_modelo"] == "gemma4:e4b" and dialogo.modelo_campo.currentText() == "gemma4:e4b"
+    finally:
+        dialogo.close()
+
+
+def test_lista_os_modelos_do_ollama_e_escolhe_um_que_existe(qapp, tmp_path, monkeypatch):
+    from pestinha.ui.ui import SettingsDialog
+    monkeypatch.setattr(provedores, "modelos_ollama", lambda endereco, tempo=3.0: ["gemma4:e4b", "lfm3-omni:2b"])
+    perms = dict(config.DEFAULT_PERMISSIONS, ia=True, ia_provedor="ollama", ia_modelo="",
+                 ia_ollama_url="http://192.168.3.250:11434")
+    dialogo = SettingsDialog(perms, Paths(root=tmp_path), first_run=False)
+    mudancas = []
+    dialogo.changed.connect(mudancas.append)
+    try:
+        assert esperar(qapp, lambda: dialogo.modelo_campo.count() == 2)
+        assert [dialogo.modelo_campo.itemText(i) for i in range(2)] == ["gemma4:e4b", "lfm3-omni:2b"]
+        # o padrão (qwen2.5vl:7b) não está lá: ele escolhe o recomendado, grava e avisa
+        assert dialogo.perms["ia_modelo"] == "gemma4:e4b" and {"ia_modelo": "gemma4:e4b"} in mudancas
+        assert dialogo.chave_estado.objectName() == "ok" and "não está instalado" in dialogo.chave_estado.text()
+        dialogo.modelo_campo.setCurrentIndex(1)
+        dialogo.modelo_campo.activated.emit(1)                        # escolheu outro na lista
+        assert dialogo.perms["ia_modelo"] == "lfm3-omni:2b"
+        assert dialogo.perms["ia_modelos"] == {"ollama": "lfm3-omni:2b"}
+    finally:
+        dialogo.close()
+
+
+def test_modelos_ollama_le_o_api_tags(monkeypatch):
+    import io
+    import json
+    monkeypatch.undo()                                                # a função de verdade (sem o falso do conftest)
+    corpo = json.dumps({"models": [{"name": "zeta:1b"}, {"name": "gemma4:e4b"}, {}]}).encode()
+
+    class Resposta(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+    pedidos = []
+    monkeypatch.setattr(provedores.urllib.request, "urlopen",
+                        lambda url, timeout: pedidos.append(url) or Resposta(corpo))
+    assert provedores.modelos_ollama("192.168.3.250") == ["gemma4:e4b", "zeta:1b"]
+    assert pedidos == ["http://192.168.3.250:11434/api/tags"]
+    with pytest.raises(provedores.ErroIA):
+        provedores.modelos_ollama("ftp://nada")
+
+
+def test_permissoes_guardam_o_modelo_de_cada_provedor():
+    validas = config.permissoes_validas({"ia_modelos": {"ollama": " gemma4:e4b ", "claude": "sk-ant-api03-" + "x" * 40,
+                                                        3: "x"}})
+    assert validas["ia_modelos"] == {"ollama": "gemma4:e4b"}             # chave de API e lixo não entram
+
+
 def test_visao_recria_o_cliente_ao_trocar_o_endereco(qapp, pet):
     app, _falso = pet
     del app.visao.cliente                       # volta ao método de verdade (o fixture troca por um falso)

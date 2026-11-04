@@ -2,6 +2,8 @@
 UI - tela inicial de permissões, ícone na bandeja e atalho de pânico.
 """
 
+import threading
+
 from .. import plataforma
 
 from PySide6.QtCore import QObject, Qt, Signal
@@ -53,6 +55,25 @@ QPushButton:hover { border-color: #63e56f; }
 """
 
 
+class Escolha(QComboBox):
+    """
+    Caixa de escolha que não muda com a rodinha do mouse enquanto você só está rolando a página: a rodinha
+    só troca a opção depois que você clicou nela (e tem o foco). Sem foco, a rolagem passa para a página.
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Igual ao QComboBox, mas só pega o foco com clique ou Tab."""
+        super().__init__(*args, **kwargs)
+        self.setFocusPolicy(Qt.StrongFocus)
+
+    def wheelEvent(self, event):
+        """Rodinha: troca a opção só com foco; senão, deixa a página rolar."""
+        if self.hasFocus():
+            super().wheelEvent(event)
+        else:
+            event.ignore()
+
+
 def face_icon(emotion="observando"):
     """Ícone da bandeja e das janelas: o rosto do pet desenhado numa imagem pequena."""
     pix = QPixmap(128, 128)
@@ -73,6 +94,7 @@ class SettingsDialog(QDialog):
     """
 
     changed = Signal(dict)
+    _modelos_chegaram = Signal(object)  # (endereço, lista de modelos ou ErroIA), da thread que pergunta ao Ollama
     chave_salva = Signal(str)          # nome da variável (ANTHROPIC_API_KEY...) que acabou de ser salva no .env
     wipe_all = Signal()
     history_wiped = Signal()
@@ -133,7 +155,7 @@ class SettingsDialog(QDialog):
 
         pet_row = QHBoxLayout()
         pet_row.addWidget(QLabel("Personagem:"))
-        self.pet_combo = QComboBox()
+        self.pet_combo = Escolha()
         for pet_id in config.list_pets(self.paths):            # só pets/<id>.json; memória antiga não conta
             self.pet_combo.addItem(config.load_pet(self.paths, pet_id)["nome"], pet_id)
         atual = config.escolher_pet(self.paths, perms["pet"])
@@ -213,7 +235,7 @@ class SettingsDialog(QDialog):
         """Escolha do provedor e do modelo, e onde fica a chave (variável de ambiente, nunca em arquivo)."""
         linha = QHBoxLayout()
         linha.addWidget(QLabel("Provedor:"))
-        self.provedor_combo = QComboBox()
+        self.provedor_combo = Escolha()
         for chave, dados in provedores.PROVEDORES.items():
             self.provedor_combo.addItem(dados["nome"], chave)
         self.provedor_combo.setCurrentIndex(max(0, self.provedor_combo.findData(self.perms["ia_provedor"])))
@@ -222,11 +244,17 @@ class SettingsDialog(QDialog):
         layout.addLayout(linha)
         linha = QHBoxLayout()
         linha.addWidget(QLabel("Modelo:"))
-        self.modelo_campo = QLineEdit(self.perms["ia_modelo"])
-        self.modelo_campo.setMaxLength(100)
-        self.modelo_campo.editingFinished.connect(self._trocar_modelo)
+        # no Ollama, a lista traz os modelos instalados no servidor; dá para digitar outro em qualquer provedor
+        self.modelo_campo = Escolha()
+        self.modelo_campo.setEditable(True)
+        self.modelo_campo.setInsertPolicy(QComboBox.NoInsert)
+        self.modelo_campo.lineEdit().setMaxLength(100)
+        self.modelo_campo.setEditText(self.perms["ia_modelo"])
+        self.modelo_campo.lineEdit().editingFinished.connect(self._trocar_modelo)
+        self.modelo_campo.activated.connect(lambda _indice: self._trocar_modelo())
         linha.addWidget(self.modelo_campo, 1)
         layout.addLayout(linha)
+        self._modelos_chegaram.connect(self._mostrar_modelos_ollama)
         self.ollama_linha = QWidget()
         linha = QHBoxLayout(self.ollama_linha)
         linha.setContentsMargins(0, 0, 0, 0)
@@ -467,23 +495,85 @@ class SettingsDialog(QDialog):
         self.voz_estado.setVisible(bool(texto))
 
     def _trocar_provedor(self, _indice):
-        """Outro provedor: o modelo volta para o padrão dele."""
-        self._set("ia_provedor", self.provedor_combo.currentData())
-        self.modelo_campo.setText("")
-        self._set("ia_modelo", "")
+        """
+        Outro provedor: o modelo de cada um fica guardado (ia_modelos). Voltar para o anterior traz o modelo
+        que estava nele, então uma troca sem querer não perde nada.
+        """
+        modelos = dict(self.perms["ia_modelos"])
+        modelos[self.perms["ia_provedor"]] = self.perms["ia_modelo"]
+        novo = self.provedor_combo.currentData()
+        self._set("ia_modelos", modelos)
+        self._set("ia_provedor", novo)
+        self.modelo_campo.clear()
+        self.modelo_campo.setEditText(modelos.get(novo, ""))
+        self._set("ia_modelo", modelos.get(novo, ""))
         self.chave_campo.clear()
         self._atualizar_provedor()
 
     def _trocar_modelo(self):
-        """Grava o modelo. Uma chave colada aqui por engano é recusada e apagada da tela."""
-        texto = self.modelo_campo.text().strip()
+        """Grava o modelo (e lembra dele para este provedor). Uma chave colada aqui por engano é recusada."""
+        texto = self.modelo_campo.currentText().strip()
         if chaves.parece_chave(texto):
-            self.modelo_campo.clear()
+            self.modelo_campo.setEditText("")
             self._set("ia_modelo", "")
             self._mostrar_estado_chave("Isso parece uma chave, não um modelo. Cole a chave no campo Chave "
                                        "e clique em Salvar chave.", erro=True)
             return
+        if texto == self.perms["ia_modelo"]:
+            return
         self._set("ia_modelo", texto)
+        self._set("ia_modelos", {**self.perms["ia_modelos"], self.perms["ia_provedor"]: texto})
+
+    def _buscar_modelos_ollama(self):
+        """Pergunta ao Ollama (numa thread) quais modelos ele tem; a lista chega por _modelos_chegaram."""
+        if self.perms["ia_provedor"] != "ollama":
+            return
+        endereco = self.perms["ia_ollama_url"]
+        sinal = self._modelos_chegaram
+
+        def trabalho():
+            """Na thread: a lista de modelos, ou a falha (nunca levanta)."""
+            try:
+                resultado = provedores.modelos_ollama(endereco)
+            except provedores.ErroIA as erro:
+                resultado = erro
+            try:
+                sinal.emit((endereco, resultado))
+            except RuntimeError:
+                pass                                    # a janela fechou antes da resposta
+
+        threading.Thread(target=trabalho, name="pestinha-modelos-ollama", daemon=True).start()
+
+    def _mostrar_modelos_ollama(self, chegada):
+        """
+        Põe os modelos do servidor na lista. Se nenhum modelo foi escolhido e o padrão não está instalado lá,
+        escolhe o recomendado (ou o primeiro) e avisa: assim ele nunca fica tentando um modelo que não existe.
+        """
+        endereco, modelos = chegada
+        if endereco != self.perms["ia_ollama_url"] or self.perms["ia_provedor"] != "ollama":
+            return                                      # você trocou de endereço ou de provedor no meio
+        if isinstance(modelos, Exception):
+            self._mostrar_estado_chave(f"Não consegui ver os modelos: {modelos}", erro=True)
+            return
+        atual = self.modelo_campo.currentText()
+        self.modelo_campo.blockSignals(True)
+        self.modelo_campo.clear()
+        self.modelo_campo.addItems(modelos)
+        self.modelo_campo.setEditText(atual)
+        self.modelo_campo.blockSignals(False)
+        dados = provedores.info("ollama")
+        if not modelos:
+            self._mostrar_estado_chave("O Ollama não tem nenhum modelo instalado. No servidor: "
+                                       f"ollama pull {dados['recomendado']}", erro=True)
+        elif not self.perms["ia_modelo"].strip() and dados["modelo"] not in modelos:
+            escolhido = dados["recomendado"] if dados["recomendado"] in modelos else modelos[0]
+            self.modelo_campo.setEditText(escolhido)
+            self._trocar_modelo()
+            self._mostrar_estado_chave(f"✔ Usando {escolhido}: o padrão ({dados['modelo']}) não está "
+                                       "instalado nesse Ollama.")
+        elif self.perms["ia_modelo"].strip() and self.perms["ia_modelo"] not in modelos:
+            self._mostrar_estado_chave(f"O modelo {self.perms['ia_modelo']} não está nesse Ollama. "
+                                       f"Instalados: {', '.join(modelos)}.", erro=True)
 
     def _trocar_endereco(self):
         """Grava o endereço do Ollama já completo (http:// e a porta); um endereço ruim é recusado."""
@@ -499,6 +589,7 @@ class SettingsDialog(QDialog):
         if valor != self.perms["ia_ollama_url"]:
             self._set("ia_ollama_url", valor)
             self._mostrar_estado_chave("")
+            self._buscar_modelos_ollama()               # outro servidor, outros modelos
 
     def _testar_ollama(self):
         """Pergunta ao Ollama se ele responde e se tem o modelo escolhido (espera no máximo uns segundos)."""
@@ -512,6 +603,8 @@ class SettingsDialog(QDialog):
             self.ollama_botao.setText("Testar conexão")
             self.ollama_botao.setEnabled(self.perms["ia"])
         self._mostrar_estado_chave(("\u2714 " if ok else "") + mensagem, erro=not ok)
+        if ok or "falta o modelo" in mensagem:
+            self._buscar_modelos_ollama()               # e a lista de modelos se atualiza
 
     def _salvar_chave(self):
         """Grava a chave no .env, apaga do campo e avisa que deu certo (ou por que não deu)."""
@@ -541,9 +634,10 @@ class SettingsDialog(QDialog):
     def _atualizar_provedor(self):
         """Modelo padrão no campo vazio e a dica de onde fica a chave."""
         dados = provedores.info(self.perms["ia_provedor"])
-        self.modelo_campo.setPlaceholderText(f"padrão: {dados['modelo']}")
+        self.modelo_campo.lineEdit().setPlaceholderText(f"padrão: {dados['modelo']}")
         self.chave_linha.setVisible(bool(dados["chave"]))
         self.ollama_linha.setVisible(self.perms["ia_provedor"] == "ollama")
+        self._buscar_modelos_ollama()                   # no Ollama: a lista dos modelos que o servidor tem
         if dados["chave"]:
             final = chaves.final_da_chave(dados["chave"])
             self.chave_campo.setPlaceholderText(f"cole aqui a chave ({dados['chave']})")

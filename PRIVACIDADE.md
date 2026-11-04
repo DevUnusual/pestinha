@@ -5,6 +5,8 @@ O Pestinha roda só no seu computador. Sem a IA ligada, ele não envia nada para
 ## O que ele lê
 
 - O **nome** do programa em primeiro plano (por exemplo `code.exe`). Nunca o título nem o conteúdo da janela.
+- A **pasta** onde esse programa está instalado, só para saber se é um jogo (instalado pela Steam, Epic,
+  GOG, Xbox...). O caminho fica neste computador: não é gravado nem enviado para lugar nenhum.
 - Quanto tempo você está sem usar teclado ou mouse, e se o teclado ou o mouse foram usados agora.
 - A posição do cursor, para saber se ele encostou na bolinha, se você está em cima do pet (carinho,
   cutucar) ou perto dele no cantinho do castigo.
@@ -111,7 +113,7 @@ Quando você pede música no chat ou pela voz ("toca um lo-fi"), o Pestinha busc
 
 - Para o YouTube vão só o estilo que você pediu e os ids das músicas: nunca a conversa, a tela ou o seu
   gosto. O YouTube vê o seu IP, como em qualquer visita.
-- O gosto que ele aprende (nota por artista e ids das músicas curtidas e das que você deu 👎) fica em
+- O gosto que ele aprende (nota por artista e ids das músicas curtidas e das que você deu 👎) e o volume ficam em
   `memory/pets/<pet>/musica.json`, neste computador. "Apagar tudo" apaga junto.
 - O áudio da música da vez é baixado em `memory/cache/musica` (do link direto, cortava no meio) e apagado
   na troca de música e quando você para.

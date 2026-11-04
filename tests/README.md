@@ -45,6 +45,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_memoria.py` | Memória compartilhada: o serviço de servidor/memoria/ de verdade (numa porta livre, pasta temporária) e dois "computadores" (duas pastas) sincronizando por ele. |
 | `test_mesa.py` | Notebook: sentar e levantar pelo disparo do neurônio SENTAR. |
 | `test_migracao.py` | Etapa 1 do multipet: memória por pet (memory/pets/<pet>/) e a migração da versão antiga. |
+| `test_musica.py` | Música pelo chat: "toca um lo-fi" monta a fila no YouTube Music, 👍/👎/pulo/ouvir até o fim ensinam o gosto e a fila se renova pelo rádio. |
 | `test_nucleo.py` | Testes dos módulos puros: nada de Qt, nada de Windows. |
 | `test_paineis.py` | Painéis do menu (monitor neural e painel de protesto): abrir à mão deve manter o painel na tela. |
 | `test_pedido.py` | Pedir para trabalhar: o neurônio SENTAR decide. |

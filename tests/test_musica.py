@@ -75,6 +75,17 @@ def test_comando_de_musica(texto, comando):
     assert musica.comando_de_musica(texto) == comando
 
 
+@pytest.mark.parametrize("texto, volume", [
+    ("aumenta o volume", 0.65), ("Bryan, abaixa o som", 0.35), ("mais alto", 0.65), ("mais baixo", 0.35),
+    ("aumenta", 0.65), ("deixa baixinho", 0.35), ("volume 30", 0.3), ("coloca o volume em 80%", 0.8),
+    ("volume no máximo", 1.0), ("deixa no mudo", 0.0), ("volume 250", 1.0),
+    ("aumenta a fonte do código", None), ("pula", None), ("oi tudo bem", None),
+])
+def test_volume_pedido(texto, volume):
+    novo = musica.volume_pedido(texto, 0.5)
+    assert (novo is None and volume is None) or abs(novo - volume) < 1e-9
+
+
 # ---------------- gosto e escolha ----------------
 
 A = Faixa("a1", "Chuva", ("Kupla",), 140)
@@ -220,7 +231,7 @@ def test_player_solto_fica_parado_e_lembra_onde(tmp_path):
     t = Tocando(arquivo)
     limites = (0, 0, 1920, 1080)
     t.seguir(100, 300, limites)
-    assert t.pos() == QPoint(100 + 70, 300 - t.height() // 2)            # grudado: ao lado do pet
+    assert t.pos() == QPoint(100 + 70, int(300 - t.height() / 2))        # grudado: ao lado do pet
 
     def mouse(tipo, x, y):
         botoes = Qt.NoButton if tipo == QMouseEvent.MouseButtonRelease else Qt.LeftButton
@@ -229,7 +240,7 @@ def test_player_solto_fica_parado_e_lembra_onde(tmp_path):
     t.mousePressEvent(mouse(QMouseEvent.MouseButtonPress, 200, 300))
     t.mouseMoveEvent(mouse(QMouseEvent.MouseMove, 250, 200))               # arrastou 50 → e 100 ↑
     t.mouseReleaseEvent(mouse(QMouseEvent.MouseButtonRelease, 250, 200))
-    assert t.solto == (220, 200 - t.height() // 2) and t.botoes["fixar"].isChecked()
+    assert t.solto == (220, int(300 - t.height() / 2) - 100) and t.botoes["fixar"].isChecked()
     t.seguir(600, 700, limites)                                            # o pet andou: o player não
     assert t.pos() == QPoint(*t.solto)
 
@@ -321,6 +332,29 @@ def test_a_ia_da_o_play_quando_so_ela_entendeu(app, monkeypatch):
     assert app.musica.estilo == "samba raiz" and falas == ["Fechou, vou de samba raiz!"]
     assert mente.separar_tocar("Escolhi pra você!\nTOCAR: -") == ("Escolhi pra você!", "")
     assert mente.separar_tocar("Oi!") == ("Oi!", None)
+
+
+def test_volume_pela_barra_e_pelo_chat_e_lembra(app):
+    class Saida:
+        volume = None
+
+        def setVolume(self, v):
+            self.volume = v
+
+    app._musica_pelo_chat("toca um lo-fi")
+    assert esperar(lambda: app.tocou)
+    saida = app.musica._saida = Saida()
+    app.tocando.atualizar(app.musica)
+    assert app.tocando.volume_barra.value() == 50 and app.tocando.volume_texto.text() == "50%"
+
+    app.tocando.volume_barra.setValue(20)                         # arrastou a barra
+    assert saida.volume == 0.2 and app.tocando.icone_volume.text() == "🔈"
+    assert app._musica_pelo_chat("aumenta o volume") == "Volume em 35%."
+    assert abs(saida.volume - 0.35) < 1e-9 and app.tocando.volume_barra.value() == 35
+    assert app._musica_pelo_chat("mudo") == "Mudo." and app.tocando.icone_volume.text() == "🔇"
+    app._musica_pelo_chat("volume 70")
+    assert musica.Gosto(app.pet_paths.musica).carregar().volume == 0.7      # vale na próxima vez
+    app.musica._saida = None
 
 
 def test_panico_para_a_musica(app):

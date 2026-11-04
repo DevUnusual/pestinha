@@ -25,7 +25,6 @@ from PySide6.QtCore import QObject, QUrl, Signal
 from ..ia import musica
 from ..log import log
 
-VOLUME = 0.5
 FILA_MINIMA = 5         # menos músicas livres que isso: puxa mais pelo rádio
 MAX_FALHAS = 3          # músicas seguidas que não tocaram: para e avisa
 MAX_RETOMADAS = 1       # cortou no meio: recomeça de onde parou esta quantidade de vezes, depois pula
@@ -152,6 +151,23 @@ class MusicaController(QObject):
             self.pausada = False
             self.mudou.emit()
         return "Voltando!"
+
+    @property
+    def volume(self):
+        """0 a 1: o volume da música (o mesmo da próxima vez que abrir)."""
+        return self.gosto.volume
+
+    def mudar_volume(self, volume):
+        """Muda o volume na hora e lembra dele. Devolve o que ele responde."""
+        self.gosto.volume = max(0.0, min(1.0, float(volume)))
+        if self._saida is not None:
+            self._saida.setVolume(self.gosto.volume)
+        try:
+            self.gosto.salvar()
+        except OSError as erro:
+            log(f"[música] não deu para gravar o volume: {erro}")
+        self.mudou.emit()
+        return "Mudo." if self.gosto.volume == 0 else f"Volume em {round(self.gosto.volume * 100)}%."
 
     def parar(self):
         """✕: para tudo e esquece a fila (o gosto aprendido fica)."""
@@ -288,7 +304,7 @@ class MusicaController(QObject):
             from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
             self._player = QMediaPlayer(self)
             self._saida = QAudioOutput(self)
-            self._saida.setVolume(VOLUME)
+            self._saida.setVolume(self.volume)
             self._player.setAudioOutput(self._saida)
             self._player.mediaStatusChanged.connect(self._ao_status)
             self._player.errorOccurred.connect(lambda _erro, texto: self._ao_erro(texto))

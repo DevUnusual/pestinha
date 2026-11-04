@@ -88,6 +88,20 @@ def endereco_ollama(texto):
     return endereco_de(texto, PORTA_OLLAMA, OLLAMA_PADRAO)
 
 
+def modelos_ollama(endereco, tempo=3.0):
+    """Os modelos instalados no Ollama desse endereço (nomes, em ordem alfabética). Levanta ErroIA se não respondeu."""
+    base = endereco_ollama(endereco)
+    if base is None:
+        raise ErroIA("endereço inválido (exemplo: 192.168.0.10 ou http://192.168.0.10:11434)")
+    try:
+        with urllib.request.urlopen(f"{base}/api/tags", timeout=tempo) as resposta:
+            dados = json.loads(resposta.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, ValueError) as erro:
+        raise ErroIA(f"o Ollama não respondeu em {base} (ligado? aceita conexões da rede?)") from erro
+    modelos = dados.get("models") if isinstance(dados, dict) else None
+    return sorted({m["name"] for m in modelos or [] if isinstance(m, dict) and isinstance(m.get("name"), str)})
+
+
 def testar_ollama(endereco, modelo, tempo=3.0):
     """(deu_certo, mensagem): o Ollama responde nesse endereço? O modelo está instalado lá?"""
     base = endereco_ollama(endereco)

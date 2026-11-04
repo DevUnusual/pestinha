@@ -69,6 +69,16 @@ def processo_ativo():
     return str(nome).lower() if nome else "unknown"
 
 
+def caminho_ativo():
+    """Caminho do programa em primeiro plano (o .app), ou '' se não deu."""
+    app = _programa_da_frente()
+    try:
+        url = app.bundleURL() if app is not None else None
+        return str(url.path()) if url is not None else ""
+    except Exception:
+        return ""
+
+
 def titulo_ativo():
     """No macOS o título exige a permissão de Gravação de Tela; sem ela, fica vazio (o print basta)."""
     return ""

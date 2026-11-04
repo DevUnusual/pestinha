@@ -130,9 +130,9 @@ def test_chave_ruim_avisa_em_vermelho_e_nao_grava(dialogo, tmp_path):
 def test_chave_colada_no_modelo_e_recusada(dialogo):
     mudancas = []
     dialogo.changed.connect(mudancas.append)
-    dialogo.modelo_campo.setText(CHAVE)
-    dialogo.modelo_campo.editingFinished.emit()
-    assert dialogo.modelo_campo.text() == "" and dialogo.perms["ia_modelo"] == ""
+    dialogo.modelo_campo.setEditText(CHAVE)
+    dialogo.modelo_campo.lineEdit().editingFinished.emit()
+    assert dialogo.modelo_campo.currentText() == "" and dialogo.perms["ia_modelo"] == ""
     assert mudancas == [{"ia_modelo": ""}] and dialogo.chave_estado.objectName() == "erro"
 
 

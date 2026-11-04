@@ -211,6 +211,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.musica = MusicaController(self, self.pet_paths.musica)
         self.tocando = Tocando(self.paths.panels)
         self.tocando.comando.connect(self._comando_do_cartao)
+        self.tocando.volume.connect(self.musica.mudar_volume)
         self.musica.mudou.connect(lambda: self.tocando.atualizar(self.musica))
         self.visao.tocar.connect(self.tocar_musica)     # pedido de música que só a IA entendeu
 
@@ -356,7 +357,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             return
         self.idle_seconds = senses.get_idle_seconds()
         app = senses.get_active_app()
-        self.activity = senses.detect_activity(app, self.idle_seconds, self.prof["away_after"])
+        self.activity = senses.detect_activity(app, self.idle_seconds, self.prof["away_after"],
+                                               senses.get_active_path())
         events = self.tracker.observe(app, self.activity)
         self.senses.on_events(events)
         for event in events:

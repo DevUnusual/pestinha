@@ -76,6 +76,16 @@ def processo_ativo():
         return "unknown"
 
 
+def caminho_ativo():
+    """Caminho do executável da janela ativa ('' se não deu), pelo xdotool e o psutil."""
+    janela = _janela_ativa()
+    pid = (rodar(["xdotool", "getwindowpid", janela]) or "").strip() if janela else ""
+    try:
+        return psutil.Process(int(pid)).exe()
+    except (ValueError, psutil.Error):
+        return ""
+
+
 def titulo_ativo():
     """Título da janela ativa pelo xdotool. Só é lido com "Ver minha tela" ligado."""
     janela = _janela_ativa()

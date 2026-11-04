@@ -60,6 +60,7 @@ DEFAULT_PERMISSIONS = {
     "hermes_url": "",          # onde está a API do Hermes; vazio: este computador, porta 8642
     "ia_provedor": "claude",   # claude, openai, deepseek ou ollama (ver ia/provedores.py)
     "ia_modelo": "",           # vazio: o modelo padrão do provedor
+    "ia_modelos": {},          # o último modelo de cada provedor: trocar e voltar não perde o que estava
     "ia_ollama_url": "",       # vazio: o Ollama deste computador; ou outro PC da rede (ex.: 192.168.0.10)
     "voz": False,              # sua fala vira texto (só com a tecla ou o botão do microfone); precisa de ia e conversa
     "voz_url": "",             # serviço de voz (servidor/voz/); vazio: este computador, porta 11500
@@ -150,6 +151,9 @@ def permissoes_validas(novo):
                if k in DEFAULT_PERMISSIONS and type(v) is type(DEFAULT_PERMISSIONS[k])}
     if parece_chave(validas.get("ia_modelo")):
         validas["ia_modelo"] = ""                  # chave colada no lugar do modelo: não grava
+    if "ia_modelos" in validas:
+        validas["ia_modelos"] = {p: m.strip()[:100] for p, m in validas["ia_modelos"].items()
+                                 if isinstance(p, str) and isinstance(m, str) and not parece_chave(m)}
     return validas
 
 

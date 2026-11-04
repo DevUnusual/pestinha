@@ -1,5 +1,5 @@
 """
-TOCANDO - o cartãozinho "tocando agora" ao lado do pet, com 👍 👎 ⏭ ⏸ ✕.
+TOCANDO - o cartãozinho "tocando agora" ao lado do pet, com 👍 👎 ⏭ ⏸ 📌 ✕ e a barra de volume.
 
 Só desenho e botões: quem toca e aprende é mind/musica_ctl.py. Cada botão vira `comando` com o mesmo
 nome dos comandos do chat ('gostei', 'nao_gostei', 'pular', 'pausar'/'continuar', 'parar'). Recebe
@@ -11,7 +11,7 @@ parado onde está, até você clicar no 📌 de novo. Solto, a posição fica em
 """
 
 from PySide6.QtCore import QPoint, Qt, Signal
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout, QWidget
 
 from ..body.pet import overlay_flags, set_no_activate
 from ..store import write_json
@@ -31,6 +31,9 @@ QPushButton { background: #17201a; color: #dfffe6; border: 1px solid #2c5236; bo
 QPushButton:hover { border-color: #63e56f; }
 QPushButton:checked { background: #2c8a40; border-color: #63e56f; }
 QPushButton#nao:checked { background: #b3261e; border-color: #ff9a8a; }
+QSlider::groove:horizontal { height: 4px; background: #2c5236; border-radius: 2px; }
+QSlider::sub-page:horizontal { background: #63e56f; border-radius: 2px; }
+QSlider::handle:horizontal { background: #dfffe6; width: 12px; margin: -5px 0; border-radius: 6px; }
 """
 
 
@@ -38,6 +41,7 @@ class Tocando(QWidget):
     """O cartão: atualizar(controle) e, a cada quadro, seguir(x, y, limites)."""
 
     comando = Signal(str)
+    volume = Signal(float)          # a barra de volume mudou (0 a 1)
 
     def __init__(self, arquivo=None):
         """Monta o cartão escondido; `arquivo` é o panels.json (lembra se ele está solto, e onde)."""
@@ -86,6 +90,21 @@ class Tocando(QWidget):
             botoes.addWidget(botao)
             self.botoes[nome] = botao
         layout.addLayout(botoes)
+        linha_volume = QHBoxLayout()
+        linha_volume.setSpacing(6)
+        self.icone_volume = QLabel("🔉")
+        linha_volume.addWidget(self.icone_volume)
+        self.volume_barra = QSlider(Qt.Horizontal)
+        self.volume_barra.setRange(0, 100)
+        self.volume_barra.setFocusPolicy(Qt.NoFocus)
+        self.volume_barra.setCursor(Qt.PointingHandCursor)
+        self.volume_barra.setToolTip("volume da música")
+        self.volume_barra.valueChanged.connect(self._barra_mudou)
+        linha_volume.addWidget(self.volume_barra, 1)
+        self.volume_texto = QLabel("50%")
+        self.volume_texto.setFixedWidth(34)
+        linha_volume.addWidget(self.volume_texto)
+        layout.addLayout(linha_volume)
         self._pausada = False
         self.adjustSize()
         salvo = load_positions(arquivo).get(CHAVE) if arquivo is not None else None
@@ -190,7 +209,21 @@ class Tocando(QWidget):
             self.botoes[nome].setEnabled(ctl.atual is not None)
         self.botoes["pausa"].setText("▶" if ctl.pausada else "⏸")
         self.botoes["pausa"].setToolTip("continuar" if ctl.pausada else "pausar")
+        self.volume_barra.blockSignals(True)            # mostrar o volume não é mudar o volume
+        self.volume_barra.setValue(round(ctl.volume * 100))
+        self.volume_barra.blockSignals(False)
+        self._mostrar_volume(ctl.volume)
         self.adjustSize()
+
+    def _barra_mudou(self, valor):
+        """Você mexeu na barra: o número acompanha e o volume muda na hora."""
+        self._mostrar_volume(valor / 100)
+        self.volume.emit(valor / 100)
+
+    def _mostrar_volume(self, volume):
+        """O número e o alto-falante do lado da barra (🔇 mudo, 🔈 baixo, 🔉 médio, 🔊 alto)."""
+        self.volume_texto.setText(f"{round(volume * 100)}%")
+        self.icone_volume.setText("🔇" if volume == 0 else "🔈" if volume < 0.34 else "🔉" if volume < 0.67 else "🔊")
 
     def seguir(self, x, y, limites, pode_aparecer=True):
         """Põe o cartão ao lado do pet (centro em x, y); some se não puder aparecer."""
