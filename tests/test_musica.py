@@ -334,6 +334,19 @@ def test_a_ia_da_o_play_quando_so_ela_entendeu(app, monkeypatch):
     assert mente.separar_tocar("Oi!") == ("Oi!", None)
 
 
+def test_tocar_grudado_na_fala_ou_sem_dois_pontos():
+    from pestinha.ia.mente import separar_tocar
+    # modelos pequenos não respeitam a "linha só com TOCAR:": o play tem que sair mesmo assim
+    assert separar_tocar("Entendi, espera aí que eu coloco aqui. TOCAR reggaeton") == (
+        "Entendi, espera aí que eu coloco aqui.", "reggaeton")
+    assert separar_tocar("Bora! TOCAR - pagode.") == ("Bora!", "pagode")
+    assert separar_tocar("Fechou!\n**TOCAR:** funk!") == ("Fechou!", "funk")
+    assert separar_tocar("Bora!\ntocar: lo-fi") == ("Bora!", "lo-fi")
+    assert separar_tocar("Já já! TOCAR") == ("Já já!", "")
+    # "vou tocar" em minúsculas é só fala: não começa música nenhuma
+    assert separar_tocar("Vou tocar um rock pra você") == ("Vou tocar um rock pra você", None)
+
+
 def test_volume_pela_barra_e_pelo_chat_e_lembra(app):
     class Saida:
         volume = None

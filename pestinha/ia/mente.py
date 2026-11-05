@@ -38,7 +38,11 @@ INSTRUCOES_MUSICA = (
     "com o seu humor e a hora. Nunca diga que não consegue tocar música nem peça para ela dar o play. Se ela "
     "não pediu música, não use essa linha."
 )
-_TOCAR = re.compile(r"^\s*TOCAR\s*:\s*(.*?)\s*$", re.IGNORECASE | re.MULTILINE)
+# A linha certa é "TOCAR: <estilo>" sozinha, mas modelos pequenos às vezes grudam no fim da fala e sem os
+# dois-pontos ("...eu coloco aqui. TOCAR reggaeton") ou com markdown ("**TOCAR:** funk"). No começo da linha
+# vale em qualquer caixa, com dois-pontos; no meio do texto, só TOCAR em maiúsculas (o "vou tocar" da fala fica).
+_TOCAR = re.compile(r"(?:^[ \t*_]*(?i:tocar)[ \t*_]*:|(?<!\w)TOCAR\b[ \t*_]*[:\-–=]?)[ \t*_]*(.*?)[ \t*_.!]*$",
+                    re.MULTILINE)
 
 PERSONA_PADRAO = ("Você é um bichinho de tela curioso e brincalhão. Tem opinião própria, é carinhoso "
                   "e às vezes implicante, mas nunca maldoso.")
@@ -188,7 +192,7 @@ def separar_tocar(texto):
     if not achado:
         return texto, None
     limpo = (texto[:achado.start()] + texto[achado.end():]).strip()
-    estilo = achado.group(1).strip(" .\"'<>")
+    estilo = achado.group(1).strip(" .!*_\"'<>")
     return limpo, "" if estilo in ("", "-") else estilo[:60]
 
 
