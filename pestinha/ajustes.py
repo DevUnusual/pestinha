@@ -38,6 +38,9 @@ HZ_RESPOSTA_CHEIA = 6.0         # aumento de CHEER que vale resposta 1,0
 RESPOSTA_MINIMA = 0.12          # abaixo disso ele só pisca e olha
 RECOMPENSA_CARINHO = 1.0        # recompensa por segundo de carinho (aprendizado)
 PUNICAO_DISPENSA = -0.6         # recompensa negativa depois de dispensar
+RECOMPENSA_CONVERSA = 1.0       # recompensa por segundo logo depois de você falar/escrever para ele
+DURACAO_RECOMPENSA_CONVERSA = 2.0   # s dessa recompensa (uma mensagem vale ~2 s de carinho)
+ALIVIO_CONVERSA = 0.3           # quanto cada mensagem tira da tristeza acumulada
 DISPENSA_RAPIDA = 3.0           # s: fechou tão rápido assim = dispensa "na cara"
 PENALIDADE_DISPENSA = 1.0       # s em que a dispensa pesa no aprendizado
 
@@ -157,6 +160,9 @@ _LIMITES = {
     "RESPOSTA_MINIMA": (float, 0.0, 1.0),
     "RECOMPENSA_CARINHO": (float, 0.0, 10.0),
     "PUNICAO_DISPENSA": (float, -10.0, 0.0),
+    "RECOMPENSA_CONVERSA": (float, 0.0, 10.0),
+    "DURACAO_RECOMPENSA_CONVERSA": (float, 0.0, 30.0),
+    "ALIVIO_CONVERSA": (float, 0.0, 5.0),
     "DISPENSA_RAPIDA": (float, 0.0, 60.0),
     "PENALIDADE_DISPENSA": (float, 0.0, 60.0),
     "GRAVIDADE": (float, 0.0, 100000.0),

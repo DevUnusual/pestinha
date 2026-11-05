@@ -33,8 +33,9 @@ ENGAGED_RISE_S = 20.0       # tempo para chegar a esse nível
 
 # quanto cada acontecimento estimula (+) e satisfaz o contato (-)
 STIMULUS = {"app": 0.08, "novelty": 0.2, "poke": 0.15, "drag": 0.2, "throw": 0.35,
-            "mischief": 0.25, "caress": 0.05}
-CONTACT = {"poke": 0.15, "drag": 0.1, "throw": 0.1, "caress": 0.25, "dismiss": 0.05}
+            "mischief": 0.25, "caress": 0.05, "conversa": 0.2}
+CONTACT = {"poke": 0.15, "drag": 0.1, "throw": 0.1, "caress": 0.25, "dismiss": 0.05,
+           "conversa": 0.35}      # falar ou escrever para ele é atenção de verdade
 
 
 class Drives:

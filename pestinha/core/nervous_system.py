@@ -311,7 +311,7 @@ CONNECTIONS = [
     ("CONVERSA", "PLAYFUL",    0.08, 0.6),  # você falou com ele: anima, acalma e chama a atenção
     ("CONVERSA", "CALM",       0.06, 0.6),
     ("CONVERSA", "WATCH",      0.15, 0.6),
-    ("CONVERSA", "GLOOM",     -0.06, 0.6),
+    ("CONVERSA", "GLOOM",     -0.12, 0.6),  # conversar espanta a tristeza (antes -0,06: quase não sentia)
 ]
 
 DECISION_MOTORS = {"SENTAR", "FUGIR", "CARTAZ", "CANTO", "TRAVESSURA", "PAPEL", "ACEITAR"}   # decisões, não expressão

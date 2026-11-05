@@ -43,6 +43,7 @@ from .ajustes import (
     LIMIAR_CANTO_HZ,
     PUNICAO_DISPENSA as DISMISS_PENALTY,
     RECOMPENSA_CARINHO as CARESS_REWARD,
+    RECOMPENSA_CONVERSA as TALK_REWARD,
     SILENCIO_MOUSE as MOUSE_QUIET,
 )
 from .body.behavior import Behavior
@@ -231,6 +232,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.in_flight = False      # voando depois de um arremesso
         self.last_impact = 0.0
         self.last_poke = 0.0
+        self.recompensa_conversa_ate = 0.0  # até quando a rede recebe a recompensa de você ter falado com ele
         self.poke_probe = None      # (quando medir, CHEER antes da cutucada)
         self.last_poke_response = None
 
@@ -486,6 +488,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
                 reward += CARESS_REWARD
             if self.mischief_ctl.penalty_active(now):
                 reward += DISMISS_PENALTY
+        if now < self.recompensa_conversa_ate and not self.protest.stage:
+            reward += TALK_REWARD                    # você falou com ele: o que ele fazia fica associado a coisa boa
         reward += self.castigo.punicao(now)          # ser preso é recompensa negativa: o castigo ensina
         self.brain.learn(reward, dt, self.prof["learn_rate"])
 

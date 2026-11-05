@@ -15,6 +15,8 @@ from ..ia.musica import comando_de_musica, pedido_de_musica, volume_pedido
 from ..ia.video import pedido_de_video
 from ..ui.conversa import ConversaJanela
 from ..ajustes import (
+    ALIVIO_CONVERSA,
+    DURACAO_RECOMPENSA_CONVERSA,
     INSATISFACAO_NOTEBOOK,
     COOLDOWN_CUTUCADA as POKE_COOLDOWN,
     ESPERA_MEDIDA_CUTUCADA as POKE_PROBE,
@@ -237,8 +239,28 @@ class InteracaoMixin:
         if self.perms["ia"] and self.perms["conversa"]:
             self.menu_conversar()
 
+    def falaram_comigo(self):
+        """
+        Você escreveu ou falou com ele: isso é atenção, como um carinho. Vale na hora em que você fala
+        (não só quando a IA responde, nem só quando é conversa: 'toca um lo-fi' também conta).
+        A carência cai, o tédio diminui, a tristeza alivia e a rede recebe recompensa por uns segundos.
+        """
+        if self._congelado():
+            return
+        now = time.monotonic()
+        self.sad.grievance = max(0.0, self.sad.grievance - ALIVIO_CONVERSA)
+        self.drives.touched("conversa")
+        self.drives.stimulate("conversa")
+        self.senses.kick("CONVERSA", 0.8)
+        self.timeline.note_interaction()
+        self.memory.on_interaction()
+        self.recompensa_conversa_ate = now + DURACAO_RECOMPENSA_CONVERSA
+        if self.asleep:
+            self.sleep.wake(startled=False)
+
     def _enviar_conversa(self, texto):
         """Você mandou uma mensagem: ele começa a pensar (ou explica por que não dá agora)."""
+        self.falaram_comigo()
         janela = self.conversa_janela
         janela.set_aviso(self.visao.descricao())
         resposta = self._video_pelo_chat(texto) or self._musica_pelo_chat(texto)
@@ -255,6 +277,7 @@ class InteracaoMixin:
 
     def _ouvi(self, texto):
         """Você falou pelo atalho: vai para ele como se tivesse escrito no chat (a resposta vem no balão)."""
+        self.falaram_comigo()
         janela = self.conversa_janela
         if janela is not None and janela.isVisible():
             janela.adicionar("Você", texto)

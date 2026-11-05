@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## Conversar também é carinho
+
+- **Falar ou escrever com ele conta como atenção**, na hora em que você fala (atalho, chamado pelo nome ou
+  chat), mesmo que a IA não responda e mesmo que seja só "toca um lo-fi": a carência cai bem (mais que uma
+  cutucada), o tédio diminui, a tristeza acumulada alivia e a rede recebe ~2 s de recompensa, como num
+  carinho, para ele associar a conversa a coisa boa. Antes só a resposta da IA contava, e pouco: conversando
+  muito, ele ainda ficava triste como se ninguém desse atenção. Pausado ou em protesto de raiva, não ensina.
+- O canal CONVERSA puxa mais contra a tristeza na rede (GLOOM -0,06 → -0,12).
+
 ## Player com o tempo da música e disquinho
 
 - **A borda do cartão de música é a barra de progresso:** ela acende a partir do meio de cima, dá a volta
