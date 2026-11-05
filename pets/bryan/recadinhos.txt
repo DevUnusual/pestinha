@@ -1,5 +1,5 @@
 # Um recadinho por linha. Linhas que começam com # são ignoradas.
-# Pode editar com o Bryan rodando: ele relê o arquivo sozinho.
+# Pode editar com o Bob rodando: ele relê o arquivo sozinho.
 você ainda tá viva?
 bebe água. agora.
 eu vi isso aí.

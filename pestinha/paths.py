@@ -225,6 +225,11 @@ class Paths:
         return self.memory / "panels.json"
 
     @property
+    def modelos(self):
+        """Modelos baixados uma vez (o de reconhecer a palavra de chamado, ver ia/chamado.py)."""
+        return self.memory / "modelos"
+
+    @property
     def log(self):
         """Log do programa (sem conteúdo de janelas)."""
         return self.memory / "logs" / "pestinha.log"

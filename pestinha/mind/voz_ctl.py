@@ -11,7 +11,8 @@ Dois jeitos de falar:
 A fala vai para o serviço de voz (servidor/voz/), que devolve o texto (faster-whisper).
 
 Política (as permissões ficam em config.py):
-    - nunca ouve sem você apertar, e para sozinho depois de MAX_GRAVACAO s;
+    - nunca ouve sem você apertar, e para sozinho depois de MAX_GRAVACAO s (a exceção é "Chamar pelo nome",
+      opcional: mind/chamado_ctl.py espera o nome neste computador e manda o pedido por `transcrever`);
     - só com "Usar IA", "Conversar por texto" e "Falar com ele" ligados, sem pausa nem pânico;
     - o áudio fica só na memória: nunca é gravado, nem o que você disse (nem no log);
     - pânico, pausa ou desligar a voz fecham o microfone na hora e descartam o que estava a caminho.
@@ -198,6 +199,20 @@ class VozController(QObject):
             self.transcrevendo = True
             self._em_thread(origem, cliente, voz.wav_de_pcm(pcm, taxa))
         self.estado.emit()
+
+    def transcrever(self, wav):
+        """Um pedido que já chegou gravado (o chamado pelo nome, mind/chamado_ctl.py): vai como o atalho."""
+        if not self.ligada() or self.app._congelado() or self.transcrevendo or self.gravando:
+            return False
+        try:
+            cliente = self.cliente()
+        except ErroIA as erro:
+            self._avisar(str(erro))
+            return False
+        self.transcrevendo = True
+        self._em_thread("atalho", cliente, wav)
+        self.estado.emit()
+        return True
 
     def _passo(self):
         """A cada PASSO_MS enquanto ouve: soltou a tecla? passou do tempo?"""

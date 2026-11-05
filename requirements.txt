@@ -13,6 +13,8 @@ yt-dlp>=2026.10.26
 # Vídeo opcional ("Assistir vídeos comigo"): ouve o som que sai do computador (loopback; no macOS só com
 # um driver como o BlackHole)
 soundcard>=0.4.4
+# Chamar pelo nome opcional ("Bob!"): reconhece só a palavra de chamado, neste computador
+vosk>=0.3.45
 # Atalho global no Linux; Windows usa a API do sistema e macOS usa QuickMacHotKey
 pynput>=1.7.7; sys_platform == "linux"
 # Windows: leitura das janelas e do teclado

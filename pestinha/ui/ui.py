@@ -303,6 +303,14 @@ class SettingsDialog(QDialog):
         self.voz_botao.clicked.connect(self._testar_voz)
         linha.addWidget(self.voz_botao)
         layout.addLayout(linha)
+        linha = QHBoxLayout()
+        linha.addWidget(QLabel("Palavra de chamado:"))
+        self.chamado_campo = QLineEdit(self.perms["chamado_palavra"])
+        self.chamado_campo.setPlaceholderText("vazio = o nome dele")
+        self.chamado_campo.setMaxLength(20)
+        self.chamado_campo.editingFinished.connect(self._trocar_palavra_chamado)
+        linha.addWidget(self.chamado_campo, 1)
+        layout.addLayout(linha)
         self.voz_dica = QLabel("O computador que transforma a sua fala em texto (o serviço da pasta "
                                "servidor/voz/, precisa de placa de vídeo). Se ele roda em outro computador "
                                "da casa, digite o IP dele, por exemplo 192.168.0.10. O áudio vai só para lá.")
@@ -459,6 +467,13 @@ class SettingsDialog(QDialog):
         self.memoria_estado.setStyleSheet("")
         self.memoria_estado.setText(texto)
         self.memoria_estado.setVisible(bool(texto))
+
+    def _trocar_palavra_chamado(self):
+        """Uma palavra só (o nome que você fala para chamar ele); vazio volta a ser o nome do pet."""
+        palavra = " ".join(self.chamado_campo.text().split()[:1]).lower()
+        self.chamado_campo.setText(palavra)
+        if palavra != self.perms["chamado_palavra"]:
+            self._set("chamado_palavra", palavra)
 
     def _trocar_endereco_voz(self):
         """Grava o endereço do serviço de voz já completo (http:// e a porta); um endereço ruim é recusado."""
@@ -738,6 +753,7 @@ class SettingsDialog(QDialog):
         self.boxes["desenhar"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["videos"].setEnabled(ia)
         self.boxes["voz"].setEnabled(ia and self.perms["conversa"])
+        self.boxes["chamar"].setEnabled(ia and self.perms["conversa"] and self.perms["voz"])
         self.boxes["lembrar"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["pesquisar"].setEnabled(ia and self.perms["ver_tela"])
         if hasattr(self, "hermes_campo"):
@@ -751,6 +767,7 @@ class SettingsDialog(QDialog):
             com_voz = ia and (self.perms["conversa"] and self.perms["voz"] or self.perms["videos"])
             for campo in (self.voz_campo, self.voz_botao):
                 campo.setEnabled(com_voz)
+            self.chamado_campo.setEnabled(ia and self.perms["conversa"] and self.perms["voz"])
         if hasattr(self, "provedor_combo"):
             for campo in (self.provedor_combo, self.modelo_campo, self.chave_campo, self.chave_botao,
                           self.ollama_campo, self.ollama_botao):
@@ -811,7 +828,20 @@ class Tray(QObject):
         """Atualiza os textos do menu e a dica do ícone conforme o estado (pausado, escondido, modo de teste)."""
         self.actions["pause"].setText("Continuar" if paused else "Pausar")
         self.actions["hide"].setText("Mostrar" if hidden else "Esconder")
-        self.icon.setToolTip(self.titulo + ("  [MODO TESTE]" if test_mode else ""))
+        self._teste = test_mode
+        self._atualizar_dica()
+
+    def set_chamado(self, ouvindo, palavra=""):
+        """Microfone aberto esperando o nome: a dica do ícone diz isso (sem mudar nada se já está igual)."""
+        estado = (ouvindo, palavra)
+        if estado != getattr(self, "_chamado", (False, "")):
+            self._chamado = estado
+            self._atualizar_dica()
+
+    def _atualizar_dica(self):
+        ouvindo, palavra = getattr(self, "_chamado", (False, ""))
+        self.icon.setToolTip(self.titulo + (f'  · 🎤 ouvindo "{palavra}"' if ouvindo else "")
+                             + ("  [MODO TESTE]" if getattr(self, "_teste", False) else ""))
 
 
 # ============================================================

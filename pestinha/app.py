@@ -71,6 +71,7 @@ from .mind.musica_ctl import MusicaController
 from .mind.protest_ctl import ProtestController
 from .mind.revolucao import RevolucaoController
 from .mind.sleep import SleepController
+from .mind.chamado_ctl import ChamadoController
 from .mind.video_ctl import VideoController
 from .mind.visao import VisaoController
 from .mind.conhecimento import Conhecimento
@@ -211,6 +212,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.voz = VozController(self, self.nome)
         self.voz.ouvido.connect(self._ouvi)
         self.voz.ditado.connect(self._ditado)
+        self.chamado = ChamadoController(self, self.paths.modelos)     # "Bob!": o microfone esperando o nome
+        self.chamado.chamou.connect(self._fui_chamado)
         self.musica = MusicaController(self, self.pet_paths.musica)
         self.tocando = Tocando(self.paths.panels)
         self.tocando.comando.connect(self._comando_do_cartao)
@@ -251,6 +254,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             f"{self.nome} · música", texto, QSystemTrayIcon.Warning, 6000))
         self.video.aviso.connect(lambda texto: self.tray.icon.showMessage(
             f"{self.nome} · vídeo", texto, QSystemTrayIcon.Warning, 6000))
+        self.chamado.aviso.connect(lambda texto: self.tray.icon.showMessage(
+            f"{self.nome} · chamado", texto, QSystemTrayIcon.Warning, 6000))
         self.hotkey = PanicHotkey()
         self.hotkey.pressed.connect(self.panic)
         self.wiping = False         # True depois de "apagar tudo": não grava mais nada ao sair
@@ -269,6 +274,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
 
         self._apply_settings()
         self.voz.registrar_atalho()
+        self.chamado.sincronizar()
         self.sense()
         self.scan_windows()
         problems = config.check_assets(self.conteudo)
@@ -517,6 +523,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.behavior.on_emotion(emotion, time.monotonic())
         self.visao.tick(now)
         self.video.tick(now)
+        self.chamado.atualizar()
         self._atualizar_mente(now)
 
     def _atualizar_mente(self, agora):
@@ -529,8 +536,9 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             mente.add("pesquisando")                  # o Hermes usando uma ferramenta: IA vilã
         elif v.respondendo or self.voz.transcrevendo or self.video.resumindo:
             mente.add("pensando")                     # pensando na resposta: detetive
-        if self.video.ativo:
-            mente.add("ouvindo")                      # assistindo um vídeo: orelha para a frente, quietinho
+        if self.video.ativo or self.chamado.escutando:
+            mente.add("ouvindo")                      # assistindo um vídeo, ou chamado pelo nome: orelha para a frente
+        self.tray.set_chamado(self.chamado.ouvindo and self.chamado.pronto, self.chamado.palavra)
         if self.holograma.visivel(agora):
             mente.add("projetando")
         jogando = v.em_jogo()
@@ -579,6 +587,12 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         """A IA quer te mostrar algo: rabisca por cima do monitor que ela viu (só com o pet aparecendo)."""
         if self.pet.isVisible() and not self._congelado():
             self.rabisco.desenhar(formas, onde, time.monotonic())
+
+    def _fui_chamado(self):
+        """Você disse só o nome: ele levanta a orelha e pergunta, esperando o pedido."""
+        if self.asleep:
+            self.sleep.wake(startled=False)
+        self._mostrar_fala("Hm?")
 
     def _resumo_do_video(self, texto):
         """O resumo do vídeo chegou: vai para o chat (aberto ou na próxima vez que abrir)."""

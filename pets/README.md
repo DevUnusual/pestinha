@@ -38,7 +38,8 @@ de outro pet.
 
 ## Personagens que já existem
 
-- **Bryan** (`bryan.json`, `bryan/`): o original.
+- **Bob** (`bryan.json`, `bryan/`): o original. Até a versão "Chamando pelo nome" se chamava Bryan;
+  o arquivo e a pasta continuam `bryan` para a memória dele não mudar de lugar.
 - **Jorge** (`jorge.json`, `jorge/`): coach trambiqueiro. Mais insistente quando ignorado, muito animado
   com atenção, desesperado quando dispensam as coisas dele e quase nunca triste. O panfleto que ele atira
   (`jorge/bolinha_papel.png`) é desenhado por `ferramentas/gerar_panfleto.py`. Moldura e olhos dourados

@@ -10,6 +10,7 @@ Controladores de decisão: ligam o que a rede decide à cena (sono, mesa, protes
 |---|---|
 | `assistir.py` | Quando você está jogando, ele vai para o monitor ao lado e fica assistindo e comentando. |
 | `castigo_ctl.py` | Uma plaquinha de cartoon que você arrasta para onde quiser. |
+| `chamado_ctl.py` | Você chama ele pelo nome ("Bob!") e ele te ouve, como a Alexa (opcional, desligado por padrão: "Chamar pelo nome"). |
 | `conhecimento.py` | O que ele aprendeu assistindo vídeos com você, guardado para conversar sobre isso depois. |
 | `festa.py` | O fogo de artifício do pet feliz: a alegria da rede enche a euforia. |
 | `lembrancas.py` | O que ele viu você fazendo, em cada computador. |

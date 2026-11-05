@@ -200,6 +200,8 @@ def test_app_conta_ao_rosto_o_que_a_mente_faz():
     holograma = SimpleNamespace(visivel=lambda agora: True)
     app = SimpleNamespace(visao=visao, voz=SimpleNamespace(transcrevendo=True), pet_state=st, holograma=holograma,
                           video=SimpleNamespace(ativo=False, resumindo=False),
+                          chamado=SimpleNamespace(escutando=False, ouvindo=False, pronto=False, palavra=""),
+                          tray=SimpleNamespace(set_chamado=lambda *a: None),
                           _atualizar_assistir=lambda agora, jogando: None)
     PestinhaApp._atualizar_mente(app, 5.0)
     assert st.mente == {"olhando", "pesquisando", "projetando"}             # a vilã toma o lugar do detetive

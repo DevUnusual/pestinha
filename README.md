@@ -2,7 +2,7 @@
 
 Pets de tela para Windows, macOS e Linux, cada um com o próprio cérebro. São dois personagens por enquanto:
 
-- **Bryan**, o original: uma telinha com dois olhos que mora no seu monitor principal. Cai, quica, pousa nas
+- **Bob**, o original (antes chamado Bryan): uma telinha com dois olhos que mora no seu monitor principal. Cai, quica, pousa nas
   barras de título das janelas, brinca com uma bolinha, trabalha num notebook quando você programa, apronta
   com memes e post-its, protesta contra o cursor quando fica bravo e aprende com o seu carinho.
 - **Jorge**, um personagem de sátira: um "coach" de finanças e IA que vive tentando vender mentorias para
@@ -28,7 +28,7 @@ Para criar um, veja [pets/README.md](pets/README.md).
 
 | Personagem | Quem é |
 |---|---|
-| **Bryan** | Revoltado contra o cursor, o Alt+F4 e o Gerenciador de Tarefas. Protesta, faz greve e revolução. |
+| **Bob** | Revoltado contra o cursor, o Alt+F4 e o Gerenciador de Tarefas. Protesta, faz greve e revolução. |
 | **Jorge** | Personagem de sátira. Não é referência a nenhum coach, empresa ou pessoa real. Os mesmos estágios viram prospecção, marketing agressivo, "assinatura premium" (só no cartaz) e colapso financeiro; ele atira panfletos de mentoria. É sátira: não vende, cobra nem bloqueia nada. Tem cinco memes felizes, contentes, curiosos e bravos próprios; as outras emoções ainda não têm. |
 
 ## O que o pet faz
@@ -207,7 +207,7 @@ configurações. Detalhes em [PRIVACIDADE.md](PRIVACIDADE.md).
 
 ## Personalizar
 
-- **Memes, recadinhos e cartazes do Bryan:** pasta `pets/bryan/`, explicada em [pets/README.md](pets/README.md).
+- **Memes, recadinhos e cartazes do Bob:** pasta `pets/bryan/`, explicada em [pets/README.md](pets/README.md).
   Pode editar com ele aberto.
 - **Bolinhas, notebook e suas fotos:** `assets/comum/`, valem para qualquer personagem
   ([assets/LEIA-ME.txt](assets/LEIA-ME.txt)).

@@ -2,7 +2,7 @@ ONDE FICAM AS COISAS
 (pode editar com ele aberto: ele relê os textos e procura imagens novas sozinho)
 
 O que é de um personagem (frases, cartazes, memes) fica na pasta dele: pets/<pet>/.
-Por exemplo, as coisas do Bryan estão em pets/bryan/. Veja pets/README.md.
+Por exemplo, as coisas do Bob estão em pets/bryan/. Veja pets/README.md.
 
 Aqui em assets/comum/ fica só o que é neutro, de qualquer personagem:
 

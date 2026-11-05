@@ -1,5 +1,21 @@
 # Histórico de versões
 
+## Chamando pelo nome
+
+- **Chamar pelo nome** (desligado por padrão; precisa de "Falar com ele"): como na Alexa, diga "Bob, que
+  horas são?" ou só "Bob" e, quando a orelha levantar e ele disser "Hm?", faça o pedido. Um reconhecedor
+  pequeno (Vosk) roda só neste computador e procura só a palavra de chamado; até ouvir o nome, nada sai do
+  computador. Depois, o pedido vai para o serviço de voz como no atalho, e a resposta vem no balão
+  (`ia/chamado.py`, `mind/chamado_ctl.py`).
+- A palavra de chamado é o nome do pet ou a que você escrever em Configurações. O modelo em português não
+  conhece "bob", então ele também tenta as grafias faladas ("bóbi"); palavras parecidas ("bola", "bom",
+  "bobo") ficam na gramática como iscas, para não dispararem o chamado.
+- Na primeira vez baixa o modelo de português do Vosk (31 MB) para `memory/modelos/`. Precisa de
+  `pip install vosk`. Ele não atende enquanto assiste um vídeo com você, nem com o atalho de falar apertado.
+- A dica do ícone da bandeja mostra 🎤 e a palavra enquanto o microfone espera o nome.
+- **O Bryan agora se chama Bob.** O arquivo e a pasta continuam `pets/bryan.json` e `pets/bryan/`, e a
+  memória continua em `memory/pets/bryan/`: ele não esquece nada, só mudou de nome.
+
 ## Assistindo vídeos com você e desenhando na tela
 
 - **Assistir vídeos comigo** (desligado por padrão): peça "assiste esse vídeo comigo" no chat, na voz ou no

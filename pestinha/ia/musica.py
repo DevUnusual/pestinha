@@ -71,7 +71,7 @@ def _normal(texto):
     return " ".join(texto.lower().split()).strip(" .!?,;:~")
 
 
-# O pedido vem no começo da frase, depois de no máximo quatro palavras ("Bryan, você pode tocar...",
+# O pedido vem no começo da frase, depois de no máximo quatro palavras ("Bob, você pode tocar...",
 # "por favor, toca..."): a voz transcreve a frase inteira, com vírgula e ponto de interrogação.
 _INICIO = r"^(?P<antes>(?:[\w-]+\s+){0,4}?)"
 # "música" do jeito que se fala: musiquinha, sonzinho, um som, uma playlist, um modão...
@@ -165,7 +165,7 @@ def volume_pedido(texto, atual):
     alto' sobem um passo, 'abaixa o som' desce, 'volume 30' (ou '30%') vai para 0.3, 'volume máximo' e 'mudo'.
     """
     normal = _normal(re.sub(r"[,!?;:]", " ", texto or ""))
-    curta = len(normal.split()) <= 2                # "aumenta", "Bryan, abaixa": com música tocando, é volume
+    curta = len(normal.split()) <= 2                # "aumenta", "Bob, abaixa": com música tocando, é volume
     if len(normal) > 60 or not (curta or _VOL_ASSUNTO.search(normal)):
         return None
     numero = _VOL_NUMERO.search(normal)

@@ -37,6 +37,7 @@ class SessaoMixin:
         if not self.video.ligado():
             self.video.cancelar()                  # desligou os vídeos: para de ouvir na hora
         self.voz.registrar_atalho()
+        self.chamado.sincronizar()                 # liga ou desliga o microfone do chamado
         self.atualizar_microfone()
         self._apply_settings()
 
@@ -132,6 +133,7 @@ class SessaoMixin:
                 self.conditioning.deslocar(parado)               # nem as janelas de condicionamento
                 self._pausado_em = None
             self._ultimo_think = now                             # a retomada não cobra o tempo parado
+        self.chamado.sincronizar()                               # pausado: o microfone do chamado fecha
         self.festa.fogos.pausar(self.paused)
         self.update_visibility()
 
@@ -155,6 +157,7 @@ class SessaoMixin:
         self.visao.cancelar()                      # nada da IA chega depois do pânico
         self.voz.cancelar()                        # o microfone fecha na hora
         self.video.cancelar()                      # e ele para de ouvir o vídeo
+        self.chamado.parar()                       # e de esperar o nome
         self.musica.parar()                        # e o som para
         self.balao.esconder()
         self.holograma.esconder()
@@ -267,6 +270,7 @@ class SessaoMixin:
         self.visao.cancelar()
         self.voz.cancelar()
         self.video.cancelar()
+        self.chamado.parar()
         self.musica.parar()
         self.balao.esconder()
         self.holograma.esconder()

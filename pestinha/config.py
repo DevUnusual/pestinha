@@ -66,6 +66,8 @@ DEFAULT_PERMISSIONS = {
     "ia_ollama_url": "",       # vazio: o Ollama deste computador; ou outro PC da rede (ex.: 192.168.0.10)
     "voz": False,              # sua fala vira texto (só com a tecla ou o botão do microfone); precisa de ia e conversa
     "voz_url": "",             # serviço de voz (servidor/voz/); vazio: este computador, porta 11500
+    "chamar": False,           # microfone aberto esperando o nome dele (detecção local, Vosk); precisa de voz
+    "chamado_palavra": "",     # a palavra de chamado; vazio: o nome do pet
     "lembrar": False,          # grava o resumo do que a IA viu (nunca o print nem o título), por computador
     "memoria_compartilhada": False,   # sincroniza o pet com o serviço de memória (servidor/memoria/)
     "memoria_url": "",         # onde está o serviço de memória (ex.: 192.168.0.10); vazio: desligado
@@ -140,6 +142,12 @@ PERMISSION_GROUPS = [
          f"Segure {PTT_HOTKEY_TEXT} e fale, ou use o botão de microfone do chat: a sua fala vira texto e ele "
          "responde por escrito. Ele só ouve enquanto você aperta. O áudio vai para o serviço de voz do "
          "endereço abaixo (o seu servidor) e não é gravado."),
+        ("chamar", "Chamar pelo nome (como a Alexa)",
+         "O microfone fica aberto e um reconhecedor pequeno, rodando só neste computador, espera a palavra de "
+         "chamado (o nome dele, ou a que você escrever abaixo). Diga \"Bob, que horas são?\" ou só \"Bob\" e, "
+         "quando a orelha dele levantar, faça o pedido. Até ouvir o nome, nada sai do computador e nada é "
+         "gravado; depois, só o seu pedido vai para o serviço de voz. Na primeira vez baixa o modelo de "
+         "português do Vosk (31 MB, alphacephei.com) para memory/modelos/."),
         ("lembrar", "Lembrar o que viu",
          "Grava o resumo curto do que a IA viu (até 12 palavras) e o nome do programa, com a hora e o "
          "computador, em memory/pets/<pet>/lembrancas_<computador>.jsonl. Nunca o print, o título da "

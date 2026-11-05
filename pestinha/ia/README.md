@@ -8,6 +8,7 @@ Visão e conversa por um modelo de IA (Claude, OpenAI, DeepSeek ou Ollama local)
 
 | Arquivo | O que faz |
 |---|---|
+| `chamado.py` | A palavra de chamado ("Bob!"), como na Alexa: um reconhecedor pequeno (Vosk) roda neste computador e só procura o nome do pet. |
 | `chaves.py` | As chaves de API no arquivo .env da pasta do Pestinha. |
 | `desenho.py` | Como a IA pede para desenhar por cima da sua tela (círculo, quadrado, seta ou ícone) e como o pedido vira formas. |
 | `imagem.py` | Quando você pede no chat para ele pesquisar algo, ele acha uma imagem na Wikipédia para projetar. |

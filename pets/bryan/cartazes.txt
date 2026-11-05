@@ -1,4 +1,4 @@
-# Cartazes do protesto do Bryan. Uma frase por linha, dentro de cada seção.
+# Cartazes do protesto do Bob. Uma frase por linha, dentro de cada seção.
 # Pode editar com ele rodando: ele relê ao levantar um cartaz novo.
 
 [reclamacao]

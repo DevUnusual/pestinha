@@ -70,6 +70,24 @@ a sua fala em texto.
 - O pânico, a pausa ou desligar a voz fecham o microfone na hora e descartam o texto que ainda estava a
   caminho.
 
+## Chamar pelo nome (desligado por padrão)
+
+Só vale com **Usar IA**, **Conversar por texto**, **Falar com ele** e **Chamar pelo nome** ligados. É a
+única opção em que o microfone fica aberto sem você apertar nada.
+
+- **Quem ouve:** um reconhecedor pequeno (Vosk) que roda **só neste computador** e procura uma palavra só:
+  a palavra de chamado (o nome dele, ou a que você escrever em Configurações). Enquanto ele espera, a dica
+  do ícone na bandeja mostra 🎤 e a palavra.
+- **Antes do nome:** nada sai do computador e nada é gravado. O áudio passa pela memória e é descartado; só
+  os últimos 30 segundos ficam na memória, para recortar o pedido quando você fala tudo junto ("Bob, que
+  horas são?").
+- **Depois do nome:** só o seu pedido (da palavra até você parar de falar, no máximo 15 s) vai para o
+  **serviço de voz**, como no atalho de falar, e não é gravado. Ele não atende enquanto assiste um vídeo com
+  você, enquanto você segura o atalho de falar ou enquanto ainda responde o pedido anterior.
+- **O que é baixado:** na primeira vez, o modelo de português do Vosk (31 MB, de alphacephei.com) vai para
+  `memory/modelos/`. Depois disso, nada mais é baixado.
+- O pânico, a pausa ou desligar a permissão fecham o microfone na hora.
+
 ## Assistir vídeos comigo (desligado por padrão)
 
 Só vale com **Usar IA** e **Assistir vídeos comigo** ligados.
