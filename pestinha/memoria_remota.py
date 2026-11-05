@@ -254,4 +254,5 @@ def criar(perms, paths, pet_id, pet_paths):
         return None
     arquivos = {p.name: p for p in pet_paths.todos()}
     arquivos["definicao.json"] = paths.definicao(pet_id)          # a personalidade vai junto
+    arquivos["conhecimento.jsonl"] = pet_paths.conhecimento       # e o que ele aprendeu nos vídeos
     return Sincronia(base, pet_id, arquivos, pet_paths.base)

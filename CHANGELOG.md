@@ -1,5 +1,24 @@
 # Histórico de versões
 
+## Assistindo vídeos com você e desenhando na tela
+
+- **Assistir vídeos comigo** (desligado por padrão): peça "assiste esse vídeo comigo" no chat, na voz ou no
+  menu; com **Ver minha tela**, ele também percebe sozinho quando você está numa aula, tutorial, palestra
+  ou podcast. Ele ouve o som do computador (loopback, nunca o microfone), fica quietinho com a orelha para a
+  frente (sem comentar o que vê) e manda cada pedaço de 20 s para o serviço de voz. Vídeo longo vira notas
+  a cada ~10 min de fala, para nada crescer sem limite (`ia/video.py`, `mind/video_ctl.py`).
+- Quando você pede ("resume o vídeo", "pode parar de assistir"), depois de 4 min de silêncio ou em 3 h, ele
+  resume: fala no balão, o resumo completo aparece no chat e fica guardado em
+  `memory/pets/<pet>/conhecimento.jsonl` (`mind/conhecimento.py`). Depois, no chat, ele lembra dos vídeos
+  recentes e, se você perguntar de um deles, usa o resumo e os pontos. Com o Hermes, o resumo vai também para
+  a memória dele; com a memória compartilhada, o arquivo vai para os outros computadores. Precisa de
+  `pip install soundcard` (no macOS, de um driver de loopback como o BlackHole).
+- **Desenhar na tela** (com **Ver minha tela**; resolve DevUnusual/pestinha#5): para te mostrar algo, ele
+  rabisca um círculo, um quadrado, uma seta ou um ícone (! ? ★ ♥ 👀 ✓ ✗), com legenda, por cima do monitor
+  que viu, por 9 s. Peça no chat ("me mostra onde fica o botão de salvar") ou deixe ele destacar sozinho o
+  que comentou (um erro, um botão). O modelo responde em coordenadas de 0 a 1000 sobre o print
+  (`ia/desenho.py`, `world/rabisco.py`). Não recebe clique; mexer nele apaga o desenho.
+
 ## Assistindo você jogar
 
 - Com **Acompanhar jogos** e um jogo na tela, ele vai para o monitor mais à direita que não é o do jogo,

@@ -16,6 +16,11 @@ Dois caminhos, os dois em thread para o pet não travar enquanto o modelo pensa:
                projeta como holograma (ia/imagem.py, world/holograma.py).
     jogo       com "Acompanhar jogos", em jogo ele olha a cada poucos segundos (visao_jogo), pula o print
                se a tela quase não mudou e fala no máximo a cada `fala_jogo`.
+    desenhar   com "Desenhar na tela", a olhada (campo "desenhar") ou a resposta do chat (linha "DESENHAR:")
+               pode trazer formas sobre o print; elas são desenhadas no monitor que foi fotografado
+               (ia/desenho.py, world/rabisco.py).
+    vídeo      com "Assistir vídeos comigo", a olhada diz se você está vendo um vídeo (campo "video") e ele
+               começa a assistir junto (mind/video_ctl.py); enquanto assiste, ele não comenta o que vê.
 
 Nos dois, o estado da rede vai junto (mind/sincronia.py): quem sente é a rede, o modelo só dá voz.
 
@@ -38,6 +43,7 @@ from PySide6.QtCore import QBuffer, QIODevice, QObject, QPoint, Qt, Signal
 from PySide6.QtGui import QGuiApplication, QImage
 
 from ..ia import pesquisa, provedores
+from ..ia.desenho import INSTRUCOES_CHAT as INSTRUCOES_DESENHO, separar_desenho
 from ..ia.imagem import baixar as baixar_imagem, buscar as buscar_imagem_na_web, pedido_de_imagem as imagem_pedida
 from ..ia.imagem import titulo_do_link
 from ..ia.mente import (Conversa, ler_dica, ler_observacao, limpar_fala, pedido_dica, pedido_observacao,
@@ -56,14 +62,28 @@ TAMANHO_MINI = (32, 18)     # px da miniatura cinza que compara um print com o a
 QUASE_IGUAL = 0.025         # diferença média (0..1) abaixo disso: a tela não mudou o bastante
 
 
-def capturar_tela(retangulo_ativo=None, dpr=1.0):
-    """Print do monitor onde está a janela ativa, reduzido e em JPEG base64. None se não deu."""
+def tela_da_janela(retangulo_ativo=None, dpr=1.0):
+    """O QScreen do monitor onde está a janela ativa (o principal, se não souber). None se não houver."""
     tela = None
     if retangulo_ativo:
         meio = QPoint(int((retangulo_ativo[0] + retangulo_ativo[2]) / 2 / dpr),
                       int((retangulo_ativo[1] + retangulo_ativo[3]) / 2 / dpr))
         tela = QGuiApplication.screenAt(meio)
-    tela = tela or QGuiApplication.primaryScreen()
+    return tela or QGuiApplication.primaryScreen()
+
+
+def onde_fica(retangulo_ativo=None, dpr=1.0):
+    """(x, y, largura, altura) lógicos do monitor que o print fotografa, para desenhar em cima. None se não houver."""
+    tela = tela_da_janela(retangulo_ativo, dpr)
+    if tela is None:
+        return None
+    g = tela.geometry()
+    return (g.x(), g.y(), g.width(), g.height())
+
+
+def capturar_tela(retangulo_ativo=None, dpr=1.0):
+    """Print do monitor onde está a janela ativa, reduzido e em JPEG base64. None se não deu."""
+    tela = tela_da_janela(retangulo_ativo, dpr)
     if tela is None:
         return None
     imagem = tela.grabWindow(0).toImage()
@@ -110,6 +130,7 @@ class VisaoController(QObject):
     aviso = Signal(str)             # problema de configuração (mostrado na bandeja)
     imagem = Signal(str, bytes)     # (título, bytes) da imagem que você pediu, para projetar
     tocar = Signal(str)             # a IA decidiu tocar música (linha "TOCAR:"): o estilo, '' se ela não escolheu
+    desenho = Signal(object, object)    # (formas, monitor fotografado): a IA quer destacar algo na tela
     _pronto = Signal(str, object, int)      # da thread para a thread do Qt: (tipo, resultado, geração)
     _ferramenta = Signal(bool, int)         # o Hermes começou (True) ou terminou de usar uma ferramenta
 
@@ -140,6 +161,9 @@ class VisaoController(QObject):
         self.geracao = 0                    # muda no pânico/pausa: respostas antigas são descartadas
         self._pedido_seu = False            # a olhada a caminho foi pedida por você (pelo menu)
         self._pergunta = ""                 # a mensagem do chat que está sendo respondida
+        self._tela_print = None             # (x, y, largura, altura) do monitor do último print
+        self._onde_olhada = None            # o monitor do print da olhada a caminho
+        self._onde_conversa = None          # o monitor do print da conversa a caminho
         self._cliente = None
         self._cliente_de = None
         self._hermes = None
@@ -167,6 +191,15 @@ class VisaoController(QObject):
         """Permissão ligada, nada a caminho e já passou o intervalo desde a última pesquisa."""
         return (self.vendo() and self.perms["pesquisar"] and not self.pesquisando
                 and now - self.ultima_pesquisa >= self.app.prof["pesquisa_intervalo"])
+
+    def pode_desenhar(self):
+        """"Desenhar na tela" ligado (só vale vendo a tela: ele desenha sobre o que viu no print)."""
+        return self.vendo() and self.perms["desenhar"]
+
+    def assistindo_video(self):
+        """Ele está assistindo um vídeo com você (fica quieto)."""
+        video = getattr(self.app, "video", None)
+        return video is not None and video.ocupado()
 
     def com_hermes(self):
         """O chat passa pelo Hermes: IA, conversa e "Conectar ao Hermes" ligados."""
@@ -232,6 +265,11 @@ class VisaoController(QObject):
         except AttributeError:                         # app ainda montando (ou de teste)
             return ""
 
+    def conhecido(self, texto=""):
+        """O que ele aprendeu assistindo vídeos com você (mind/conhecimento.py), para o chat."""
+        conhecimento = getattr(self.app, "conhecimento", None)
+        return conhecimento.contexto(texto) if conhecimento is not None else ""
+
     def lembrado(self):
         """O que ele viu nos outros computadores (só com "Lembrar o que viu")."""
         return self.app.lembrancas.contexto() if self.perms["lembrar"] else ""
@@ -268,6 +306,7 @@ class VisaoController(QObject):
             self._falhou(str(erro), now)
             return
         imagem = self._print() if cliente.ve_imagem else None
+        self._onde_olhada = self._tela_print if imagem else None
         if imagem:
             mini = miniatura(imagem)
             if (jogo and not self._pedido_seu and diferenca(mini, self._mini) < QUASE_IGUAL
@@ -277,8 +316,10 @@ class VisaoController(QObject):
         self.ultimo_envio = now
         pergunta = pedido_observacao(senses.get_active_app(), senses.get_active_title(), self.app.activity,
                                      self.app.pet_state.emotion, self.ultimo_resumo,
-                                     self.estado(), self.ja_disse, self.lembrado(), self.pode_pesquisar(now),
-                                     jogo)
+                                     self.estado(), self.ja_disse, self.lembrado(),
+                                     self.pode_pesquisar(now) and not self.assistindo_video(), jogo,
+                                     desenhar=bool(imagem) and self.pode_desenhar() and not self.assistindo_video(),
+                                     video=self.perms["videos"] and not self.assistindo_video())
         self.olhando = True
         self._em_thread("observacao", cliente, [{"role": "user", "content": pergunta}], imagem)
 
@@ -293,9 +334,13 @@ class VisaoController(QObject):
         """Print da tela agora, na thread do Qt (a captura não pode ser feita fora dela)."""
         dpr = QGuiApplication.primaryScreen().devicePixelRatio()
         try:
-            return capturar_tela(senses.foreground_rect(dpr), dpr)
+            retangulo = senses.foreground_rect(dpr)
+            imagem = capturar_tela(retangulo, dpr)
+            self._tela_print = onde_fica(retangulo, dpr) if imagem else None
+            return imagem
         except Exception as erro:                      # tela bloqueada, sem permissão de captura...
             log(f"[visão] sem print: {erro}")
+            self._tela_print = None
             return None
 
     # ---------------- conversar ----------------
@@ -317,8 +362,11 @@ class VisaoController(QObject):
                 self.erro_conversa.emit(str(erro))
                 return False
         imagem = self._print() if cliente is not None and self.vendo() and cliente.ve_imagem else None
+        self._onde_conversa = self._tela_print if imagem else None
         mensagens = self.conversa.mensagens(texto, self.ultimo_resumo if self.vendo() else "", self.estado(),
-                                            self.lembrado(), log_recente())
+                                            self.lembrado(), log_recente(), self.conhecido(texto))
+        if imagem and self.pode_desenhar():
+            mensagens[-1] = dict(mensagens[-1], content=mensagens[-1]["content"] + "\n" + INSTRUCOES_DESENHO)
         self.respondendo = True
         self._pergunta = texto
         termo = imagem_pedida(texto) if self.perms["pesquisar"] else None
@@ -469,10 +517,13 @@ class VisaoController(QObject):
             if isinstance(resultado, Exception):
                 self.erro_conversa.emit(str(resultado))
             elif not self.app._congelado():
+                resultado, formas = separar_desenho(resultado)
                 resultado, estilo = separar_tocar(resultado)
                 self._respondido(limpar_fala(resultado) or "Bora!")
                 if estilo is not None:
                     self.tocar.emit(estilo)             # a IA entendeu que você pediu música
+                if formas and self._onde_conversa and self.pode_desenhar():
+                    self.desenho.emit(formas, self._onde_conversa)
 
     def _entender(self, obs, pedido=False):
         """O que ele viu vira sinal para a rede e, às vezes, um comentário."""
@@ -488,16 +539,23 @@ class VisaoController(QObject):
         if self.debugging():
             log("[visão] sinais " + " ".join(f"{k[6:].lower()}={v:.2f}" for k, v in obs.sinais.items()))
         now = time.monotonic()
-        if obs.pesquisar and self.pode_pesquisar(now):
+        if obs.video and self.perms["videos"] and getattr(app, "video", None) is not None:
+            app.video.viu_video(now)                   # um vídeo com fala: ele começa a assistir junto
+        quieto = self.assistindo_video() and not pedido     # assistindo: só presta atenção
+        if obs.pesquisar and self.pode_pesquisar(now) and not quieto:
             self.pesquisar(obs.pesquisar, now)
         comentario = obs.comentario or (obs.resumo if pedido else "")
         if not pedido and self.em_jogo() and now - self.ultima_fala < app.prof["fala_jogo"]:
             comentario = ""                            # em jogo ele olha muito: fala bem menos do que vê
+        if quieto:
+            comentario = ""
         if comentario and (pedido or self.perms["comentarios"]):
             self.ja_disse = (self.ja_disse + [comentario])[-JA_DISSE:]
             if not pedido:
                 self.ultima_fala = now
             self.fala.emit(comentario)
+            if obs.desenhar and self._onde_olhada and self.pode_desenhar():
+                self.desenho.emit(obs.desenhar, self._onde_olhada)   # o desenho vem junto do comentário
 
     def _respondido(self, texto):
         """Resposta do chat: mostra, guarda na conversa e conta como atenção sua."""

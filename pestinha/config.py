@@ -55,6 +55,8 @@ DEFAULT_PERMISSIONS = {
     "ver_tela": False,         # print da tela + título da janela vão para o modelo de IA
     "comentarios": True,       # ele comenta em balão o que vê (só com ver_tela)
     "jogos": False,            # em jogo, ele olha bem mais seguido para acompanhar a partida (só com ver_tela)
+    "desenhar": True,          # ele pode desenhar por cima da tela para mostrar algo (só com ver_tela)
+    "videos": False,           # ouve o som do computador num vídeo, fica quieto e depois resume (precisa de ia)
     "conversa": True,          # chat por texto pelo menu do pet
     "pesquisar": False,        # "Conectar ao Hermes": o chat passa por ele (pesquisa, memória) e ele pesquisa o que vê na tela
     "hermes_url": "",          # onde está a API do Hermes; vazio: este computador, porta 8642
@@ -114,6 +116,18 @@ PERMISSION_GROUPS = [
          "comentando, sem passear nem aprontar; a tela cheia do jogo não esconde ele no outro monitor. Com um "
          "monitor só, para ele aparecer por cima do jogo, ligue também \"Aparecer em tela cheia\" e jogue em "
          "janela sem borda."),
+        ("desenhar", "Desenhar na tela",
+         "Quando quer te mostrar algo que está na tela (um erro, um botão, algo que chamou a atenção dele), ele "
+         "rabisca um círculo, um quadrado, uma seta ou um ícone por cima, por alguns segundos. Peça no chat: "
+         "\"me mostra onde fica o botão de salvar\". O desenho não recebe clique e some sozinho (ou quando "
+         "você mexe nele). Só com \"Ver minha tela\"."),
+        ("videos", "Assistir vídeos comigo",
+         "Peça \"assiste esse vídeo comigo\" (ou pelo menu; com \"Ver minha tela\", ele percebe sozinho quando "
+         "você está vendo uma aula, tutorial ou podcast): ele ouve o som do computador, fica quietinho "
+         "prestando atenção e, quando o vídeo acaba (ou você pede \"resume o vídeo\"), resume e guarda o que "
+         "aprendeu em memory/pets/<pet>/conhecimento.jsonl, para conversar sobre isso depois. O áudio vai para "
+         "o serviço de voz (o mesmo de \"Falar com ele\") e o texto ouvido vai para o modelo de IA; nenhum dos "
+         "dois é gravado, só o resumo."),
         ("pesquisar", "Conectar ao Hermes (pesquisa e memória)",
          "O chat e a voz passam pelo Hermes: ele responde como o pet, pesquisa na internet quando precisa e "
          "vai aprendendo sobre você (a memória dele é a mesma em todos os seus computadores). Se o Hermes "
@@ -214,6 +228,7 @@ PROFILES = {
         "visao_jogo": 4.0,           # s entre olhadas em jogo, com o Ollama ("Acompanhar jogos")
         "visao_jogo_nuvem": 20.0,    # s entre olhadas em jogo, com uma API paga
         "fala_jogo": 12.0,           # s mínimos entre um comentário e outro em jogo
+        "video_silencio": 40.0,      # s sem som nenhum: o vídeo acabou (ou foi pausado) e ele resume
     },
     "normal": {
         "mischief_interval": (300.0, 900.0),
@@ -249,6 +264,7 @@ PROFILES = {
         "visao_jogo": 8.0,           # Ollama: ~0,7 s por olhada no gemma4:e4b, sobra placa para o jogo
         "visao_jogo_nuvem": 60.0,    # API paga: ~1 olhada por minuto em jogo
         "fala_jogo": 45.0,           # olhar rápido não é falar sem parar
+        "video_silencio": 240.0,     # 4 min sem som: pausa curta não encerra o vídeo
     },
 }
 

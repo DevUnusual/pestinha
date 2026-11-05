@@ -70,6 +70,33 @@ a sua fala em texto.
 - O pânico, a pausa ou desligar a voz fecham o microfone na hora e descartam o texto que ainda estava a
   caminho.
 
+## Assistir vídeos comigo (desligado por padrão)
+
+Só vale com **Usar IA** e **Assistir vídeos comigo** ligados.
+
+- **Quando ele ouve:** depois que você pede ("assiste esse vídeo comigo", ou pelo menu) ou, com **Ver minha
+  tela** ligado, quando a olhada da IA diz que você está vendo um vídeo com fala (ele avisa no balão e fica
+  com a orelha para a frente o tempo todo). Para quando você pede ("resume o vídeo", "pode parar de
+  assistir", ou pelo menu), depois de 4 minutos sem som nenhum, ou em 3 horas.
+- **O que ele ouve:** o som que sai do computador (loopback: o que vai para a caixa ou o fone), nunca o
+  microfone. Isso inclui qualquer som que estiver tocando, não só o vídeo; a música do próprio Pestinha é
+  pausada.
+- **Para onde vai:** cada pedaço de 20 s com som vai para o **serviço de voz** (o mesmo de "Falar com ele",
+  `servidor/voz/`); o texto que volta vai para o **provedor de IA** escolhido, para anotar e resumir, junto
+  com o título da janela (só com **Ver minha tela**). Com **Conectar ao Hermes**, o resumo final vai também
+  para a memória do Hermes.
+- **O que fica gravado:** só o resumo (título, algumas frases e os pontos principais), em
+  `memory/pets/<pet>/conhecimento.jsonl`, para ele conversar sobre o vídeo depois. Com a memória
+  compartilhada, esse arquivo vai para o seu serviço de memória. O áudio e a transcrição ficam só na memória
+  e nunca vão para o disco nem para o log.
+- O pânico, a pausa ou desligar a permissão param de ouvir na hora e jogam fora o que foi ouvido.
+
+## Desenhar na tela (ligado por padrão, só com Ver minha tela)
+
+O modelo que olhou o print pode pedir um círculo, um quadrado, uma seta ou um ícone sobre um ponto do print;
+o Pestinha desenha por cima do monitor por alguns segundos. O desenho não recebe clique, não rouba o foco e
+não lê nada da tela além do que **Ver minha tela** já manda.
+
 ## Conectar ao Hermes (desligado por padrão)
 
 Só vale com **Usar IA**, **Conversar por texto** e **Conectar ao Hermes (pesquisa e memória)** ligados.

@@ -735,6 +735,8 @@ class SettingsDialog(QDialog):
             self.boxes[key].setEnabled(ia)
         self.boxes["comentarios"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["jogos"].setEnabled(ia and self.perms["ver_tela"])
+        self.boxes["desenhar"].setEnabled(ia and self.perms["ver_tela"])
+        self.boxes["videos"].setEnabled(ia)
         self.boxes["voz"].setEnabled(ia and self.perms["conversa"])
         self.boxes["lembrar"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["pesquisar"].setEnabled(ia and self.perms["ver_tela"])
@@ -746,7 +748,7 @@ class SettingsDialog(QDialog):
             for campo in (self.memoria_campo, self.memoria_botao):
                 campo.setEnabled(self.perms["memoria_compartilhada"])
         if hasattr(self, "voz_campo"):
-            com_voz = ia and self.perms["conversa"] and self.perms["voz"]
+            com_voz = ia and (self.perms["conversa"] and self.perms["voz"] or self.perms["videos"])
             for campo in (self.voz_campo, self.voz_botao):
                 campo.setEnabled(com_voz)
         if hasattr(self, "provedor_combo"):

@@ -10,6 +10,9 @@ numpy>=2.4.6
 # Música opcional (pedir no chat "toca um lo-fi"): busca e rádio do YouTube Music, e o áudio pelo yt-dlp
 ytmusicapi>=1.12
 yt-dlp>=2026.10.26
+# Vídeo opcional ("Assistir vídeos comigo"): ouve o som que sai do computador (loopback; no macOS só com
+# um driver como o BlackHole)
+soundcard>=0.4.4
 # Atalho global no Linux; Windows usa a API do sistema e macOS usa QuickMacHotKey
 pynput>=1.7.7; sys_platform == "linux"
 # Windows: leitura das janelas e do teclado

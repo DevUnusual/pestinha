@@ -20,6 +20,7 @@ import re
 from dataclasses import dataclass, field
 
 from ..mathutil import clamp
+from .desenho import INSTRUCOES_OLHADA, ler_formas
 
 SINAIS = {
     "graca": "VISAO_GRACA",        # algo engraçado, fofo ou divertido na tela
@@ -77,7 +78,8 @@ def prompt_sistema(nome, persona=None, temperamento="", exemplos=(), evitar=()):
         partes.append("Nunca diga nada parecido com: " + " | ".join(f'"{e}"' for e in evitar))
     partes.append(
         "Regras: responda sempre em português do Brasil, em no máximo duas frases curtas. Você não "
-        "consegue clicar, digitar nem mexer em nada no computador: só observa, conversa e toca música. Não "
+        "consegue clicar, digitar nem mexer em nada no computador: só observa, conversa, toca música, "
+        "assiste vídeos junto e, quando faz sentido, rabisca na tela para mostrar algo. Não "
         "repita dados pessoais, senhas, números ou nomes que aparecerem na tela. Se não entender a tela, diga "
         "isso com graça."
     )
@@ -95,17 +97,24 @@ def bloco_lembrancas(lembrancas):
     return f"[Suas lembranças: {lembrancas}]\n" if lembrancas else ""
 
 
+def bloco_conhecimento(conhecimento):
+    """O que ele aprendeu assistindo vídeos com você (mind/conhecimento.py), como prefixo (vazio se nada)."""
+    return f"[O que você aprendeu em vídeos: {conhecimento}]\n" if conhecimento else ""
+
+
 def bloco_registro(linhas):
     """As últimas linhas do log dele (log.recentes), como prefixo de uma mensagem (vazio se não houver)."""
     return f"[Seu registro recente: {'; '.join(linhas)}]\n" if linhas else ""
 
 
 def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", estado="", ja_disse=(),
-                      lembrancas="", pesquisa=False, jogo=False):
+                      lembrancas="", pesquisa=False, jogo=False, desenhar=False, video=False):
     """Pergunta da observação periódica. A resposta vem em JSON (ver ler_observacao).
 
     Com `pesquisa`, o JSON ganha o campo "pesquisar": um termo para ele procurar na internet (pelo Hermes).
     Com `jogo`, ele acompanha a partida: repara no que mudou e comemora ou zoa (ver "Acompanhar jogos").
+    Com `desenhar`, ganha "desenhar": formas para destacar algo na tela (ia/desenho.py).
+    Com `video`, ganha "video": se a pessoa está vendo um vídeo com fala (ele começa a assistir junto).
     """
     contexto = [f"Programa em primeiro plano: {programa or 'desconhecido'}."]
     if titulo:
@@ -122,7 +131,8 @@ def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", est
         '{"resumo": "o que ela está fazendo, em até 12 palavras", '
         '"comentario": "uma fala sua para ela, no seu jeito, ou \\"\\" se for melhor ficar quieto", '
         '"graca": 0.0, "erro": 0.0, "foco": 0.0, "novidade": 0.0'
-        + (', "pesquisar": ""' if pesquisa else "") + '}\n'
+        + (', "pesquisar": ""' if pesquisa else "") + (', "desenhar": []' if desenhar else "")
+        + (', "video": false' if video else "") + '}\n'
         "graca, erro, foco e novidade vão de 0 a 1: algo engraçado ou divertido na tela; um erro de "
         "verdade (mensagem de erro, teste falhando; código normal não é erro); a pessoa concentrada em "
         "algo sério; algo novo em relação à última olhada. "
@@ -138,6 +148,10 @@ def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", est
            "um assunto) e uma curiosidade ou dica ajudaria, ponha em \"pesquisar\" o que procurar, em até 6 "
            "palavras, sem nomes de pessoas, e-mails, senhas, números ou qualquer dado pessoal da tela. Quase "
            "sempre deixe vazio." if pesquisa else "")
+        + (INSTRUCOES_OLHADA if desenhar else "")
+        + (' "video" é true só se ela está assistindo um vídeo com gente falando (aula, tutorial, palestra, '
+           "podcast, notícia, análise) no player ou no navegador; clipe de música, jogo ou vídeo parado é false."
+           if video else "")
     )
 
 
@@ -203,6 +217,8 @@ class Observacao:
     comentario: str = ""
     sinais: dict = field(default_factory=dict)      # canal da rede -> 0..1
     pesquisar: str = ""                             # termo para pesquisar na internet (vazio: nada)
+    desenhar: list = field(default_factory=list)    # formas para destacar na tela (ia/desenho.Forma)
+    video: bool = False                             # ela está vendo um vídeo com fala
 
 
 def _numero(valor):
@@ -213,7 +229,8 @@ def _numero(valor):
 
 
 # Modelos pequenos às vezes repetem o começo da mensagem: "[Seu estado agora: ...]" não é fala dele.
-_ECO = re.compile(r"\[\s*(?:Seu estado agora|Suas lembranças|Seu registro recente|O que você viu na tela por último)"
+_ECO = re.compile(r"\[\s*(?:Seu estado agora|Suas lembranças|Seu registro recente|O que você viu na tela por último"
+                  r"|O que você aprendeu em vídeos|Você pode desenhar)"
                   r"\s*:[^\]]*\]?\s*",
                   re.IGNORECASE)
 _ROTULO = re.compile(r"^\[[^\]]{1,40}\]\s*:?\s*")    # um rótulo curto entre colchetes no começo da fala
@@ -248,6 +265,8 @@ def ler_observacao(texto):
         comentario=limpar_fala(dados.get("comentario", "")),
         sinais={canal: _numero(dados.get(chave)) for chave, canal in SINAIS.items()},
         pesquisar=limpar_fala(dados.get("pesquisar") if isinstance(dados.get("pesquisar"), str) else "")[:MAX_TERMO],
+        desenhar=ler_formas(dados.get("desenhar")),
+        video=dados.get("video") is True,
     )
 
 
@@ -264,11 +283,12 @@ class Conversa:
         """Começa sem nada."""
         self.turnos = []
 
-    def mensagens(self, texto, contexto="", estado="", lembrancas="", registro=()):
-        """Mensagens para o modelo: o histórico e a fala nova (com o estado da rede, as lembranças, o log
-        recente dele e a tela)."""
+    def mensagens(self, texto, contexto="", estado="", lembrancas="", registro=(), conhecimento=""):
+        """Mensagens para o modelo: o histórico e a fala nova (com o estado da rede, as lembranças, o que
+        aprendeu em vídeos, o log recente dele e a tela)."""
         nova = texto if not contexto else f"[O que você viu na tela por último: {contexto}]\n{texto}"
-        prefixo = bloco_estado(estado) + bloco_lembrancas(lembrancas) + bloco_registro(registro)
+        prefixo = (bloco_estado(estado) + bloco_lembrancas(lembrancas) + bloco_conhecimento(conhecimento)
+                   + bloco_registro(registro))
         return self.turnos + [{"role": "user", "content": prefixo + nova}]
 
     def registrar(self, texto, resposta):

@@ -60,6 +60,11 @@ class PetPaths:
         return self.base / "musica.json"
 
     @property
+    def conhecimento(self):
+        """O que ele aprendeu assistindo vídeos com você: título, resumo e pontos de cada um."""
+        return self.base / "conhecimento.jsonl"
+
+    @property
     def drives(self):
         """Homeostase: energia, estimulação e carência."""
         return self.base / "drives.json"

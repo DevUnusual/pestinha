@@ -12,6 +12,7 @@ import time
 from PySide6.QtWidgets import QMenu
 from ..body.pet import cursor_pos
 from ..ia.musica import comando_de_musica, pedido_de_musica, volume_pedido
+from ..ia.video import pedido_de_video
 from ..ui.conversa import ConversaJanela
 from ..ajustes import (
     INSATISFACAO_NOTEBOOK,
@@ -135,6 +136,11 @@ class InteracaoMixin:
         item("Conversar...", self.menu_conversar, perms["ia"] and perms["conversa"])
         item("O que você está vendo?", self.visao.olhar_agora,
              perms["ia"] and perms["ver_tela"] and not self.visao.olhando)
+        if self.video.ativo:
+            item("Parar e resumir o vídeo", lambda: self._mostrar_fala(self.video.parar(por_voce=True)))
+        else:
+            item("Assistir o vídeo comigo", self.menu_assistir_video,
+                 perms["ia"] and perms["videos"] and not self.video.ocupado())
         if self.musica.ativa():
             item("Pular a música", lambda: self._comando_do_cartao("pular"))
             item("Parar a música", lambda: self._comando_do_cartao("parar"))
@@ -193,6 +199,24 @@ class InteracaoMixin:
         if not self.mesa.sentado:
             self.pet_state.desk_top = None
 
+    def menu_assistir_video(self):
+        """Menu: 'Assistir o vídeo comigo' (ele ouve o som do computador e resume no fim)."""
+        self._mostrar_fala(self.video.comecar())
+
+    def _video_pelo_chat(self, texto):
+        """
+        'assiste esse vídeo comigo' começa; 'resume o vídeo' ou 'pode parar de assistir' termina e resume.
+        Devolve o que ele responde, ou None se a mensagem não era sobre vídeo (ou a permissão está desligada).
+        """
+        if self._congelado() or not (self.perms["ia"] and self.perms["videos"]):
+            return None
+        pedido = pedido_de_video(texto)
+        if pedido == "comecar":
+            return self.video.comecar()
+        if pedido == "parar":
+            return self.video.parar(por_voce=True) or "Beleza!"
+        return None
+
     def menu_conversar(self):
         """Menu: 'Conversar' (abre o chat por texto; a resposta aparece no chat e no balão)."""
         if self.conversa_janela is None:
@@ -217,7 +241,7 @@ class InteracaoMixin:
         """Você mandou uma mensagem: ele começa a pensar (ou explica por que não dá agora)."""
         janela = self.conversa_janela
         janela.set_aviso(self.visao.descricao())
-        resposta = self._musica_pelo_chat(texto)
+        resposta = self._video_pelo_chat(texto) or self._musica_pelo_chat(texto)
         if resposta:
             janela.adicionar(self.nome, resposta)
             self._mostrar_fala(resposta)
@@ -234,7 +258,7 @@ class InteracaoMixin:
         janela = self.conversa_janela
         if janela is not None and janela.isVisible():
             janela.adicionar("Você", texto)
-        resposta = self._musica_pelo_chat(texto)
+        resposta = self._video_pelo_chat(texto) or self._musica_pelo_chat(texto)
         if resposta:
             if janela is not None and janela.isVisible():
                 janela.adicionar(self.nome, resposta)

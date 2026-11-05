@@ -53,4 +53,5 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_plataforma.py` | Plataforma: cada sistema expõe as mesmas funções, e as leituras de texto (wmctrl, xdotool, ioreg, janelas do Quartz) são testadas com saídas de exemplo, em qualquer sistema. |
 | `test_robustez.py` | Robustez: arquivo corrompido, assets faltando, log em arquivo. |
 | `test_robustez_v2.py` | Falhas do relatório técnico (docs/auditorias/ANALISE_TECNICA.md): cada caso tem um teste que reproduz o problema. |
+| `test_video_desenho.py` | Assistir vídeos (ouvir, anotar, resumir e guardar) e desenhar na tela: o texto do modelo, o conhecimento em disco, a janela do desenho e os controladores dentro do app de verdade (Qt offscreen, pasta temporária, som e modelo falsos). |
 | `test_voz.py` | Voz: o áudio e o cliente do serviço de transcrição (com um servidor HTTP falso nesta máquina) e o controlador dentro do app de verdade (Qt offscreen, microfone falso). |

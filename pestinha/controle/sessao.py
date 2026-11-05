@@ -34,6 +34,8 @@ class SessaoMixin:
             self.visao.cancelar()                  # desligou a IA ou a visão: o que estava a caminho não vale
         if not self.voz.ligada():
             self.voz.cancelar()                    # desligou a voz: o microfone fecha na hora
+        if not self.video.ligado():
+            self.video.cancelar()                  # desligou os vídeos: para de ouvir na hora
         self.voz.registrar_atalho()
         self.atualizar_microfone()
         self._apply_settings()
@@ -77,6 +79,7 @@ class SessaoMixin:
             self.revolucao.esconder()
             self.balao.esconder()                    # o balão e a projeção só seguem o pet enquanto ele aparece
             self.holograma.esconder()
+            self.rabisco.esconder()
             self.tocando.hide()                      # a música continua; o cartão volta com ele
         self.floats.sync(self.floats_allowed(), self.floats_base())
         self.protest_ctl.set_visible(visible, self.asleep)
@@ -115,9 +118,11 @@ class SessaoMixin:
             self._pausado_em = now
             self.visao.cancelar()
             self.voz.cancelar()
+            self.video.cancelar()
             self.musica.pausar()
             self.balao.esconder()
             self.holograma.esconder()
+            self.rabisco.esconder()
         else:
             if self._pausado_em is not None:
                 parado = now - self._pausado_em
@@ -149,9 +154,11 @@ class SessaoMixin:
         self.store.panic()
         self.visao.cancelar()                      # nada da IA chega depois do pânico
         self.voz.cancelar()                        # o microfone fecha na hora
+        self.video.cancelar()                      # e ele para de ouvir o vídeo
         self.musica.parar()                        # e o som para
         self.balao.esconder()
         self.holograma.esconder()
+        self.rabisco.esconder()
         self.tocando.hide()
         if self.conversa_janela:
             self.conversa_janela.hide()
@@ -259,9 +266,11 @@ class SessaoMixin:
         self._enviar_memoria(agora=True)
         self.visao.cancelar()
         self.voz.cancelar()
+        self.video.cancelar()
         self.musica.parar()
         self.balao.esconder()
         self.holograma.esconder()
+        self.rabisco.esconder()
         self.tocando.close()
         if self.conversa_janela:
             self.conversa_janela.close()

@@ -16,4 +16,5 @@ Objetos que aparecem na tela: post-its, memes, cartazes, notebook, fogos, o bal�
 | `mischief.py` | Memes, fotos e bilhetes que o pet espalha pela tela. |
 | `notebook.py` | O notebook do pet (só o desenho e o arrastar). |
 | `objetos.py` | Os post-its, memes e fotos que o pet traz, como janelas na tela. |
+| `rabisco.py` | Ele desenha por cima da sua tela para te mostrar algo: um círculo, um quadrado, uma seta ou um ícone, como quem rabisca com caneta marca-texto. |
 | `tocando.py` | O cartãozinho "tocando agora" ao lado do pet, com 👍 👎 ⏭ ⏸ 📌 ✕ e a barra de volume. |

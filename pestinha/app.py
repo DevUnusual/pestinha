@@ -71,7 +71,10 @@ from .mind.musica_ctl import MusicaController
 from .mind.protest_ctl import ProtestController
 from .mind.revolucao import RevolucaoController
 from .mind.sleep import SleepController
+from .mind.video_ctl import VideoController
 from .mind.visao import VisaoController
+from .mind.conhecimento import Conhecimento
+from .world.rabisco import Rabisco
 from .mind.voz_ctl import VozController
 from .paths import Paths
 from .sense import senses
@@ -214,6 +217,12 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.tocando.volume.connect(self.musica.mudar_volume)
         self.musica.mudou.connect(lambda: self.tocando.atualizar(self.musica))
         self.visao.tocar.connect(self.tocar_musica)     # pedido de música que só a IA entendeu
+        self.rabisco = Rabisco()                        # a IA desenha por cima da tela para mostrar algo
+        self.visao.desenho.connect(self._desenhar)
+        self.conhecimento = Conhecimento(self.pet_paths.conhecimento, memoria_remota.maquina_atual())
+        self.video = VideoController(self, self.nome)   # assiste vídeos com você e resume
+        self.video.fala.connect(self._mostrar_fala)
+        self.video.resumo.connect(self._resumo_do_video)
 
         # ----- reflexos e medições -----
         self.in_flight = False      # voando depois de um arremesso
@@ -240,6 +249,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             f"{self.nome} · voz", texto, QSystemTrayIcon.Warning, 6000))
         self.musica.aviso.connect(lambda texto: self.tray.icon.showMessage(
             f"{self.nome} · música", texto, QSystemTrayIcon.Warning, 6000))
+        self.video.aviso.connect(lambda texto: self.tray.icon.showMessage(
+            f"{self.nome} · vídeo", texto, QSystemTrayIcon.Warning, 6000))
         self.hotkey = PanicHotkey()
         self.hotkey.pressed.connect(self.panic)
         self.wiping = False         # True depois de "apagar tudo": não grava mais nada ao sair
@@ -505,6 +516,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         st.emotion = emotion
         self.behavior.on_emotion(emotion, time.monotonic())
         self.visao.tick(now)
+        self.video.tick(now)
         self._atualizar_mente(now)
 
     def _atualizar_mente(self, agora):
@@ -515,8 +527,10 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             mente.add("olhando")
         if v.pesquisando or v.buscando_imagem or v.ferramentas:
             mente.add("pesquisando")                  # o Hermes usando uma ferramenta: IA vilã
-        elif v.respondendo or self.voz.transcrevendo:
+        elif v.respondendo or self.voz.transcrevendo or self.video.resumindo:
             mente.add("pensando")                     # pensando na resposta: detetive
+        if self.video.ativo:
+            mente.add("ouvindo")                      # assistindo um vídeo: orelha para a frente, quietinho
         if self.holograma.visivel(agora):
             mente.add("projetando")
         jogando = v.em_jogo()
@@ -557,8 +571,19 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
                 self.conversa_janela.adicionar_imagem(self.nome, titulo, imagem)
 
     def fechar_projecao(self):
-        """Você mexeu nele (cutucou, pegou, fez carinho): a imagem fecha e ele volta a passear."""
+        """Você mexeu nele (cutucou, pegou, fez carinho): a imagem fecha, o desenho some e ele volta a passear."""
         self.holograma.fechar(time.monotonic())
+        self.rabisco.apagar(time.monotonic())
+
+    def _desenhar(self, formas, onde):
+        """A IA quer te mostrar algo: rabisca por cima do monitor que ela viu (só com o pet aparecendo)."""
+        if self.pet.isVisible() and not self._congelado():
+            self.rabisco.desenhar(formas, onde, time.monotonic())
+
+    def _resumo_do_video(self, texto):
+        """O resumo do vídeo chegou: vai para o chat (aberto ou na próxima vez que abrir)."""
+        if self.conversa_janela is not None:
+            self.conversa_janela.adicionar(self.nome, texto)
 
     def frame(self):
         """Um quadro da tela: move o corpo pela física e atualiza a animação do pet."""
@@ -621,6 +646,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         if self.pet_state.caress_until - DURACAO_CARINHO > self.holograma.desde:
             self.holograma.fechar(now)              # carinho com o mouse depois que a imagem apareceu
         self.holograma.seguir(body.x, body.y - PET_CY, now)
+        self.rabisco.seguir(now)
         topo = self.holograma.topo() if self.holograma.visivel(now) else body.y - 70
         self.balao.seguir(body.x, topo, now)
         self.tocando.seguir(body.x, body.y, bounds, self.musica.ativa())
