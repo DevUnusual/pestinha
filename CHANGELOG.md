@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## Bob vira assistente de bordo
+
+- **O Bob deixa de ser marrento e vira um assistente de bordo** (`pets/bryan.json`): educado, prestativo e
+  com humor seco. Pergunta quando falta contexto, aponta erro ou risco com franqueza, pode discordar
+  (uma vez, explicando o porquê) e sugere alternativas concretas. Respeita a decisão final e nunca mais
+  pergunta se o que você faz "vai dar em algo".
+- **A olhada na tela não manda mais questionar** "se é importante, no que vai dar" (vale para todos os
+  pets): agora é interesse no assunto e, se ele vir um jeito melhor, uma sugestão em uma frase.
+
 ## Conversar também é carinho
 
 - **Falar ou escrever com ele conta como atenção**, na hora em que você fala (atalho, chamado pelo nome ou
