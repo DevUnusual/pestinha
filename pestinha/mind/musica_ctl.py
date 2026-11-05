@@ -52,6 +52,7 @@ class MusicaController(QObject):
         self.fila = []                  # músicas candidatas (Faixa), na ordem em que chegaram
         self.tocadas = []               # ids que já tocaram nesta sessão
         self.atual = None
+        self.capa = None                # bytes da capa da música da vez (None: ainda não chegou ou não tem)
         self.opiniao = None             # "gostei" / "nao_gostei" já dado para a atual
         self.carregando = False         # buscando a fila ou o áudio da próxima
         self.pausada = False
@@ -202,6 +203,7 @@ class MusicaController(QObject):
         self.geracao += 1
         faixa = musica.escolher(self.fila, self.gosto, self.tocadas, self.curiosidade())
         self.atual, self.opiniao, self.pausada = faixa, None, False
+        self.capa = None
         if faixa is None:
             self.carregando = True
             self._encher(forcar=True)           # acabou a fila: o rádio traz mais e aí ela continua
@@ -211,6 +213,7 @@ class MusicaController(QObject):
         self.carregando = True
         self._retomar_em, self._retomadas = None, 0
         self._rodar("audio", lambda: musica.baixar_audio(faixa.video_id, self.pasta))
+        self._rodar("capa", lambda: musica.baixar_capa(faixa))
         self._encher()
         self.mudou.emit()
 
@@ -261,6 +264,11 @@ class MusicaController(QObject):
             return
         if geracao != self.geracao or not self.ativa():
             return                              # você pulou, parou ou pediu outra no meio do caminho
+        if tipo == "capa":                      # capa é enfeite: sem ela, o disquinho fica liso
+            if not isinstance(resultado, Exception):
+                self.capa = resultado
+                self.mudou.emit()
+            return
         if isinstance(resultado, Exception):
             log(f"[música] {resultado}")
             if tipo == "fila":
@@ -310,6 +318,16 @@ class MusicaController(QObject):
             self._player.errorOccurred.connect(lambda _erro, texto: self._ao_erro(texto))
         self._player.setSource(QUrl.fromLocalFile(str(caminho)))
         self._player.play()
+
+    def progresso(self):
+        """(segundos tocados, duração em segundos) da música da vez; (0, 0) sem música."""
+        if self.atual is None:
+            return 0.0, 0.0
+        posicao = duracao = 0.0
+        if self._player is not None and not self.carregando:
+            posicao = max(0.0, self._player.position() / 1000)
+            duracao = max(0.0, self._player.duration() / 1000)
+        return posicao, duracao or float(self.atual.duracao)
 
     def _parar_player(self):
         """Para o som (sem mexer na fila)."""

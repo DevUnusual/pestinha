@@ -13,6 +13,7 @@ mind/musica_ctl.py).
     radio(video_id)            músicas parecidas com uma (o "rádio" do YouTube Music)
     baixar_audio(video_id, pasta)   baixa o áudio (m4a) pelo yt-dlp numa pasta temporária, para o
                                QMediaPlayer tocar do disco (do link direto, cortava no meio)
+    link_da_capa(faixa) / baixar_capa(faixa)   a capa da música (para o disquinho do cartão)
 
 Para o YouTube vai só o estilo que você pediu e os ids das músicas: nunca a conversa, a tela ou o
 gosto guardado. ytmusicapi e yt-dlp são opcionais: sem eles, ErroMusica explica o que instalar.
@@ -23,7 +24,7 @@ import math
 import random
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 DURACAO_MIN = 60                # s: menos que isso é vinheta
@@ -37,6 +38,7 @@ EVENTOS = {                     # quanto cada coisa mexe na nota do artista
 }
 MAX_LISTA = 300                 # ids guardados em curtidas e banidas
 VOLUME_PADRAO = 0.5
+CAPA_PX = 240                   # px da capa pedida ao YouTube Music
 PASSO_VOLUME = 0.15             # "aumenta o volume" / "abaixa o som"
 INSTALAR = "para tocar música, instale: pip install yt-dlp ytmusicapi"
 
@@ -47,11 +49,12 @@ class ErroMusica(Exception):
 
 @dataclass(frozen=True)
 class Faixa:
-    """Uma música: o id do YouTube, o título, os artistas e a duração (s, 0 se não sabe)."""
+    """Uma música: o id do YouTube, o título, os artistas, a duração (s, 0 se não sabe) e o link da capa."""
     video_id: str
     titulo: str
     artistas: tuple = ()
     duracao: int = 0
+    capa: str = field(default="", compare=False)     # a mesma música com outra miniatura é a mesma música
 
     @property
     def artista(self):
@@ -301,7 +304,31 @@ def faixa_de(item):
     if duracao and not DURACAO_MIN <= duracao <= DURACAO_MAX:
         return None
     artistas = tuple(a["name"] for a in item.get("artists") or [] if isinstance(a, dict) and a.get("name"))
-    return Faixa(item["videoId"], str(item.get("title") or "?"), artistas, int(duracao or 0))
+    return Faixa(item["videoId"], str(item.get("title") or "?"), artistas, int(duracao or 0), _capa_de(item))
+
+
+def _capa_de(item):
+    """O link da maior miniatura do resultado ('thumbnails' na busca, 'thumbnail' no rádio), ou ''."""
+    miniaturas = item.get("thumbnails") or item.get("thumbnail") or []
+    validas = [m for m in miniaturas if isinstance(m, dict) and str(m.get("url", "")).startswith("https://")]
+    if not validas:
+        return ""
+    url = max(validas, key=lambda m: m.get("width") or 0)["url"]
+    return re.sub(r"=w\d+-h\d+", f"=w{CAPA_PX}-h{CAPA_PX}", url)     # googleusercontent: pede maior
+
+
+def link_da_capa(faixa):
+    """O link da capa: a miniatura que o YouTube Music mandou ou, sem ela, a do vídeo."""
+    return faixa.capa or f"https://i.ytimg.com/vi/{faixa.video_id}/hqdefault.jpg"
+
+
+def baixar_capa(faixa):
+    """Bytes da capa (jpg/png/webp). Levanta ErroMusica se não deu."""
+    from .imagem import baixar
+    try:
+        return baixar(link_da_capa(faixa))
+    except Exception as erro:
+        raise ErroMusica(f"sem capa ({type(erro).__name__}: {erro})") from erro
 
 
 def _ytmusic():

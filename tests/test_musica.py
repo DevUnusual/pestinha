@@ -162,6 +162,7 @@ def app(tmp_path, monkeypatch):
     monkeypatch.setattr(musica, "radio", lambda video_id: [Faixa(f"r{video_id}{i}", f"Rádio {i}", ("Novo",), 150)
                                                          for i in range(6)])
     monkeypatch.setattr(musica, "baixar_audio", lambda video_id, pasta: Path(pasta) / f"{video_id}.m4a")
+    monkeypatch.setattr(musica, "baixar_capa", lambda faixa: (_ for _ in ()).throw(musica.ErroMusica("sem rede")))
     a.tocou = tocou
     a.pet.show()
     yield a

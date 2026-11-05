@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## Player com o tempo da música e disquinho
+
+- **A borda do cartão de música é a barra de progresso:** ela acende a partir do meio de cima, dá a volta
+  no sentido horário e fecha a volta no fim da música, com uma pontinha brilhando onde a música está.
+  Pausada, a ponta pulsa; carregando, um pedaço de borda fica dando voltas. Ao lado do rótulo, `1:23 / 3:45`.
+- **Disquinho de vinil** no canto do cartão, girando a 33⅓ rpm: acelera quando toca e freia devagar quando
+  você pausa, como um toca-discos. A capa da música (do YouTube Music, ou a do vídeo) vira o selo do disco.
+- **🖼** ao lado do volume tira ou põe a capa; a escolha fica em `memory/panels.json`.
+- A capa é baixada junto com o áudio, numa thread. Sem capa, o disco fica com o selo verde do pet e a
+  música toca normalmente.
+
 ## Chamando pelo nome
 
 - **Chamar pelo nome** (desligado por padrão; precisa de "Falar com ele"): como na Alexa, diga "Bob, que
