@@ -73,6 +73,7 @@ from .mind.protest_ctl import ProtestController
 from .mind.revolucao import RevolucaoController
 from .mind.sleep import SleepController
 from .mind.chamado_ctl import ChamadoController
+from .mind.historico import HistoricoChat
 from .mind.video_ctl import VideoController
 from .mind.visao import VisaoController
 from .mind.conhecimento import Conhecimento
@@ -210,6 +211,9 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.visao.fala.connect(self._mostrar_fala)
         self.visao.imagem.connect(self._projetar)
         self.conversa_janela = None     # criada na primeira vez que você abre o chat
+        self.historico = HistoricoChat(self.pet_paths.historico_chat)
+        self.visao.resposta.connect(self._fim_conversa)                  # inteira, no chat e no histórico
+        self.visao.erro_conversa.connect(lambda texto: self._fim_conversa(texto, erro=True))
         self.voz = VozController(self, self.nome)
         self.voz.ouvido.connect(self._ouvi)
         self.voz.ditado.connect(self._ditado)
@@ -584,6 +588,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             self.pet_state.mente = self.pet_state.mente | {"projetando"}
             if self.conversa_janela is not None:
                 self.conversa_janela.adicionar_imagem(self.nome, titulo, imagem)
+            self._guardar_no_historico(False, f"🖼 {titulo}")
 
     def fechar_projecao(self):
         """Você mexeu nele (cutucou, pegou, fez carinho): a imagem fecha, o desenho some e ele volta a passear."""
@@ -602,9 +607,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self._mostrar_fala("Hm?")
 
     def _resumo_do_video(self, texto):
-        """O resumo do vídeo chegou: vai para o chat (aberto ou na próxima vez que abrir)."""
-        if self.conversa_janela is not None:
-            self.conversa_janela.adicionar(self.nome, texto)
+        """O resumo do vídeo chegou: vai para o chat (aberto, ou pelo histórico na próxima vez que abrir)."""
+        self._no_chat(False, texto)
 
     def frame(self):
         """Um quadro da tela: move o corpo pela física e atualiza a animação do pet."""

@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## Histórico do chat
+
+- **O chat guarda a conversa:** o que você pediu, escrevendo ou falando (com um 🎤), e as respostas dele
+  inteiras ficam em `memory/pets/<pet>/historico_chat.jsonl` e aparecem quando você abre o chat, com a
+  hora e a data. Também entram as falas pela voz com o chat fechado, os comandos de música e vídeo, os
+  resumos dos vídeos e as imagens projetadas. Fica só neste computador (até 3000 falas). Opção nova em
+  Configurações: "Guardar o histórico do chat", ligada por padrão.
+- **Resposta inteira no chat:** o balão continua cortando em 160 caracteres, mas o chat e o histórico
+  recebem a resposta completa, com as quebras de linha (listas e passo a passo).
+- **Esquecer** pede confirmação e agora apaga também o histórico guardado.
+
 ## Conversa que emenda e vídeo com licença
 
 - **Ele continua ouvindo depois de responder:** quando você chama ("Bob, como eu exporto isso?") e faz uma

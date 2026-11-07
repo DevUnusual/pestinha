@@ -38,6 +38,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_escolha_pet.py` | Etapa 3 do multipet: escolha do personagem nas configurações e o nome certo em cada texto. |
 | `test_festa.py` | Fogos de artifício ligados à rede e brincadeira mais animada quando feliz. |
 | `test_hermes_conectado.py` | Pet e Hermes conectados: o chat passa pelo Hermes (persona do pet, pesquisa, memória por sessão), a IA vilã aparece só enquanto ele usa uma ferramenta, o link de imagem da resposta vira holograma e, se o Hermes cair, o provedor escolhido responde no lugar sem a conversa quebrar. |
+| `test_historico_chat.py` | Histórico do chat: o arquivo (guardar, ler, linha estragada, limite), a resposta inteira no chat e curta no balão, e no app de verdade as falas escritas e pela voz guardadas e de volta ao abrir, a opção desligada e o Esquecer. |
 | `test_holograma.py` | Imagem pedida no chat: "pesquisa o que é manga" acha o link de uma imagem na Wikipédia, baixa e o pet projeta como holograma. |
 | `test_homeostase.py` | Homeostase: trabalhar é estímulo, então o tédio não sobe enquanto ele programa. |
 | `test_ia.py` | Visão e conversa pela IA: o texto do modelo, os clientes (com SDK falsa, sem rede) e o controlador dentro do app de verdade (Qt offscreen, pasta temporária). |

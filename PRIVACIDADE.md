@@ -31,10 +31,16 @@ Só valem com **Usar IA** ligado em Configurações, e cada parte tem a própria
   não manda nada para a internet. Com outro computador, o print atravessa a sua rede local sem criptografia
   (http), a não ser que você use um endereço https. O DeepSeek não recebe
   o print (a API dele não aceita imagem), só o nome do programa e o título.
-- **O que fica gravado:** nada, a não ser que você ligue **Lembrar o que viu**. O print, o título, o
-  comentário e a conversa ficam só na memória enquanto o app está aberto (o botão **Esquecer** do chat
-  apaga a conversa na hora). Não vão para `memory/` nem para o log. O que fica é o efeito na rede neural,
-  como qualquer outro estímulo.
+- **O que fica gravado:** da tela, nada, a não ser que você ligue **Lembrar o que viu**. O print, o
+  título e o comentário ficam só na memória enquanto o app está aberto e não vão para `memory/` nem para o
+  log. O que fica é o efeito na rede neural, como qualquer outro estímulo.
+- **Histórico do chat** (ligado por padrão, em **Guardar o histórico do chat**): o que você pediu,
+  escrevendo ou falando, e as respostas dele inteiras (sem o corte do balão) ficam em
+  `memory/pets/<pet>/historico_chat.jsonl`, com a hora, para você rever quando abrir o chat. Fica só
+  neste computador: não vai para a IA nem para a memória compartilhada. O que a IA lembra da conversa
+  continua sendo só as últimas 8 mensagens, na memória, enquanto o app está aberto. O botão **Esquecer**
+  do chat apaga as duas coisas (pede confirmação). Desligar a opção para de guardar, mas não apaga o que
+  já estava lá.
 - **Lembrar o que viu (desligado por padrão):** grava, no máximo a cada 10 minutos e só quando muda de
   assunto, o **resumo** da IA (até 12 palavras), o nome do programa, a hora e o computador, em
   `memory/pets/<pet>/lembrancas_<computador>.jsonl` (até 500 linhas). Nunca o print, o título nem o
@@ -101,8 +107,9 @@ Só vale com **Usar IA** e **Assistir vídeos comigo** ligados.
   tela** ligado, quando a olhada da IA diz que você está vendo um vídeo com fala. Nesse caso ele primeiro
   ouve **2 segundos** do som do computador, só na memória e sem mandar para lugar nenhum, para saber se o
   vídeo está tocando; se estiver, **pergunta** no balão se é para assistir com você e só começa se você
-  disser que sim (pela voz ou pelo chat). Assistindo, fica com a orelha para a frente o tempo todo. Para quando você pede ("resume o vídeo", "pode parar de
-  assistir", ou pelo menu), depois de 4 minutos sem som nenhum, ou em 3 horas.
+  disser que sim (pela voz ou pelo chat). Assistindo, fica com a orelha para a frente o tempo todo. Para
+  quando você pede ("resume o vídeo", "pode parar de assistir", ou pelo menu), depois de 4 minutos sem som
+  nenhum, ou em 3 horas.
 - **O que ele ouve:** o som que sai do computador (loopback: o que vai para a caixa ou o fone), nunca o
   microfone. Isso inclui qualquer som que estiver tocando, não só o vídeo; a música do próprio Pestinha é
   pausada.
@@ -211,6 +218,7 @@ De cada personagem, em `memory/pets/<pet>/` (um personagem não lê a memória d
 | `drives.json` | Energia, estimulação e carência |
 | `protest.json`, `sad_protest.json` | Insatisfação e tristeza |
 | `castigo.json` | Fugas do cantinho, rancor e receio |
+| `historico_chat.jsonl` | Com "Guardar o histórico do chat": o que você pediu e o que ele respondeu, com a hora (até 3000 falas). Não vai para a memória compartilhada |
 | `lembrancas_<computador>.jsonl` | Só com "Lembrar o que viu": resumo curto do que a IA viu, programa, hora e computador. As de outros computadores chegam pela memória compartilhada |
 | `.sync.json` | Só com a memória compartilhada: a versão de cada arquivo na última sincronia |
 | `.migrado` | Só existe se a memória veio da versão antiga: quando migrou e o hash de cada arquivo |

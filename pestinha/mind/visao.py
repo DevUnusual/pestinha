@@ -47,8 +47,9 @@ from ..ia import pesquisa, provedores
 from ..ia.desenho import INSTRUCOES_CHAT as INSTRUCOES_DESENHO, separar_desenho
 from ..ia.imagem import baixar as baixar_imagem, buscar as buscar_imagem_na_web, pedido_de_imagem as imagem_pedida
 from ..ia.imagem import titulo_do_link
-from ..ia.mente import (INSTRUCOES_VOZ, Conversa, ler_dica, ler_observacao, limpar_fala, pedido_dica,
-                        pedido_observacao, prompt_sistema, separar_imagem, separar_tocar, sistema_hermes)
+from ..ia.mente import (INSTRUCOES_VOZ, Conversa, ler_dica, ler_observacao, limpar_fala, limpar_resposta,
+                        pedido_dica, pedido_observacao, prompt_sistema, separar_imagem, separar_tocar,
+                        sistema_hermes)
 from ..log import log, recentes as log_recente
 from .sincronia import descrever_temperamento, estado_agora
 from ..sense import senses
@@ -526,7 +527,7 @@ class VisaoController(QObject):
             elif not self.app._congelado():
                 resultado, formas = separar_desenho(resultado)
                 resultado, estilo = separar_tocar(resultado)
-                self._respondido(limpar_fala(resultado) or "Bora!")
+                self._respondido(limpar_resposta(resultado) or "Bora!")
                 if estilo is not None:
                     self.tocar.emit(estilo)             # a IA entendeu que você pediu música
                 if formas and self._onde_conversa and self.pode_desenhar():
@@ -567,7 +568,8 @@ class VisaoController(QObject):
                 self.desenho.emit(obs.desenhar, self._onde_olhada)   # o desenho vem junto do comentário
 
     def _respondido(self, texto):
-        """Resposta do chat: mostra, guarda na conversa e conta como atenção sua."""
+        """Resposta do chat: a inteira vai para o chat (e o histórico), a curta para o balão; guarda na conversa
+        e conta como atenção sua."""
         app = self.app
         self.conversa.registrar(self._pergunta, texto)
         app.senses.kick("CONVERSA", 0.8)
@@ -577,7 +579,7 @@ class VisaoController(QObject):
         if app.asleep:
             app.sleep.wake(startled=False)
         self.resposta.emit(texto)
-        self.fala.emit(texto)
+        self.fala.emit(limpar_fala(texto))
 
     def _falhou(self, motivo, now):
         """Falha da olhada: espera um tempo e avisa na bandeja (sem repetir o mesmo aviso toda hora)."""

@@ -753,6 +753,7 @@ class SettingsDialog(QDialog):
         self.boxes["desenhar"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["videos"].setEnabled(ia)
         self.boxes["voz"].setEnabled(ia and self.perms["conversa"])
+        self.boxes["historico_chat"].setEnabled(ia and self.perms["conversa"])
         self.boxes["chamar"].setEnabled(ia and self.perms["conversa"] and self.perms["voz"])
         self.boxes["lembrar"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["pesquisar"].setEnabled(ia and self.perms["ver_tela"])

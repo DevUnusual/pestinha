@@ -58,6 +58,7 @@ DEFAULT_PERMISSIONS = {
     "desenhar": True,          # ele pode desenhar por cima da tela para mostrar algo (só com ver_tela)
     "videos": False,           # ouve o som do computador num vídeo, fica quieto e depois resume (precisa de ia)
     "conversa": True,          # chat por texto pelo menu do pet
+    "historico_chat": True,    # guarda o que você pediu e as respostas inteiras, para rever no chat (só aqui)
     "pesquisar": False,        # "Conectar ao Hermes": o chat passa por ele (pesquisa, memória) e ele pesquisa o que vê na tela
     "hermes_url": "",          # onde está a API do Hermes; vazio: este computador, porta 8642
     "ia_provedor": "claude",   # claude, openai, deepseek ou ollama (ver ia/provedores.py)
@@ -138,6 +139,10 @@ PERMISSION_GROUPS = [
          "ele projeta uma imagem como holograma. Vai para o Hermes a conversa, o resumo do que você está "
          "fazendo e o estado do pet; nunca o print nem o título da janela."),
         ("conversa", "Conversar por texto", "Botão direito nele, Conversar: você escreve e ele responde."),
+        ("historico_chat", "Guardar o histórico do chat",
+         "O que você pediu (escrito ou falado) e as respostas inteiras, sem o corte do balão, ficam em "
+         "memory/pets/<pet>/historico_chat.jsonl e aparecem quando você abre o chat. Só neste computador: "
+         "não vai para a IA nem para a memória compartilhada. O botão Esquecer, no chat, apaga."),
         ("voz", "Falar com ele (voz para texto)",
          f"Segure {PTT_HOTKEY_TEXT} e fale, ou use o botão de microfone do chat: a sua fala vira texto e ele "
          "responde por escrito. Ele só ouve enquanto você aperta. O áudio vai para o serviço de voz do "

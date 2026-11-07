@@ -1,17 +1,20 @@
 """
 CONVERSA - a janelinha de chat com o pet (botão direito nele, Conversar).
 
-É a única janela do pet que recebe o foco: você abriu para digitar. Mostra a conversa desta
-sessão (nada é gravado em disco) e manda cada mensagem pelo sinal `enviar`. Quem pergunta
-ao modelo é mind/visao.py. Com a voz ligada, o botão de microfone grava e a fala vira texto no campo
+É a única janela do pet que recebe o foco: você abriu para digitar. Mostra a conversa, com as respostas
+inteiras (o balão corta), e manda cada mensagem pelo sinal `enviar`. Com "Guardar o histórico do chat", ao
+abrir ela mostra também o que vocês conversaram antes, inclusive pela voz (mind/historico.py). Quem
+pergunta ao modelo é mind/visao.py; quem põe as falas aqui é o app (controle/interacao.py). Com a voz ligada, o botão de microfone grava e a fala vira texto no campo
 (quem ouve é mind/voz_ctl.py).
 """
 
 import html
+import time
 
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QTextDocument
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextBrowser, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QTextBrowser,
+                               QVBoxLayout, QWidget)
 
 from .. import config
 
@@ -45,6 +48,7 @@ class ConversaJanela(QWidget):
         super().__init__(None, Qt.Tool | Qt.WindowStaysOnTopHint)
         self.nome = nome
         self._imagens = 0               # quantas imagens já entraram no histórico (cada uma com seu nome)
+        self._dia = None                # o dia da última fala mostrada (para o separador de data)
         self.setObjectName("conversa")
         self.setAttribute(Qt.WA_StyledBackground)
         self.setStyleSheet(ESTILO)
@@ -79,7 +83,7 @@ class ConversaJanela(QWidget):
         self.aviso.setWordWrap(True)
         rodape.addWidget(self.aviso, 1)
         limpar = QPushButton("Esquecer")
-        limpar.setToolTip("Apaga esta conversa (ela só existe enquanto o app está aberto)")
+        limpar.setToolTip("Apaga a conversa: ele esquece e o histórico guardado some")
         limpar.clicked.connect(self._esquecer)
         rodape.addWidget(limpar)
         layout.addLayout(rodape)
@@ -88,11 +92,27 @@ class ConversaJanela(QWidget):
         """Linha de baixo: qual modelo responde e se ele está vendo a tela."""
         self.aviso.setText(texto)
 
-    def adicionar(self, quem, texto, erro=False):
-        """Acrescenta uma fala ao histórico."""
+    def adicionar(self, quem, texto, erro=False, voz=False, quando=None):
+        """Acrescenta uma fala ao histórico, com a hora (e a data, quando o dia muda).
+        `voz`: você falou em vez de escrever (aparece um 🎤)."""
+        quando = time.time() if quando is None else quando
+        hora = time.localtime(quando)
+        dia = time.strftime("%d/%m/%Y", hora)
+        if dia != self._dia:
+            self._dia = dia
+            self.historico.append(f'<p align="center" style="color:#4d6655">— {dia} —</p>')
         cor = "#ff9a8a" if erro else ("#63e56f" if quem == self.nome else "#9fd0ff")
-        self.historico.append(f'<p><b style="color:{cor}">{html.escape(quem)}:</b> {html.escape(texto)}</p>')
+        corpo = html.escape(texto).replace("\n", "<br>")
+        marca = "🎤 " if voz else ""
+        self.historico.append(f'<p><span style="color:#4d6655">{time.strftime("%H:%M", hora)}</span> '
+                              f'<b style="color:{cor}">{marca}{html.escape(quem)}:</b> {corpo}</p>')
         self.historico.verticalScrollBar().setValue(self.historico.verticalScrollBar().maximum())
+
+    def carregar(self, entradas):
+        """As falas guardadas (mind/historico.py), da mais velha para a mais nova."""
+        for e in entradas:
+            self.adicionar("Você" if e["quem"] == "voce" else self.nome, e["texto"], erro=e["erro"],
+                           voz=e["voz"], quando=e["t"])
 
     def adicionar_imagem(self, quem, titulo, imagem):
         """Acrescenta ao histórico a imagem que ele projetou (QImage), com o título embaixo."""
@@ -144,10 +164,16 @@ class ConversaJanela(QWidget):
         if not texto or not self.campo.isEnabled():
             return
         self.campo.clear()
-        self.adicionar("Você", texto)
-        self.enviar.emit(texto)
+        self.enviar.emit(texto)                 # o app põe a sua fala aqui e no histórico
 
     def _esquecer(self):
-        """Limpa a tela e pede ao pet para esquecer a conversa."""
+        """Confirma, limpa a tela e pede ao pet para esquecer a conversa (e apagar o histórico guardado)."""
+        resposta = QMessageBox.question(
+            self, "Esquecer a conversa",
+            f"Apagar a conversa com o {self.nome}? Ele esquece o que vocês falaram e o histórico guardado "
+            "é apagado deste computador. Não dá para desfazer.")
+        if resposta != QMessageBox.Yes:
+            return
         self.historico.clear()
+        self._dia = None
         self.esquecer.emit()

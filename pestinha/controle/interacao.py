@@ -227,11 +227,11 @@ class InteracaoMixin:
         if self.conversa_janela is None:
             janela = ConversaJanela(self.nome)
             janela.enviar.connect(self._enviar_conversa)
-            janela.esquecer.connect(self.visao.conversa.limpar)
-            self.visao.resposta.connect(lambda texto: self._fim_conversa(texto))
-            self.visao.erro_conversa.connect(lambda texto: self._fim_conversa(texto, erro=True))
+            janela.esquecer.connect(self._esquecer_conversa)
             janela.microfone.connect(self.voz.alternar_microfone)
             self.voz.estado.connect(self.atualizar_microfone)
+            if self.perms["historico_chat"]:
+                janela.carregar(self.historico.ultimas())       # o que vocês conversaram antes
             self.conversa_janela = janela
         self.conversa_janela.set_aviso(self.visao.descricao())
         self.atualizar_microfone()
@@ -241,6 +241,23 @@ class InteracaoMixin:
         """Dois cliques rápidos no pet: abre o chat, se a conversa estiver ligada em Configurações."""
         if self.perms["ia"] and self.perms["conversa"]:
             self.menu_conversar()
+
+    def _no_chat(self, voce, texto, erro=False, voz=False):
+        """Uma fala no chat (se a janela existe, mesmo escondida) e no histórico (se estiver ligado).
+        `voce`: True para o que você disse, False para ele."""
+        if self.conversa_janela is not None:
+            self.conversa_janela.adicionar("Você" if voce else self.nome, texto, erro=erro, voz=voz)
+        self._guardar_no_historico(voce, texto, erro, voz)
+
+    def _guardar_no_historico(self, voce, texto, erro=False, voz=False):
+        """Só o histórico (a janela já mostrou do jeito dela, como a imagem)."""
+        if self.perms["historico_chat"] and not self.wiping:
+            self.historico.adicionar("voce" if voce else "pet", texto, erro=erro, voz=voz)
+
+    def _esquecer_conversa(self):
+        """O botão Esquecer do chat: a IA esquece a conversa e o histórico é apagado."""
+        self.visao.conversa.limpar()
+        self.historico.apagar()
 
     def falaram_comigo(self):
         """
@@ -267,9 +284,10 @@ class InteracaoMixin:
         self.chamado.pediu_em = 0.0                         # escreveu: a resposta não abre o microfone
         janela = self.conversa_janela
         janela.set_aviso(self.visao.descricao())
+        self._no_chat(True, texto)
         resposta = self._video_pelo_chat(texto) or self._musica_pelo_chat(texto)
         if resposta:
-            janela.adicionar(self.nome, resposta)
+            self._no_chat(False, resposta)
             self._mostrar_fala(resposta)
             return
         if self.visao.perguntar(texto):
@@ -277,26 +295,24 @@ class InteracaoMixin:
         elif not self.visao.respondendo:
             motivo = ("a conversa está desligada em Configurações" if not (self.perms["ia"] and self.perms["conversa"])
                       else f"o {self.nome} está pausado ou desligado agora")
-            janela.adicionar(self.nome, motivo, erro=True)
+            self._no_chat(False, motivo, erro=True)
 
     def _ouvi(self, texto):
         """Você falou pelo atalho: vai para ele como se tivesse escrito no chat (a resposta vem no balão)."""
         self.falaram_comigo()
         janela = self.conversa_janela
-        if janela is not None and janela.isVisible():
-            janela.adicionar("Você", texto)
+        self._no_chat(True, texto, voz=True)
         resposta = self._video_pelo_chat(texto) or self._musica_pelo_chat(texto)
         if resposta:
             self.chamado.pediu_em = 0.0                     # um comando: feito, não precisa emendar
-            if janela is not None and janela.isVisible():
-                janela.adicionar(self.nome, resposta)
+            self._no_chat(False, resposta)
             self._mostrar_fala(resposta)
             return
         if self.visao.perguntar(texto, por_voz=bool(self.chamado.pediu_em)):
             if janela is not None:
                 janela.set_ocupado(True)
-        elif janela is not None and janela.isVisible() and not self.visao.respondendo:
-            janela.adicionar(self.nome, f"o {self.nome} está pausado ou desligado agora", erro=True)
+        elif not self.visao.respondendo:
+            self._no_chat(False, f"o {self.nome} está pausado ou desligado agora", erro=True)
 
     def _musica_pelo_chat(self, texto):
         """
@@ -347,11 +363,10 @@ class InteracaoMixin:
             self.conversa_janela.ditar(texto)
 
     def _fim_conversa(self, texto, erro=False):
-        """Resposta (ou falha) do chat."""
-        if self.conversa_janela is None:
-            return
-        self.conversa_janela.set_ocupado(False)
-        self.conversa_janela.adicionar(self.nome, texto, erro=erro)
+        """Resposta (ou falha) do chat, inteira: no chat (se a janela existe) e no histórico."""
+        if self.conversa_janela is not None:
+            self.conversa_janela.set_ocupado(False)
+        self._no_chat(False, texto, erro=erro)
 
     def menu_pedir_trabalho(self):
         """Menu: 'Pedir para trabalhar' (ele pode aceitar, ou recusar com frustração)."""

@@ -29,6 +29,7 @@ SINAIS = {
     "novidade": "VISAO_NOVO",      # algo novo ou interessante, diferente do que estava antes
 }
 MAX_COMENTARIO = 160               # caracteres no balão
+MAX_RESPOSTA = 6000                # caracteres da resposta inteira (no chat e no histórico)
 MAX_TURNOS = 8                     # mensagens guardadas no chat (só na memória, nunca em disco)
 MAX_TERMO = 80                     # caracteres do termo de pesquisa que vai para o Hermes
 
@@ -257,6 +258,22 @@ def limpar_fala(texto):
     texto = texto.strip('"').strip()
     if len(texto) > MAX_COMENTARIO:
         texto = texto[:MAX_COMENTARIO - 1].rstrip() + "…"
+    return texto
+
+
+def limpar_resposta(texto):
+    """A resposta inteira, para o chat: sem os blocos de contexto que o modelo ecoou, mas com as quebras de
+    linha (listas, passos) e sem o corte do balão."""
+    linhas = [" ".join(linha.split()) for linha in str(texto or "").strip().splitlines()]
+    texto = "\n".join(linhas)
+    while "\n\n\n" in texto:
+        texto = texto.replace("\n\n\n", "\n\n")
+    texto = _ECO.sub("", texto).strip()
+    while _ROTULO.match(texto):
+        texto = _ROTULO.sub("", texto, count=1).strip()
+    texto = texto.strip('"').strip()
+    if len(texto) > MAX_RESPOSTA:
+        texto = texto[:MAX_RESPOSTA - 1].rstrip() + "…"
     return texto
 
 
