@@ -45,6 +45,12 @@ INSTRUCOES_MUSICA = (
 _TOCAR = re.compile(r"(?:^[ \t*_]*(?i:tocar)[ \t*_]*:|(?<!\w)TOCAR\b[ \t*_]*[:\-–=]?)[ \t*_]*(.*?)[ \t*_.!]*$",
                     re.MULTILINE)
 
+INSTRUCOES_VOZ = (
+    "(Ela falou isso em voz alta, chamando você pelo nome. Se for uma dúvida ou pergunta, responda e termine "
+    "perguntando, bem curto, se ela quer saber mais alguma coisa. Se for só conversa ou um pedido simples, "
+    "só responda.)"
+)
+
 PERSONA_PADRAO = ("Você é um bichinho de tela curioso e brincalhão. Tem opinião própria, é carinhoso "
                   "e às vezes implicante, mas nunca maldoso.")
 
@@ -108,13 +114,15 @@ def bloco_registro(linhas):
 
 
 def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", estado="", ja_disse=(),
-                      lembrancas="", pesquisa=False, jogo=False, desenhar=False, video=False):
+                      lembrancas="", pesquisa=False, jogo=False, desenhar=False, video=False,
+                      assistindo=False):
     """Pergunta da observação periódica. A resposta vem em JSON (ver ler_observacao).
 
     Com `pesquisa`, o JSON ganha o campo "pesquisar": um termo para ele procurar na internet (pelo Hermes).
     Com `jogo`, ele acompanha a partida: repara no que mudou e comemora ou zoa (ver "Acompanhar jogos").
     Com `desenhar`, ganha "desenhar": formas para destacar algo na tela (ia/desenho.py).
-    Com `video`, ganha "video": se a pessoa está vendo um vídeo com fala (ele começa a assistir junto).
+    Com `video`, ganha "video": se a pessoa está vendo um vídeo com fala (ele pergunta se assiste junto).
+    Com `assistindo`, ele já está assistindo junto: o resumo descreve o que aparece no vídeo, sem comentar.
     """
     contexto = [f"Programa em primeiro plano: {programa or 'desconhecido'}."]
     if titulo:
@@ -149,6 +157,9 @@ def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", est
            "um assunto) e uma curiosidade ou dica ajudaria, ponha em \"pesquisar\" o que procurar, em até 6 "
            "palavras, sem nomes de pessoas, e-mails, senhas, números ou qualquer dado pessoal da tela. Quase "
            "sempre deixe vazio." if pesquisa else "")
+        + (" Você está assistindo esse vídeo junto com ela: no \"resumo\", diga o que aparece no vídeo agora "
+           "(slide, código, diagrama, cena, quem está falando), em até 15 palavras, e deixe \"comentario\" "
+           "vazio." if assistindo else "")
         + (INSTRUCOES_OLHADA if desenhar else "")
         + (' "video" é true só se ela está assistindo um vídeo com gente falando (aula, tutorial, palestra, '
            "podcast, notícia, análise) no player ou no navegador; clipe de música, jogo ou vídeo parado é false."

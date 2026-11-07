@@ -20,7 +20,8 @@ Dois caminhos, os dois em thread para o pet não travar enquanto o modelo pensa:
                pode trazer formas sobre o print; elas são desenhadas no monitor que foi fotografado
                (ia/desenho.py, world/rabisco.py).
     vídeo      com "Assistir vídeos comigo", a olhada diz se você está vendo um vídeo (campo "video") e ele
-               começa a assistir junto (mind/video_ctl.py); enquanto assiste, ele não comenta o que vê.
+               pergunta se assiste junto (mind/video_ctl.py); enquanto assiste, olha a tela no ritmo do
+               jogo, não comenta e anota o que aparece (slides, código, cenas) para o resumo.
 
 Nos dois, o estado da rede vai junto (mind/sincronia.py): quem sente é a rede, o modelo só dá voz.
 
@@ -46,8 +47,8 @@ from ..ia import pesquisa, provedores
 from ..ia.desenho import INSTRUCOES_CHAT as INSTRUCOES_DESENHO, separar_desenho
 from ..ia.imagem import baixar as baixar_imagem, buscar as buscar_imagem_na_web, pedido_de_imagem as imagem_pedida
 from ..ia.imagem import titulo_do_link
-from ..ia.mente import (Conversa, ler_dica, ler_observacao, limpar_fala, pedido_dica, pedido_observacao,
-                        prompt_sistema, separar_imagem, separar_tocar, sistema_hermes)
+from ..ia.mente import (INSTRUCOES_VOZ, Conversa, ler_dica, ler_observacao, limpar_fala, pedido_dica,
+                        pedido_observacao, prompt_sistema, separar_imagem, separar_tocar, sistema_hermes)
 from ..log import log, recentes as log_recente
 from .sincronia import descrever_temperamento, estado_agora
 from ..sense import senses
@@ -213,9 +214,10 @@ class VisaoController(QObject):
                 or senses.jogo_pelo_titulo(senses.get_active_app(), senses.get_active_title()))
 
     def intervalo(self):
-        """Segundos até a próxima olhada: curto em jogo (mais com o Ollama, que não cobra), longo fora."""
+        """Segundos até a próxima olhada: curto em jogo ou assistindo vídeo (mais com o Ollama, que não cobra),
+        longo fora."""
         prof = self.app.prof
-        if self.em_jogo():
+        if self.em_jogo() or self.assistindo_video():
             return prof["visao_jogo" if self.perms["ia_provedor"] == "ollama" else "visao_jogo_nuvem"]
         return prof["visao_intervalo"]
 
@@ -297,7 +299,9 @@ class VisaoController(QObject):
 
     def olhar(self, now):
         """Tira o print, lê o programa e o título e pergunta ao modelo (em outra thread)."""
-        jogo = self.em_jogo()
+        assistindo = self.assistindo_video()
+        jogo = self.em_jogo() and not assistindo
+        rapido = jogo or assistindo                    # olhando a cada poucos segundos
         self.ultima_olhada = now
         self.proxima = now + self.intervalo()
         try:
@@ -309,7 +313,7 @@ class VisaoController(QObject):
         self._onde_olhada = self._tela_print if imagem else None
         if imagem:
             mini = miniatura(imagem)
-            if (jogo and not self._pedido_seu and diferenca(mini, self._mini) < QUASE_IGUAL
+            if (rapido and not self._pedido_seu and diferenca(mini, self._mini) < QUASE_IGUAL
                     and now - self.ultimo_envio < self.app.prof["visao_intervalo"]):
                 return                                 # a tela quase não mudou: não gasta uma olhada
             self._mini = mini
@@ -317,9 +321,9 @@ class VisaoController(QObject):
         pergunta = pedido_observacao(senses.get_active_app(), senses.get_active_title(), self.app.activity,
                                      self.app.pet_state.emotion, self.ultimo_resumo,
                                      self.estado(), self.ja_disse, self.lembrado(),
-                                     self.pode_pesquisar(now) and not self.assistindo_video(), jogo,
-                                     desenhar=bool(imagem) and self.pode_desenhar() and not self.assistindo_video(),
-                                     video=self.perms["videos"] and not self.assistindo_video())
+                                     self.pode_pesquisar(now) and not assistindo, jogo,
+                                     desenhar=bool(imagem) and self.pode_desenhar() and not assistindo,
+                                     video=self.perms["videos"] and not assistindo, assistindo=assistindo)
         self.olhando = True
         self._em_thread("observacao", cliente, [{"role": "user", "content": pergunta}], imagem)
 
@@ -345,8 +349,9 @@ class VisaoController(QObject):
 
     # ---------------- conversar ----------------
 
-    def perguntar(self, texto):
-        """Você escreveu no chat: ele responde (pelo Hermes, se estiver conectado; vendo a tela, se puder)."""
+    def perguntar(self, texto, por_voz=False):
+        """Você escreveu no chat: ele responde (pelo Hermes, se estiver conectado; vendo a tela, se puder).
+        `por_voz`: você chamou pelo nome; numa dúvida, ele termina perguntando se quer saber mais."""
         if self.respondendo or not self.ligada() or not self.perms["conversa"] or self.app._congelado():
             return False
         hermes = cliente = None
@@ -367,6 +372,8 @@ class VisaoController(QObject):
                                             self.lembrado(), log_recente(), self.conhecido(texto))
         if imagem and self.pode_desenhar():
             mensagens[-1] = dict(mensagens[-1], content=mensagens[-1]["content"] + "\n" + INSTRUCOES_DESENHO)
+        if por_voz:
+            mensagens[-1] = dict(mensagens[-1], content=mensagens[-1]["content"] + "\n" + INSTRUCOES_VOZ)
         self.respondendo = True
         self._pergunta = texto
         termo = imagem_pedida(texto) if self.perms["pesquisar"] else None
@@ -533,6 +540,8 @@ class VisaoController(QObject):
             if self.perms["lembrar"]:
                 app.lembrancas.anotar(senses.get_active_app(), obs.resumo)
         app.senses.saw(obs.sinais)
+        if obs.resumo and self.assistindo_video():
+            app.video.viu_tela(obs.resumo)             # o que aparece no vídeo vai para o resumo dele
         novidade = obs.sinais.get("VISAO_NOVO", 0.0)
         if novidade > 0.3:
             app.drives.stimulate("novelty", novidade)  # coisa nova na tela também tira o tédio

@@ -31,7 +31,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_castigo_bugs_rede.py` | Reproduções diagnósticas: asserções descrevem o comportamento esperado. |
 | `test_castigo_integracao.py` | Cantinho do castigo dentro do app: o castigo vence a mesa e as travessuras, e o pânico encerra a fuga. |
 | `test_castigo_real.py` | Cantinho no app inteiro, com relógio virtual: soltar no ar, pousar, ficar preso e reagir pela rede. |
-| `test_chamado.py` | Chamar pelo nome ("Bob!"): as grafias que o modelo ouve, a leitura do resultado do Vosk, o recorte do pedido, a escuta depois do nome, o download do modelo (de um zip local) e o controlador dentro do app de verdade (Qt offscreen, detector e serviço de voz falsos). |
+| `test_chamado.py` | Chamar pelo nome ("Bob!"): as grafias que o modelo ouve, a leitura do resultado do Vosk, o recorte do pedido, a escuta depois do nome, a conversa que emenda depois da resposta, o nome exigente com vídeo tocando, o download do modelo (de um zip local) e o controlador dentro do app de verdade (Qt offscreen, detector e serviço de voz falsos). |
 | `test_chaves.py` | Chaves de API no .env: gravar pela tela de Configurações, carregar ao abrir, nunca aceitar uma chave no campo de modelo. |
 | `test_condicionamento.py` | Testes do condicionamento: aprender a reagir antes, extinguir, e persistir. |
 | `test_conteudo.py` | Etapa 2 do multipet: conteúdo por pet (frases, cartazes, memes, imagens). |
@@ -56,5 +56,5 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_robustez_v2.py` | Falhas do relatório técnico (docs/auditorias/ANALISE_TECNICA.md): cada caso tem um teste que reproduz o problema. |
 | `test_conversa_atencao.py` | Falar ou escrever com o pet é atenção: carência e tristeza caem e a rede recebe recompensa na hora, mesmo sem resposta da IA; pausado, não conta. |
 | `test_tocando_disco.py` | O cartão de música mostra o tempo: a borda acende do meio de cima e dá a volta (sentido horário) até o fim da música, o número '1:23 / 3:45' acompanha e um disquinho gira no canto, com a capa da música como selo (que dá para tirar pelo 🖼). |
-| `test_video_desenho.py` | Assistir vídeos (ouvir, anotar, resumir e guardar) e desenhar na tela: o texto do modelo, o conhecimento em disco, a janela do desenho e os controladores dentro do app de verdade (Qt offscreen, pasta temporária, som e modelo falsos). |
+| `test_video_desenho.py` | Assistir vídeos (conferir o som e perguntar antes, ouvir, olhar a tela, anotar, resumir e guardar) e desenhar na tela: o texto do modelo, o conhecimento em disco, a janela do desenho e os controladores dentro do app de verdade (Qt offscreen, pasta temporária, som e modelo falsos). |
 | `test_voz.py` | Voz: o áudio e o cliente do serviço de transcrição (com um servidor HTTP falso nesta máquina) e o controlador dentro do app de verdade (Qt offscreen, microfone falso). |

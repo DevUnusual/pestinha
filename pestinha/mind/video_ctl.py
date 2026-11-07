@@ -4,10 +4,14 @@ e guarda o que aprendeu (opcional, desligado por padrão: "Assistir vídeos comi
 
 Como começa:
     você pede     no chat ou na voz ("assiste esse vídeo comigo") ou no menu ("Assistir o vídeo comigo")
-    sozinho       com "Ver minha tela" ligado, quando a olhada da IA diz que você está vendo um vídeo com
-                  fala (aula, tutorial, palestra, podcast), ele avisa no balão e começa
+    ele oferece   com "Ver minha tela" ligado, quando a olhada da IA diz que você está vendo um vídeo com
+                  fala (aula, tutorial, palestra, podcast), ele primeiro ouve CONFERE_SOM s do som do
+                  computador: sem som, o vídeo não está rodando e ele deixa quieto. Com som, pergunta no
+                  balão se é para assistir com você; você responde "sim" ou "não" pela voz (a orelha já
+                  levanta, sem precisar do nome) ou pelo chat. Sem resposta em ESPERA_OFERTA s, ele esquece.
 Enquanto assiste: a orelha fica para a frente (ouvindo), os comentários da visão param e a música dele
-pausa (senão ele ouviria a si mesmo). O som do computador (loopback: o que sai na caixa ou no fone, nunca
+pausa (senão ele ouviria a si mesmo). Com "Ver minha tela", ele olha a tela no ritmo de jogo e anota o
+que aparece (slides, código, cenas), que vai junto para o resumo. O som do computador (loopback: o que sai na caixa ou no fone, nunca
 o microfone) é gravado em pedaços de TRECHO s; cada pedaço com som vai para o serviço de voz
 (servidor/voz/, o mesmo de "Falar com ele") e volta como texto. Vídeo longo: a cada ~10 min de fala, o
 modelo de IA anota os pontos daquele pedaço (ia/video.py), para nada crescer sem limite.
@@ -44,6 +48,10 @@ MAX_DURACAO = 3 * 3600.0    # s: depois disso ele resume sozinho
 ESPERA_TRANSCRICAO = 45.0   # s esperando os últimos pedaços voltarem antes de resumir sem eles
 ESPERA_AUTO = 180.0         # s depois de um resumo (ou de você mandar parar) sem começar sozinho de novo
 REPETE_AVISO = 600.0
+CONFERE_SOM = 2.0           # s ouvindo o som do computador antes de perguntar se assiste (vídeo rodando?)
+ESPERA_OFERTA = 40.0        # s esperando você responder se ele assiste junto
+ESPERA_SEM_SOM = 60.0       # s sem perguntar de novo quando parecia vídeo, mas não tinha som
+ESPERA_RECUSA = 20 * 60.0   # s sem oferecer de novo depois de você dizer que não
 
 
 def _som_do_computador():
@@ -65,6 +73,7 @@ class VideoController(QObject):
     fala = Signal(str)              # algo para o balão
     resumo = Signal(str)            # o resumo completo (para o chat)
     aviso = Signal(str)             # problema (bandeja)
+    perguntou = Signal()            # perguntou se assiste junto: o app deixa a orelha ouvindo a resposta
     _pronto = Signal(str, object, int)      # da thread para a thread do Qt: (tipo, resultado, geração)
 
     def __init__(self, app, nome):
@@ -83,6 +92,8 @@ class VideoController(QObject):
         self.transcricao = video.Transcricao()
         self.pendentes = 0              # pedaços no serviço de voz
         self.sem_auto_ate = 0.0
+        self.conferindo = False         # ouvindo um pouco do som do computador antes de oferecer
+        self.oferta_ate = 0.0           # perguntou se assiste junto: a resposta vale até aqui
         self._finalizar_ate = 0.0
         self._duracao = 0.0
         self._gravando = False
@@ -105,6 +116,10 @@ class VideoController(QObject):
     def ocupado(self):
         """Assistindo ou ainda resumindo o último."""
         return self.ativo or self.finalizando or self.resumindo
+
+    def oferecendo(self):
+        """Perguntou se assiste junto e ainda espera a resposta."""
+        return time.monotonic() < self.oferta_ate
 
     def cliente_voz(self):
         """O cliente do serviço de voz (recriado se você trocar o endereço)."""
@@ -129,6 +144,7 @@ class VideoController(QObject):
             return str(erro)
         self.geracao += 1
         self.ativo, self.finalizando = True, False
+        self.conferindo, self.oferta_ate = False, 0.0
         self.desde = self.ultimo_som = time.monotonic()
         self.transcricao = video.Transcricao()
         self.titulo = self._titulo_da_janela()
@@ -140,16 +156,77 @@ class VideoController(QObject):
                          daemon=True).start()
         log("[vídeo] comecei a assistir" + (" (sozinho)" if sozinho else ""))
         if sozinho:
-            return "Opa, vídeo! Vou assistir quietinho com você e depois te conto o que aprendi."
+            return "Fechou! Vou assistir quietinho com você e depois te conto o que aprendi."
         return "Bora! Vou ficar quietinho prestando atenção. Quando acabar, eu resumo."
 
     def viu_video(self, now):
-        """A olhada da IA disse que você está vendo um vídeo: começa sozinho (se pode e não acabou de parar)."""
-        if self.ocupado() or now < self.sem_auto_ate or not self.ligado() or self.app._congelado():
+        """A olhada da IA disse que você está vendo um vídeo: confere se tem som e, se tiver, pergunta se
+        assiste junto (se pode, e se não acabou de parar, de perguntar ou de ouvir um não)."""
+        if (self.ocupado() or self.conferindo or self.oferecendo() or now < self.sem_auto_ate
+                or not self.ligado() or self.app._congelado()):
             return
-        fala = self.comecar(sozinho=True)
+        self.conferindo = True
+        threading.Thread(target=self._conferir_som, args=(self.geracao,), name="pestinha-video-confere",
+                         daemon=True).start()
+
+    def _conferir_som(self, geracao):
+        """Roda numa thread: ouve CONFERE_SOM s do som do computador e diz se tem alguma coisa tocando."""
+        try:
+            import pythoncom
+            pythoncom.CoInitialize()
+        except Exception:
+            pass
+        try:
+            fonte = _som_do_computador()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                with fonte.recorder(samplerate=TAXA, channels=1) as gravador:
+                    dados = gravador.record(numframes=int(TAXA * CONFERE_SOM))
+            pcm = voz.para_mono16(dados.astype("<f4").tobytes(), "float", 1)
+            self._pronto.emit("conferido", video.tem_som(pcm), geracao)
+        except ErroIA as erro:
+            self._pronto.emit("conferido", erro, geracao)
+        except Exception as erro:
+            self._pronto.emit("conferido", ErroIA(f"o som do computador falhou: {type(erro).__name__}: {erro}"),
+                              geracao)
+
+    def _conferido(self, resultado, now):
+        """Voltou a conferência do som: com som, pergunta se assiste junto."""
+        self.conferindo = False
+        if isinstance(resultado, Exception):
+            self._avisar(str(resultado))
+            self.sem_auto_ate = now + ESPERA_AUTO
+            return
+        if not resultado:
+            log("[vídeo] parecia vídeo, mas o computador está em silêncio: não pergunto")
+            self.sem_auto_ate = now + ESPERA_SEM_SOM
+            return
+        if self.ocupado() or not self.ligado() or self.app._congelado():
+            return
+        self.oferta_ate = now + ESPERA_OFERTA
+        log("[vídeo] tem vídeo tocando: perguntei se assisto junto")
+        self.fala.emit("Isso aí é um vídeo? Quer que eu assista com você?")
+        self.perguntou.emit()
+
+    def responder_oferta(self, texto):
+        """Sua resposta a "quer que eu assista com você?". Devolve o que ele diz, ou None se não era resposta."""
+        if not self.oferecendo():
+            return None
+        resposta = video.resposta_a_oferta(texto)
+        if resposta == "sim":
+            self.oferta_ate = 0.0
+            return self.comecar(sozinho=True)
+        if resposta == "nao":
+            self.oferta_ate = 0.0
+            self.sem_auto_ate = time.monotonic() + ESPERA_RECUSA
+            log("[vídeo] você não quis que eu assistisse")
+            return "Beleza, fico na minha."
+        return None
+
+    def viu_tela(self, texto):
+        """Uma olhada enquanto assiste: o que aparece no vídeo vai para o resumo."""
         if self.ativo:
-            self.fala.emit(fala)
+            self.transcricao.ver(time.monotonic() - self.desde, texto)
 
     def _titulo_da_janela(self):
         """O título da janela (o nome do vídeo, no navegador), só com "Ver minha tela"."""
@@ -221,6 +298,9 @@ class VideoController(QObject):
 
     def tick(self, now):
         """No ciclo de pensamento: fim por silêncio ou duração, notas de vídeo longo, e o resumo final."""
+        if self.oferta_ate and now >= self.oferta_ate:
+            self.oferta_ate = 0.0                       # você não respondeu: ele esquece e não pergunta logo
+            self.sem_auto_ate = now + ESPERA_AUTO
         if self.ativo:
             if now - self.ultimo_som > self.app.prof["video_silencio"]:
                 log("[vídeo] silêncio: o vídeo acabou ou foi pausado")
@@ -254,6 +334,7 @@ class VideoController(QObject):
         self.geracao += 1
         self._gravando = False
         self.ativo = self.finalizando = self.resumindo = self.condensando = False
+        self.conferindo, self.oferta_ate = False, 0.0
         self.pendentes = 0
         self.transcricao = video.Transcricao()
         if estava:
@@ -290,7 +371,7 @@ class VideoController(QObject):
         self.resumindo = True
         self._duracao = now - self.desde
         pedido = video.pedido_resumo(self.titulo, self.transcricao.notas, self.transcricao.texto(),
-                                     self._duracao, estado)
+                                     self._duracao, estado, self.transcricao.texto_telas())
         self._modelo("resumo", cliente, pedido, None)
 
     def _modelo(self, tipo, cliente, pedido, extra):
@@ -341,6 +422,8 @@ class VideoController(QObject):
             self.pendentes += 1
         elif tipo == "silencio":
             pass
+        elif tipo == "conferido":
+            self._conferido(resultado, now)
         elif tipo == "trecho":
             self.pendentes = max(0, self.pendentes - 1)
             inicio, texto = resultado

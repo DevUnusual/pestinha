@@ -212,6 +212,9 @@ class InteracaoMixin:
         """
         if self._congelado() or not (self.perms["ia"] and self.perms["videos"]):
             return None
+        resposta = self.video.responder_oferta(texto)      # "quer que eu assista com você?" -> "sim"
+        if resposta is not None:
+            return resposta
         pedido = pedido_de_video(texto)
         if pedido == "comecar":
             return self.video.comecar()
@@ -261,6 +264,7 @@ class InteracaoMixin:
     def _enviar_conversa(self, texto):
         """Você mandou uma mensagem: ele começa a pensar (ou explica por que não dá agora)."""
         self.falaram_comigo()
+        self.chamado.pediu_em = 0.0                         # escreveu: a resposta não abre o microfone
         janela = self.conversa_janela
         janela.set_aviso(self.visao.descricao())
         resposta = self._video_pelo_chat(texto) or self._musica_pelo_chat(texto)
@@ -283,11 +287,12 @@ class InteracaoMixin:
             janela.adicionar("Você", texto)
         resposta = self._video_pelo_chat(texto) or self._musica_pelo_chat(texto)
         if resposta:
+            self.chamado.pediu_em = 0.0                     # um comando: feito, não precisa emendar
             if janela is not None and janela.isVisible():
                 janela.adicionar(self.nome, resposta)
             self._mostrar_fala(resposta)
             return
-        if self.visao.perguntar(texto):
+        if self.visao.perguntar(texto, por_voz=bool(self.chamado.pediu_em)):
             if janela is not None:
                 janela.set_ocupado(True)
         elif janela is not None and janela.isVisible() and not self.visao.respondendo:

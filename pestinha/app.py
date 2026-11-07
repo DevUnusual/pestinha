@@ -215,6 +215,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.voz.ditado.connect(self._ditado)
         self.chamado = ChamadoController(self, self.paths.modelos)     # "Bob!": o microfone esperando o nome
         self.chamado.chamou.connect(self._fui_chamado)
+        self.visao.resposta.connect(self.chamado.respondeu)       # perguntou chamando: continua ouvindo
+        self.visao.erro_conversa.connect(self.chamado.respondeu)
         self.musica = MusicaController(self, self.pet_paths.musica)
         self.tocando = Tocando(self.paths.panels)
         self.tocando.comando.connect(self._comando_do_cartao)
@@ -227,6 +229,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.video = VideoController(self, self.nome)   # assiste vídeos com você e resume
         self.video.fala.connect(self._mostrar_fala)
         self.video.resumo.connect(self._resumo_do_video)
+        self.video.perguntou.connect(self.chamado.continuar_ouvindo)    # "quer que eu assista?": ouve o sim
 
         # ----- reflexos e medições -----
         self.in_flight = False      # voando depois de um arremesso

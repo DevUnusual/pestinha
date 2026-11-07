@@ -82,8 +82,13 @@ Só vale com **Usar IA**, **Conversar por texto**, **Falar com ele** e **Chamar 
   os últimos 30 segundos ficam na memória, para recortar o pedido quando você fala tudo junto ("Bob, que
   horas são?").
 - **Depois do nome:** só o seu pedido (da palavra até você parar de falar, no máximo 15 s) vai para o
-  **serviço de voz**, como no atalho de falar, e não é gravado. Ele não atende enquanto assiste um vídeo com
-  você, enquanto você segura o atalho de falar ou enquanto ainda responde o pedido anterior.
+  **serviço de voz**, como no atalho de falar, e não é gravado. Ele não atende enquanto você segura o atalho
+  de falar ou enquanto ainda responde o pedido anterior. Assistindo um vídeo ou tocando música, ele continua
+  atendendo, mas só aceita o nome bem claro (o nome pode estar no som que sai da caixa).
+- **Emendando a conversa:** depois de responder uma pergunta que você fez chamando o nome, ou de perguntar
+  se assiste um vídeo com você, ele te ouve por mais **8 segundos sem precisar do nome** (a orelha fica
+  para a frente). O que você falar nesse tempo vai para o serviço de voz como um pedido. Calado, ele volta a
+  esperar o nome e nada sai do computador.
 - **O que é baixado:** na primeira vez, o modelo de português do Vosk (31 MB, de alphacephei.com) vai para
   `memory/modelos/`. Depois disso, nada mais é baixado.
 - O pânico, a pausa ou desligar a permissão fecham o microfone na hora.
@@ -93,8 +98,10 @@ Só vale com **Usar IA**, **Conversar por texto**, **Falar com ele** e **Chamar 
 Só vale com **Usar IA** e **Assistir vídeos comigo** ligados.
 
 - **Quando ele ouve:** depois que você pede ("assiste esse vídeo comigo", ou pelo menu) ou, com **Ver minha
-  tela** ligado, quando a olhada da IA diz que você está vendo um vídeo com fala (ele avisa no balão e fica
-  com a orelha para a frente o tempo todo). Para quando você pede ("resume o vídeo", "pode parar de
+  tela** ligado, quando a olhada da IA diz que você está vendo um vídeo com fala. Nesse caso ele primeiro
+  ouve **2 segundos** do som do computador, só na memória e sem mandar para lugar nenhum, para saber se o
+  vídeo está tocando; se estiver, **pergunta** no balão se é para assistir com você e só começa se você
+  disser que sim (pela voz ou pelo chat). Assistindo, fica com a orelha para a frente o tempo todo. Para quando você pede ("resume o vídeo", "pode parar de
   assistir", ou pelo menu), depois de 4 minutos sem som nenhum, ou em 3 horas.
 - **O que ele ouve:** o som que sai do computador (loopback: o que vai para a caixa ou o fone), nunca o
   microfone. Isso inclui qualquer som que estiver tocando, não só o vídeo; a música do próprio Pestinha é

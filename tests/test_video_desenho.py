@@ -108,6 +108,23 @@ def test_pedido_de_video(texto, esperado):
     assert video.pedido_de_video(texto) == esperado
 
 
+@pytest.mark.parametrize("texto, esperado", [
+    ("sim", "sim"), ("Pode sim!", "sim"), ("bora", "sim"), ("é sim", "sim"), ("assiste comigo", "sim"),
+    ("não, valeu", "nao"), ("agora não", "nao"), ("nem precisa", "nao"),
+    ("que horas são?", None), ("", None),
+])
+def test_resposta_a_oferta(texto, esperado):
+    assert video.resposta_a_oferta(texto) == esperado
+
+
+def test_transcricao_guarda_o_que_viu_na_tela():
+    t = video.Transcricao()
+    assert t.ver(5, "slide de título") and not t.ver(9, "slide de título")
+    assert t.ver(65, "código em Python")
+    assert t.texto_telas() == "[0:05] slide de título\n[1:05] código em Python"
+    assert t.vazia()                                                   # ver não é ouvir alguém falando
+
+
 def test_tem_som():
     silencio = np.zeros(16000, dtype="<i2").tobytes()
     tom = (np.sin(np.arange(16000) / 5.0) * 8000).astype("<i2").tobytes()
@@ -344,16 +361,82 @@ def test_silencio_encerra_sozinho(qapp, pet):
     assert falas and "Não ouvi ninguém" in falas[-1]                  # silêncio sem fala: nada a resumir
 
 
-def test_olhada_que_ve_video_comeca_sozinho_e_nao_recomeca_logo(qapp, pet):
+def test_olhada_que_ve_video_confere_o_som_e_pergunta_antes(qapp, pet):
     app, _falso, _voz = pet
     falas = []
     app.video.fala.connect(falas.append)
+    app.chamado.ouvindo = app.chamado.pronto = True               # o chamado esperando o nome
     app.visao._entender(mente.ler_observacao('{"resumo": "vendo aula", "video": true}'))
-    assert app.video.ativo and "Opa, vídeo" in falas[0]
+    assert esperar(qapp, lambda: app.video.oferecendo())
+    assert not app.video.ativo and "Quer que eu assista" in falas[-1]
+    assert app.chamado.escutando                                      # a orelha já ouve o "sim"
+    assert app._video_pelo_chat("que horas são?") is None             # não era resposta: vai para a IA
+    assert "quietinho" in app._video_pelo_chat("pode sim")
+    assert app.video.ativo and not app.video.oferecendo()
     app.video.parar()
     app.video.cancelar()
     app.visao._entender(mente.ler_observacao('{"resumo": "vendo aula", "video": true}'))
-    assert not app.video.ativo                                        # acabou de parar: não volta sozinho
+    assert not app.video.conferindo and not app.video.oferecendo()     # acabou de parar: não pergunta logo
+    app.chamado.ouvindo = app.chamado.pronto = app.chamado.escutando = False
+
+
+def test_parece_video_mas_sem_som_nao_pergunta(qapp, pet, monkeypatch):
+    app, _falso, _voz = pet
+    falas = []
+    app.video.fala.connect(falas.append)
+    monkeypatch.setattr(video_ctl, "_som_do_computador", lambda: FonteFalsa(GravadorFalso(tom=0)))
+    app.visao._entender(mente.ler_observacao('{"resumo": "vendo aula", "video": true}'))
+    assert esperar(qapp, lambda: not app.video.conferindo)
+    assert not app.video.oferecendo() and falas == [] and app.video.sem_auto_ate > time.monotonic()
+
+
+def test_nao_quero_que_assista_fica_quieto_um_tempo(qapp, pet):
+    app, _falso, _voz = pet
+    app.video.viu_video(time.monotonic())
+    assert esperar(qapp, lambda: app.video.oferecendo())
+    assert app._video_pelo_chat("não, valeu").startswith("Beleza")
+    assert not app.video.ativo
+    assert app.video.sem_auto_ate > time.monotonic() + video_ctl.ESPERA_RECUSA - 5
+
+
+def test_oferta_sem_resposta_expira(qapp, pet):
+    app, _falso, _voz = pet
+    app.video.viu_video(time.monotonic())
+    assert esperar(qapp, lambda: app.video.oferecendo())
+    app.video.oferta_ate = time.monotonic() - 1
+    app.video.tick(time.monotonic())
+    assert not app.video.oferecendo() and app._video_pelo_chat("sim") is None
+
+
+def test_assistindo_olha_a_tela_rapido_e_anota_para_o_resumo(qapp, pet):
+    app, falso, _voz = pet
+    app.video.comecar()
+    assert app.visao.intervalo() == app.prof["visao_jogo_nuvem" if app.perms["ia_provedor"] != "ollama"
+                                             else "visao_jogo"]
+    app.visao.olhar(time.monotonic())
+    assert esperar(qapp, lambda: not app.visao.olhando)
+    assert "assistindo esse vídeo junto" in falso.chamadas[-1][0][0]["content"]
+    app.visao._entender(mente.ler_observacao('{"resumo": "slide com a fórmula F = m.a", "comentario": "uau"}'))
+    assert app.video.transcricao.telas[-1][1] == "slide com a fórmula F = m.a"
+    assert app.balao.texto != "uau"
+    app.video.transcricao.adicionar(0, "a força é massa vezes aceleração")
+    app.video.parar()
+    assert esperar(qapp, lambda: (app.video.tick(time.monotonic()), not app.video.resumindo
+                                  and not app.video.finalizando)[1])
+    pedido = falso.chamadas[-1][0][0]["content"]
+    assert "slide com a fórmula F = m.a" in pedido and "O que você viu na tela" in pedido
+
+
+def test_pergunta_falada_pede_para_oferecer_mais(qapp, pet):
+    app, falso, _voz = pet
+    app.apply_perms({"conversa": True})
+    falso.resposta = "fica no menu Arquivo. quer saber mais alguma coisa?"
+    assert app.visao.perguntar("como eu exporto o arquivo?", por_voz=True)
+    assert esperar(qapp, lambda: not app.visao.respondendo)
+    assert "quer saber mais alguma coisa" in falso.chamadas[-1][0][-1]["content"]
+    assert app.visao.perguntar("e como salvo?")
+    assert esperar(qapp, lambda: not app.visao.respondendo)
+    assert "Ela falou isso em voz alta" not in falso.chamadas[-1][0][-1]["content"]
 
 
 def test_sem_permissao_nao_ouve(qapp, pet):

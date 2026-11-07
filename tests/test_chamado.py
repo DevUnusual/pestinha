@@ -261,18 +261,78 @@ def test_assistindo_video_nao_atende(qapp, pet):
     t.join(1.0)
 
 
-def test_surdo_quando_o_video_ou_a_voz_estao_ocupados(qapp, pet):
+def test_surdo_so_quando_a_voz_esta_ocupada_e_exigente_com_video(qapp, pet):
     app, _voz, _ouvidos = pet
     app.chamado.atualizar()
-    assert not app.chamado._surdo
+    assert not app.chamado._surdo and not app.chamado._exigente
     app.voz.transcrevendo = True
     app.chamado.atualizar()
     assert app.chamado._surdo
     app.voz.transcrevendo = False
     app.video.ativo = True
     app.chamado.atualizar()
-    assert app.chamado._surdo
+    assert not app.chamado._surdo and app.chamado._exigente      # assistindo: ainda atende, mas exige
     app.video.ativo = False
+
+
+@pytest.mark.parametrize("confianca, atende", [(0.8, False), (0.95, True)])
+def test_com_video_tocando_so_o_nome_bem_claro_vale(qapp, pet, confianca, atende):
+    app, _voz, ouvidos = pet
+    app.chamado._exigente = True
+    rec = ReconhecedorFalso([(2.0, resultado(("bob", confianca, 0.5, 0.9), ("[unk]", 0.7, 1.0, 1.8)))])
+    _fila, t = rodar_laco(app, rec, [fala(0.1)] * 25)
+    if atende:
+        assert esperar(qapp, lambda: ouvidos == ["que horas são"])
+    else:
+        time.sleep(0.3)
+        qapp.processEvents()
+        assert ouvidos == []
+    app.chamado.geracao += 1
+    t.join(1.0)
+
+
+def test_depois_da_resposta_continua_ouvindo_sem_o_nome(qapp, pet):
+    app, voz, ouvidos = pet
+    c = app.chamado
+    fila, t = rodar_laco(app, ReconhecedorFalso([]), [])
+    c.pronto = True
+    c.pediu_em = time.monotonic()                                # a pergunta veio chamando pelo nome
+    c.respondeu("dá pra pegar no menu Arquivo. Quer saber mais alguma coisa?")
+    assert c.escutando and c.pediu_em == 0.0
+    app._atualizar_mente(time.monotonic())
+    assert "ouvindo" in app.pet_state.mente                      # a orelha levanta de novo
+    for p in [fala(0.1)] * 8 + [fala(0.1, alto=False)] * 14:
+        fila.put(p)
+    assert esperar(qapp, lambda: ouvidos == ["que horas são"])   # emendou sem dizer "Bob"
+    assert not c.escutando and c.pediu_em > 0                    # e a próxima resposta emenda de novo
+    c.geracao += 1
+    t.join(1.0)
+
+
+def test_calado_depois_da_resposta_volta_a_esperar_o_nome(qapp, pet, monkeypatch):
+    app, _voz, ouvidos = pet
+    c = app.chamado
+    monkeypatch.setattr(chamado, "ESPERA_CONTINUA", 0.5)
+    fila, t = rodar_laco(app, ReconhecedorFalso([]), [])
+    c.pronto = True
+    assert c.continuar_ouvindo(espera=0.5)
+    for p in [fala(0.1, alto=False)] * 10:
+        fila.put(p)
+    assert esperar(qapp, lambda: not c.escutando)
+    assert ouvidos == []
+    c.geracao += 1
+    t.join(1.0)
+
+
+def test_resposta_ao_texto_ou_atrasada_nao_abre_a_escuta(qapp, pet):
+    app, _voz, _ouvidos = pet
+    c = app.chamado
+    c.pronto = True
+    c.respondeu("oi")                                            # você escreveu: nada de microfone
+    assert not c.escutando
+    c.pediu_em = time.monotonic() - 1000                         # pergunta falada há muito tempo
+    c.respondeu("oi")
+    assert not c.escutando
 
 
 def test_so_abre_o_microfone_com_a_permissao(qapp, pet):

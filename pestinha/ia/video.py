@@ -10,6 +10,7 @@ mind/video_ctl.py.
     pedido_resumo(...)         "resuma o vídeo" -> JSON com título, resumo, pontos e um comentário
     ler_resumo(texto)          o JSON vira um Aprendizado (tolerante a texto em volta e campos faltando)
     tem_som(pcm)               o pedaço de áudio tem alguma coisa ou é silêncio?
+    resposta_a_oferta(texto)   'sim' / 'nao' / None: o que você respondeu a "quer que eu assista com você?"
 """
 
 import json
@@ -25,6 +26,8 @@ MAX_PONTOS = 8
 MAX_TITULO = 80
 MAX_RESUMO = 700
 LIMIAR_SOM = 0.004          # RMS (0..1) abaixo disso o pedaço é silêncio
+MAX_TELAS = 40              # o que ele viu na tela enquanto assistia (as mais velhas saem)
+MAX_TELA = 160              # caracteres de cada uma
 
 # O Whisper inventa estas frases quando só tem música ou silêncio
 _ALUCINACOES = ("amara.org", "legendas pela comunidade", "legendado por", "transcrição por", "subtitles by")
@@ -61,6 +64,23 @@ def pedido_de_video(texto):
     return None
 
 
+_SIM = re.compile(r"^(?:(?:e\s+)?(?:sim|s|pode|claro|quero|bora|vamos|vai|beleza|ok|okay|isso|aham|uhum"
+                  r"|assiste|assista|por\s+favor|manda\s+ver|com\s+certeza|era)\b)")
+_NAO = re.compile(r"^(?:nao|n|nem|deixa|agora\s+nao|precisa\s+nao|dispenso|para|pare)\b")
+
+
+def resposta_a_oferta(texto):
+    """'sim', 'nao' ou None (não é resposta) para "quer que eu assista com você?"."""
+    normal = _normal(texto)
+    if not normal or len(normal) > 80:
+        return None
+    if _NAO.search(normal):
+        return "nao"
+    if _SIM.search(normal) or pedido_de_video(texto) == "comecar":
+        return "sim"
+    return None
+
+
 def tem_som(pcm):
     """PCM 16 bits: tem alguma coisa tocando (acima de LIMIAR_SOM) ou é silêncio?"""
     if not pcm:
@@ -92,6 +112,7 @@ class Transcricao:
         self.trechos = []           # (segundo do vídeo, texto), em ordem
         self.notas = []             # notas dos pedaços que já foram condensados
         self.caracteres = 0         # total ouvido (para saber se ouviu alguma coisa)
+        self.telas = []             # (segundo do vídeo, o que aparecia na tela), das olhadas enquanto assiste
         self._repetido = ""
 
     def adicionar(self, segundo, texto):
@@ -104,6 +125,18 @@ class Transcricao:
         self.trechos.sort(key=lambda t: t[0])
         self.caracteres += len(texto)
         return True
+
+    def ver(self, segundo, texto):
+        """O que aparecia no vídeo numa olhada (slide, código, cena). Igual à anterior fica fora."""
+        texto = " ".join(str(texto or "").split())[:MAX_TELA]
+        if not texto or (self.telas and self.telas[-1][1] == texto):
+            return False
+        self.telas = (self.telas + [(segundo, texto)])[-MAX_TELAS:]
+        return True
+
+    def texto_telas(self):
+        """O que ele viu na tela, com o tempo do vídeo."""
+        return "\n".join(f"[{tempo(s)}] {t}" for s, t in self.telas)
 
     def vazia(self):
         """Não ouviu ninguém falando."""
@@ -159,13 +192,18 @@ def pedido_notas(titulo, texto):
     )
 
 
-def pedido_resumo(titulo, notas, texto, duracao=0, estado=""):
-    """O resumo final em JSON (ver ler_resumo): o que ele guarda como conhecimento."""
+def pedido_resumo(titulo, notas, texto, duracao=0, estado="", telas=""):
+    """O resumo final em JSON (ver ler_resumo): o que ele guarda como conhecimento.
+
+    `telas`: o que ele viu na tela enquanto assistia (Transcricao.texto_telas), para ligar fala e imagem.
+    """
     corpo = []
     if notas:
         corpo.append("Suas notas das partes anteriores:\n" + "\n".join(notas))
     if texto:
         corpo.append("Transcrição automática do resto (pode ter erros de escuta):\n" + texto)
+    if telas:
+        corpo.append("O que você viu na tela enquanto assistia (slides, código, cenas):\n" + telas)
     estado = f"[Seu estado agora: {estado}]\n" if estado else ""
     return (
         f"{estado}Você assistiu a um vídeo junto com a pessoa, quietinho, só prestando atenção. "

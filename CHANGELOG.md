@@ -1,5 +1,22 @@
 # Histórico de versões
 
+## Conversa que emenda e vídeo com licença
+
+- **Ele continua ouvindo depois de responder:** quando você chama ("Bob, como eu exporto isso?") e faz uma
+  pergunta, ele responde, termina perguntando se você quer saber mais alguma coisa e fica com a orelha
+  levantada por 8 s, sem precisar do nome. Dá para emendar outra pergunta e outra, até você ficar
+  calado. Comandos ("toca uma música", "assiste comigo") não emendam.
+- **Pergunta antes de assistir:** quando a olhada vê um vídeo na tela, ele ouve 2 s do som do computador.
+  Sem som, o vídeo não está rodando e ele deixa quieto. Com som, ele pergunta "Quer que eu assista com
+  você?" e espera o sim ou o não, pela voz (já ouvindo, sem precisar do nome) ou pelo chat. Um "não"
+  deixa ele quieto por 20 min; sem resposta, ele esquece.
+- **Assistindo, ele também olha:** com "Ver minha tela", ele olha a tela no ritmo de jogo (pulando quando
+  quase nada mudou), não comenta e anota o que aparece (slides, código, cenas). Essas anotações vão junto
+  para o resumo do vídeo.
+- **O chamado não desliga mais durante o vídeo:** ele continua no microfone, separado do som do vídeo
+  (que vem do loopback), e atende "Bob" mesmo assistindo. Com vídeo ou música tocando, só vale o nome
+  dito bem claro (confiança 0,9), para a voz do vídeo não chamar ele por engano.
+
 ## Bob vira assistente de bordo
 
 - **O Bob deixa de ser marrento e vira um assistente de bordo** (`pets/bryan.json`): educado, prestativo e

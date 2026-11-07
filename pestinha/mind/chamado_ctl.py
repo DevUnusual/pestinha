@@ -10,8 +10,15 @@ Vosk neste computador (ia/chamado.py), procurando só a palavra de chamado. Dois
 O texto volta pelo VozController, como se você tivesse usado o atalho de falar: vai para a IA e a resposta
 vem no balão (e no chat, se estiver aberto).
 
-Ele não atende enquanto: assiste um vídeo com você (o nome pode estar no vídeo), você segura o atalho de
-falar, ou ele ainda está transcrevendo ou respondendo o pedido anterior.
+Continuar a conversa: depois de responder uma pergunta que você fez chamando o nome (ou de perguntar se
+assiste um vídeo com você), a orelha levanta de novo e ele te ouve por ESPERA_CONTINUA s sem precisar do
+nome, para você emendar outra pergunta ou responder ("sim"). Calado esse tempo, ele volta a esperar o nome.
+
+O chamado é um serviço à parte (microfone e thread próprios) e fica ligado o tempo todo, inclusive com ele
+assistindo um vídeo: o vídeo é ouvido pelo som do computador (loopback), não pelo microfone. Com vídeo ou
+música tocando, o nome pode vir da caixa de som, então só vale com confiança alta (CONFIANCA_EXIGENTE).
+Ele só não atende enquanto você segura o atalho de falar, ou ele ainda está transcrevendo ou respondendo o
+pedido anterior.
 
 Política (as permissões ficam em config.py):
     - só com "Usar IA", "Conversar por texto", "Falar com ele" e "Chamar pelo nome", sem pausa nem pânico;
@@ -36,6 +43,7 @@ from .voz_ctl import _FORMATOS
 
 REPETE_AVISO = 600.0
 ESPERA_FILA = 0.3           # s: a thread confere se ainda deve ouvir pelo menos a esse intervalo
+ESPERA_RESPOSTA = 120.0     # s: uma resposta que chega depois disso já não emenda a conversa falada
 
 
 class ChamadoController(QObject):
@@ -60,6 +68,9 @@ class ChamadoController(QObject):
         self._formato = None
         self._fila = queue.Queue()
         self._surdo = False             # lido pela thread: agora não atende
+        self._exigente = False          # lido pela thread: vídeo ou música tocando, só o nome bem claro
+        self._continuar = None          # (geração, espera): a thread abre uma escuta sem precisar do nome
+        self.pediu_em = 0.0             # quando mandou o último pedido falado (para continuar depois da resposta)
         self._avisos = {}
         self._evento.connect(self._ao_evento)
 
@@ -88,11 +99,29 @@ class ChamadoController(QObject):
             self.parar()
 
     def atualizar(self):
-        """No ciclo de pensamento: quando ele não deve atender (vídeo, atalho de falar, respondendo)."""
+        """No ciclo de pensamento: quando ele não deve atender (atalho de falar, respondendo) e quando o som
+        do computador pode ter o nome (vídeo ou música: só vale bem claro)."""
         app = self.app
+        self._surdo = bool(app.voz.gravando or app.voz.transcrevendo or app.visao.respondendo)
         video = getattr(app, "video", None)
-        self._surdo = bool((video is not None and video.ocupado()) or app.voz.gravando or app.voz.transcrevendo
-                           or app.visao.respondendo)
+        musica = getattr(app, "musica", None)
+        self._exigente = bool((video is not None and video.ativo)
+                              or (musica is not None and musica.ativa() and musica.tocando()))
+
+    def respondeu(self, _texto=""):
+        """Chegou a resposta do chat: se a pergunta veio chamando pelo nome, continua ouvindo."""
+        if self.pediu_em and time.monotonic() - self.pediu_em < ESPERA_RESPOSTA:
+            self.continuar_ouvindo()
+        self.pediu_em = 0.0
+
+    def continuar_ouvindo(self, espera=chamado.ESPERA_CONTINUA):
+        """Depois de uma resposta: a orelha levanta e ele ouve sem precisar do nome. False se não está ouvindo."""
+        if not (self.ouvindo and self.pronto) or self.escutando:
+            return False
+        self._continuar = (self.geracao, espera)
+        self.escutando = True
+        log("[chamado] continuo ouvindo, sem precisar do nome")
+        return True
 
     # ---------------- microfone ----------------
 
@@ -141,6 +170,7 @@ class ChamadoController(QObject):
         estava = self.ouvindo
         self._fonte = self._dispositivo = None
         self.ouvindo = self.escutando = self.pronto = False
+        self._continuar = None
         self._fila = queue.Queue()
         if estava:
             log("[chamado] microfone fechado")
@@ -184,6 +214,9 @@ class ChamadoController(QObject):
             except queue.Empty:
                 continue
             achou = detector.alimentar(pcm)          # sempre alimenta: os tempos do Vosk não se perdem
+            continuar, self._continuar = self._continuar, None
+            if continuar is not None and continuar[0] == geracao and escuta is None:
+                escuta = chamado.Escuta(taxa, espera=continuar[1])     # emendando: sem precisar do nome
             if escuta is not None:
                 fim = escuta.alimentar(pcm)
                 if fim == "fim":
@@ -194,6 +227,9 @@ class ChamadoController(QObject):
                     escuta = None
                 continue
             if achou is None or self._surdo:
+                continue
+            if self._exigente and achou.confianca < chamado.CONFIANCA_EXIGENTE:
+                log(f"[chamado] nome pouco claro com som tocando (confiança {achou.confianca:.2f}): ignorei")
                 continue
             log(f"[chamado] ouvi o nome (confiança {achou.confianca:.2f})")
             if achou.com_pedido():                    # "Bob, que horas são?": o pedido veio junto
@@ -223,8 +259,8 @@ class ChamadoController(QObject):
             self.escutando = False
         elif tipo == "pedido":
             self.escutando = False
-            if self.permitido() and not self.app._congelado():
-                self.app.voz.transcrever(dado)
+            if self.permitido() and not self.app._congelado() and self.app.voz.transcrever(dado):
+                self.pediu_em = time.monotonic()
 
     def _avisar(self, motivo):
         """Loga e avisa na bandeja, sem repetir o mesmo aviso toda hora."""

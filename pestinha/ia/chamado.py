@@ -30,12 +30,14 @@ from .provedores import ErroIA
 MODELO = "vosk-model-small-pt-0.3"
 MODELO_URL = f"https://alphacephei.com/vosk/models/{MODELO}.zip"
 CONFIANCA = 0.7             # 0..1: abaixo disso não é o nome (só ruído parecido)
+CONFIANCA_EXIGENTE = 0.9    # com vídeo ou música tocando: o nome pode estar no som, só vale bem claro
 DEPOIS_DO_NOME = 0.45       # s de fala depois do nome, na mesma frase: o pedido já veio junto
 ANTES = 0.25                # s antes do nome que vão junto no pedido (o começo da palavra)
 GUARDA = 30.0               # s de áudio guardados para recortar o pedido que veio junto
 LIMIAR_FALA = 0.012         # RMS (0..1): acima disso é fala
 SILENCIO_FIM = 1.1          # s de silêncio depois de falar: terminou o pedido
 ESPERA_FALA = 5.0           # s esperando você começar a falar depois do nome
+ESPERA_CONTINUA = 8.0       # s esperando você continuar depois de uma resposta (sem precisar do nome)
 MAX_PEDIDO = 15.0           # s no máximo de pedido
 
 # Palavras comuns que soam parecido com nomes curtos: absorvem os falsos chamados
@@ -236,9 +238,11 @@ def volume(pcm):
 class Escuta:
     """Depois do nome sozinho: junta a sua fala até você parar (SILENCIO_FIM) ou desistir (ESPERA_FALA)."""
 
-    def __init__(self, taxa, comeco=b""):
-        """`comeco`: o nome, que vai junto (o Whisper entende melhor a frase inteira)."""
+    def __init__(self, taxa, comeco=b"", espera=ESPERA_FALA):
+        """`comeco`: o nome, que vai junto (o Whisper entende melhor a frase inteira).
+        `espera`: s até desistir se você não falar nada."""
         self.taxa = int(taxa)
+        self.espera = espera
         self.partes = [comeco] if comeco else []
         self.duracao = 0.0
         self.falou = False
@@ -255,7 +259,7 @@ class Escuta:
             self.silencio += segundos
         if self.falou and (self.silencio >= SILENCIO_FIM or self.duracao >= MAX_PEDIDO):
             return "fim"
-        if not self.falou and self.duracao >= ESPERA_FALA:
+        if not self.falou and self.duracao >= self.espera:
             return "desistiu"
         return None
 
