@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## Token da memória com confirmação na hora
+
+- **Salvar o token já confere com o serviço:** o aviso diz, numa caixa verde, que o token foi aceito, ou,
+  numa vermelha, por que foi recusado. Antes, só dizia "Token salvo", sem saber se valia.
+- **O token novo vale na hora** para a sincronia que já está aberta, sem reabrir o Pestinha.
+- Os avisos das Configurações (chave, Hermes, memória, voz) viram uma caixa colorida, mais fácil de ver.
+
 ## Memória local: diário das conversas e busca no que ele sabe
 
 - **Opção nova, Lembrar das conversas** (desligada por padrão, precisa do histórico do chat). Quando ele

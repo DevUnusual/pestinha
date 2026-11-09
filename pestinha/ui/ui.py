@@ -49,8 +49,10 @@ QComboBox:disabled, QLineEdit:disabled { color: #4d6655; }
 QPushButton { background: #17201a; color: #dfffe6; border: 1px solid #2c5236;
               border-radius: 6px; padding: 7px 18px; font-size: 13px; }
 QPushButton#start { background: #2c8a40; border-color: #63e56f; font-weight: bold; }
-QLabel#ok { color: #63e56f; font-size: 12px; font-weight: bold; }
-QLabel#erro { color: #ff9a8a; font-size: 12px; font-weight: bold; }
+QLabel#ok { color: #63e56f; font-size: 12px; font-weight: bold; background: #12301a;
+            border: 1px solid #2c8a40; border-radius: 6px; padding: 6px 10px; }
+QLabel#erro { color: #ff9a8a; font-size: 12px; font-weight: bold; background: #331816;
+              border: 1px solid #a8443a; border-radius: 6px; padding: 6px 10px; }
 QPushButton:hover { border-color: #63e56f; }
 """
 
@@ -502,7 +504,24 @@ class SettingsDialog(QDialog):
             self._mostrar_estado_memoria(f"Não salvou: {erro}", erro=True)
             return
         self.memoria_token.setPlaceholderText(f"salvo (termina em …{valor[-4:]})")
-        self._mostrar_estado_memoria(f"✔ Token salvo (termina em …{valor[-4:]}). Vale na próxima vez que abrir.")
+        self.chave_salva.emit(memoria_remota.CHAVE)           # a sincronia aberta passa a usar o token novo
+        if not self.perms["memoria_url"]:
+            self._mostrar_estado_memoria(f"✔ Token salvo (termina em …{valor[-4:]}). Falta o endereço do servidor.")
+            return
+        # já confere com o serviço: o aviso diz se o token foi aceito, em verde, ou por que não, em vermelho
+        self.memoria_salvar.setEnabled(False)
+        self.memoria_salvar.setText("Conferindo...")
+        QApplication.processEvents()
+        try:
+            ok, mensagem = memoria_remota.testar_memoria(self.perms["memoria_url"], token=valor)
+        finally:
+            self.memoria_salvar.setText("Salvar token")
+            self._sync_enabled()
+        if ok:
+            self._mostrar_estado_memoria(f"✔ Token salvo e aceito pelo serviço de memória (termina em …{valor[-4:]}). "
+                                         "Já está valendo.")
+        else:
+            self._mostrar_estado_memoria(f"Token salvo, mas {mensagem}", erro=True)
 
     def _testar_memoria(self):
         """Pergunta ao serviço de memória se ele responde (espera uns segundos no máximo)."""
@@ -518,8 +537,10 @@ class SettingsDialog(QDialog):
         self._mostrar_estado_memoria(("✔ " if ok else "") + mensagem, erro=not ok)
 
     def _mostrar_estado_memoria(self, texto, erro=False):
-        """Linha de aviso do serviço de memória: verde quando deu certo, vermelha quando não."""
+        """Linha de aviso do serviço de memória: uma caixa verde quando deu certo, vermelha quando não."""
         self.memoria_estado.setObjectName("erro" if erro else "ok")
+        self.memoria_estado.style().unpolish(self.memoria_estado)    # o estilo segue o nome novo na hora
+        self.memoria_estado.style().polish(self.memoria_estado)
         self.memoria_estado.setStyleSheet("")
         self.memoria_estado.setText(texto)
         self.memoria_estado.setVisible(bool(texto))
