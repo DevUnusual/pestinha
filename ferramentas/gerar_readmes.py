@@ -121,7 +121,9 @@ python ferramentas/gerar_doc_rede.py
 
 - `fuzz_pestinha.py` roda o app com ações aleatórias e checa invariantes:
   `python -B ferramentas/fuzz_pestinha.py 150 80` (rodadas, ações por rodada).
-- `medir_cartazes.py` confere se cada frase cabe na placa (rode no Windows, com as fontes reais)."""),
+- `medir_cartazes.py` confere se cada frase cabe na placa (rode no Windows, com as fontes reais).
+- `avaliar_ia.py` roda os casos fixos de avaliação da IA contra o Ollama (sem custo) e grava o relatório em
+  docs/avaliacoes/: `python ferramentas/avaliar_ia.py` (veja `--help`)."""),
 ]
 
 

@@ -22,6 +22,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_assistir.py` | Assistindo você jogar: com "Acompanhar jogos" e um jogo na tela, ele vai para o monitor ao lado (o mais à direita que não é o do jogo), fica parado olhando para a partida e comenta, sem passear nem aprontar. |
 | `test_atividade.py` | Programas de trabalho: VS Code, Claude e Codex contam como programação. |
 | `test_auditoria_30.py` | Contratos dos 30 bugs da auditoria (docs/auditorias/AUDITORIA_30_BUGS.md). |
+| `test_avaliar_ia.py` | O conjunto de avaliação da IA (ferramentas/avaliar_ia.py) com um modelo falso: cada caso monta a entrada do app, aplica o critério certo e o relatório sai em Markdown e JSON. |
 | `test_bolinha.py` | Testes da bolinha e da tristeza (abandono). |
 | `test_brincadeira.py` | Bolinha: colisão com post-its e estilos de brincadeira por pet. |
 | `test_cantinho_cenarios.py` | 100 cenários explícitos do cantinho. |
@@ -48,6 +49,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_melhorias_windows.py` | Melhorias para o Windows: tela cheia, vários monitores, pasta de dados, uma cópia só, início automático e fechamento seguro. |
 | `test_mesa.py` | Notebook: sentar e levantar pelo disparo do neurônio SENTAR. |
 | `test_migracao.py` | Etapa 1 do multipet: memória por pet (memory/pets/<pet>/) e a migração da versão antiga. |
+| `test_multimidia.py` | QtMultimedia opcional: com só o PySide6-Essentials o pet abre, e voz, chamado pelo nome e música ficam desligados, com aviso. |
 | `test_musica.py` | Música pelo chat: "toca um lo-fi" monta a fila no YouTube Music, 👍/👎/pulo/ouvir até o fim ensinam o gosto e a fila se renova pelo rádio. |
 | `test_nucleo.py` | Testes dos módulos puros: nada de Qt, nada de Windows. |
 | `test_paineis.py` | Painéis do menu (monitor neural e painel de protesto): abrir à mão deve manter o painel na tela. |

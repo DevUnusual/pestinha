@@ -13,6 +13,9 @@ Controladores de decisão: ligam o que a rede decide à cena (sono, mesa, protes
 | `chamado_ctl.py` | Você chama ele pelo nome ("Bob!") e ele te ouve, como a Alexa (opcional, desligado por padrão: "Chamar pelo nome"). |
 | `conhecimento.py` | O que ele aprendeu assistindo vídeos com você, guardado para conversar sobre isso depois. |
 | `festa.py` | O fogo de artifício do pet feliz: a alegria da rede enche a euforia. |
+| `historico.py` | O que você pediu (escrito ou falado) e o que ele respondeu, inteiro, para rever no chat ("Guardar o histórico do chat", ligado por padrão). |
+| `jogo_ctl.py` | Com "Estudar os jogos", ele descobre o que você está jogando, lê sobre o jogo e acompanha até onde você chegou na história, para comentar a jogatina sem dar spoiler. |
+| `jogos.py` | O que ele sabe de cada jogo que você joga e até onde você chegou (com "Estudar os jogos"). |
 | `lembrancas.py` | O que ele viu você fazendo, em cada computador. |
 | `mesa.py` | O computadorzinho do pet: sentar e levantar do notebook. |
 | `mischief_ctl.py` | Quando e como ele apronta, e o que a dispensa causa. |

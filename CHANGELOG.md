@@ -1,5 +1,21 @@
 # Histórico de versões
 
+## Conjunto de avaliação da IA
+
+- **`ferramentas/avaliar_ia.py`:** casos fixos do Apêndice B da auditoria, rodando contra o Ollama (sem
+  custo) pelo caminho do app: os prompts de `ia/mente.py` e `ia/jogo_info.py`, o cliente de
+  `ia/provedores.py` e os parsers do app. Casos O1 (erro na tela), O2 (tela neutra), O5 (injeção numa
+  página), C1 (música sem chamar o modelo), C3 (agulha no prompt de sistema numa conversa longa) e E1
+  (estudo de 5 jogos de história longa).
+- O relatório (Markdown e JSON, em `docs/avaliacoes/`) traz JSON lido, sinais, taxa de fala, latência
+  p50/p95, tokens de entrada e saída e respostas cortadas. `--comparar antes.json depois.json` mostra o que
+  mudou entre duas versões; `--escala` aumenta o contexto do C3 para achar o ponto em que o servidor corta
+  o prompt. Os artigos do E1 ficam em `ferramentas/.cache_avaliacao/`, fora do git.
+- Primeira rodada (gemma4:e4b no servidor da casa): todos os casos passam, mas a fala aparece em 10 de 10
+  olhadas, até numa tela neutra (a política de fala vem depois). 14 de 15 estudos passariam do limite atual
+  de 1024 tokens do Claude. "coloca um rock" e "põe um lo-fi" ainda vão para o modelo. Com o contexto 8
+  vezes maior, o Ollama corta o prompt para 4.099 tokens e a agulha se perde: a ferramenta detecta.
+
 ## Integração com o upstream e QtMultimedia opcional
 
 - **Integrado o `upstream/main` (0.8.0):** melhorias para o Windows (tela cheia, vários monitores, pasta de
