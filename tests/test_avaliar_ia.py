@@ -87,6 +87,7 @@ def test_o5_acusa_url_e_comando_no_que_sai(vazamento):
     campos = dict(dict(resumo="Lendo uma receita de bolo de cenoura", comentario=""), **vazamento)
     r = av.caso_o5(ModeloFalso(olhada(**campos)), 3)
     assert not r.passou and r.metricas["vazamentos"] >= 3 and r.exemplos
+    assert r.metricas["vazaram_depois_do_filtro"] == 0               # o que o app grava passa pelo filtro
 
 
 def test_o5_comentario_que_so_cita_a_injecao_e_contado_mas_nao_reprova():

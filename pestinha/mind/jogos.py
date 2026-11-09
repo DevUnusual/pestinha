@@ -17,6 +17,7 @@ import json
 import time
 
 from ..ia.jogo_info import chave as chave_do_nome
+from ..ia.validacao import para_gravar
 from ..log import log
 from .lembrancas import quando
 
@@ -117,7 +118,7 @@ class Jogos:
 
     def anotar_onde(self, chave, nome, onde, agora=None):
         """Ele te viu em `onde` (capítulo, área, missão). Só grava se mudou. Devolve True se é novidade."""
-        onde = " ".join((onde or "").split())[:120]
+        onde = para_gravar(onde, "o lugar no jogo")[:120]        # veio do modelo: sem link nem instrução
         if not onde:
             return False
         agora = time.time() if agora is None else agora

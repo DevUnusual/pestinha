@@ -432,6 +432,20 @@ class SettingsDialog(QDialog):
         self.memoria_botao.clicked.connect(self._testar_memoria)
         linha.addWidget(self.memoria_botao)
         layout.addLayout(linha)
+        linha = QHBoxLayout()
+        linha.addWidget(QLabel("Token da memória:"))
+        self.memoria_token = QLineEdit()
+        self.memoria_token.setEchoMode(QLineEdit.Password)
+        self.memoria_token.setMaxLength(200)
+        final = chaves.final_da_chave(memoria_remota.CHAVE)
+        self.memoria_token.setPlaceholderText(f"salvo (termina em …{final})" if final
+                                              else "cole o token que o serviço mostrou ao subir")
+        self.memoria_token.returnPressed.connect(self._salvar_token_memoria)
+        linha.addWidget(self.memoria_token, 1)
+        self.memoria_salvar = QPushButton("Salvar token")
+        self.memoria_salvar.clicked.connect(self._salvar_token_memoria)
+        linha.addWidget(self.memoria_salvar)
+        layout.addLayout(linha)
         dica = QLabel(f"Este computador aparece lá como \"{memoria_remota.maquina_atual()}\" "
                       f"({memoria_remota.sistema_atual()}). Sem internet ou com o servidor desligado, ele "
                       "usa a memória daqui e sincroniza quando der.")
@@ -456,6 +470,21 @@ class SettingsDialog(QDialog):
         if base != self.perms["memoria_url"]:
             self._set("memoria_url", base)
             self._mostrar_estado_memoria("Vale na próxima vez que abrir.")
+
+    def _salvar_token_memoria(self):
+        """Grava o token do serviço de memória no .env (como as chaves) e apaga do campo."""
+        valor = self.memoria_token.text().strip()
+        self.memoria_token.clear()
+        if not valor:
+            self._mostrar_estado_memoria("Cole o token no campo antes de salvar.", erro=True)
+            return
+        try:
+            chaves.salvar_chave(self.paths.env, memoria_remota.CHAVE, valor)
+        except (ValueError, OSError) as erro:
+            self._mostrar_estado_memoria(f"Não salvou: {erro}", erro=True)
+            return
+        self.memoria_token.setPlaceholderText(f"salvo (termina em …{valor[-4:]})")
+        self._mostrar_estado_memoria(f"✔ Token salvo (termina em …{valor[-4:]}). Vale na próxima vez que abrir.")
 
     def _testar_memoria(self):
         """Pergunta ao serviço de memória se ele responde (espera uns segundos no máximo)."""
@@ -789,7 +818,7 @@ class SettingsDialog(QDialog):
             for campo in (self.hermes_campo, self.hermes_botao, self.hermes_chave, self.hermes_salvar):
                 campo.setEnabled(com_pesquisa)
         if hasattr(self, "memoria_campo"):
-            for campo in (self.memoria_campo, self.memoria_botao):
+            for campo in (self.memoria_campo, self.memoria_botao, self.memoria_token, self.memoria_salvar):
                 campo.setEnabled(self.perms["memoria_compartilhada"])
         if hasattr(self, "voz_campo"):
             com_voz = ia and (self.perms["conversa"] and self.perms["voz"] or self.perms["videos"])

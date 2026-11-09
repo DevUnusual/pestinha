@@ -28,14 +28,14 @@ _spec.loader.exec_module(servico)
 
 @pytest.fixture
 def servidor(tmp_path):
-    srv = servico.servir(porta=0, pasta=tmp_path / "servidor", token="", host="127.0.0.1")
+    srv = servico.servir(porta=0, pasta=tmp_path / "servidor", token="teste", host="127.0.0.1")
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{srv.server_address[1]}", srv
     srv.shutdown()
     srv.server_close()
 
 
-def computador(tmp_path, base, nome, sistema="windows", token=""):
+def computador(tmp_path, base, nome, sistema="windows", token="teste"):
     """Um 'computador': a pasta do pet e a definição dele, sincronizando com o serviço."""
     pasta = tmp_path / nome / "pets" / "bryan"
     pasta.mkdir(parents=True)

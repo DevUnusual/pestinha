@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from .validacao import para_gravar
+
 LIMITE_TRECHOS = 9000       # caracteres de transcrição crua antes de virar notas (~10 min de fala)
 MAX_NOTAS = 6000            # caracteres de notas guardados (as mais velhas são juntadas em uma)
 MAX_PONTOS = 8
@@ -128,7 +130,7 @@ class Transcricao:
 
     def ver(self, segundo, texto):
         """O que aparecia no vídeo numa olhada (slide, código, cena). Igual à anterior fica fora."""
-        texto = " ".join(str(texto or "").split())[:MAX_TELA]
+        texto = para_gravar(texto, "uma tela do vídeo")[:MAX_TELA]     # veio do modelo: sem link nem instrução
         if not texto or (self.telas and self.telas[-1][1] == texto):
             return False
         self.telas = (self.telas + [(segundo, texto)])[-MAX_TELAS:]

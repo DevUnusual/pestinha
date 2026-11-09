@@ -307,6 +307,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             problems.append(f"atalho de pânico {config.PANIC_HOTKEY_TEXT} já está em uso por outro programa")
         if problems:
             self.tray.icon.showMessage(config.APP_NOME,"\n".join(problems), QSystemTrayIcon.Warning, 6000)
+        if self.memoria_remota is not None and self.memoria_remota.pendente():
+            QTimer.singleShot(1500, self.perguntar_persona)    # a personalidade que chegou espera você
         if self.perms["ativo"]:
             self.tray.icon.showMessage(
                 self.nome, f"Estou aqui. Pânico: {config.PANIC_HOTKEY_TEXT}",

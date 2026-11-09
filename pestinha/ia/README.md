@@ -15,7 +15,10 @@ Visão e conversa por um modelo de IA (Claude, OpenAI, DeepSeek ou Ollama local)
 | `jogo_info.py` | Descobrir qual é o jogo, baixar o que se sabe dele e saber até onde a pessoa chegou. |
 | `mente.py` | O que o pet pergunta ao modelo e como ele entende a resposta. |
 | `musica.py` | Você pede um estilo no chat ("toca um lo-fi") e ele monta a fila no YouTube Music, aprendendo com o seu 👍 e 👎 (e com o que você deixa tocar até o fim ou pula). |
+| `orcamento.py` | Quanto cabe em cada chamada ao modelo, e quanto ele pode responder. |
 | `pesquisa.py` | O pet pesquisa na internet pelo Hermes (um agente com ferramentas), no formato da OpenAI. |
 | `provedores.py` | Quem responde pelo pet: Claude, OpenAI, DeepSeek ou um modelo local no Ollama. |
+| `uso.py` | O registro de cada chamada ao modelo, sem conteúdo: tarefa, provedor, modelo, tokens, tempo e motivo de parada. |
+| `validacao.py` | O que o modelo devolve passa por aqui antes de ser gravado. |
 | `video.py` | O que ele ouve num vídeo que você assiste vira anotações e, no fim, um resumo que ele guarda. |
 | `voz.py` | A sua fala vira texto pelo serviço de voz (servidor/voz/), no formato da API de áudio da OpenAI. |

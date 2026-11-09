@@ -328,8 +328,9 @@ def test_assiste_quieto_resume_e_guarda(qapp, pet):
     assert app.video.ativo and app.video.titulo == "Aula de física"
     app._atualizar_mente(time.monotonic())
     assert "ouvindo" in app.pet_state.mente
-    assert esperar(qapp, lambda: voz.vezes >= 2 and app.video.pendentes == 0)
-    assert "professor explica" in app.video.transcricao.texto()
+    # o serviço de voz conta a chamada antes de o trecho chegar à thread do Qt: espera o texto também
+    assert esperar(qapp, lambda: voz.vezes >= 2 and app.video.pendentes == 0
+                   and "professor explica" in app.video.transcricao.texto())
     app.visao._entender(mente.ler_observacao('{"resumo": "vendo aula", "comentario": "que aula chata"}'))
     assert app.balao.texto != "que aula chata"                       # assistindo: não comenta
     assert app._video_pelo_chat("resume o vídeo").startswith("Beleza")

@@ -52,6 +52,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_multimidia.py` | QtMultimedia opcional: com só o PySide6-Essentials o pet abre, e voz, chamado pelo nome e música ficam desligados, com aviso. |
 | `test_musica.py` | Música pelo chat: "toca um lo-fi" monta a fila no YouTube Music, 👍/👎/pulo/ouvir até o fim ensinam o gosto e a fila se renova pelo rádio. |
 | `test_nucleo.py` | Testes dos módulos puros: nada de Qt, nada de Windows. |
+| `test_orcamento_uso.py` | Chamadas confiáveis: o limite de saída de cada tarefa, a resposta cortada que vira erro, o registro de uso sem conteúdo, o orçamento de contexto que nunca corta o prompt de sistema e o aviso quando o Ollama corta o pedido. |
 | `test_paineis.py` | Painéis do menu (monitor neural e painel de protesto): abrir à mão deve manter o painel na tela. |
 | `test_pedido.py` | Pedir para trabalhar: o neurônio SENTAR decide. |
 | `test_pesquisa.py` | Pesquisa na internet pelo Hermes: o prompt, o cliente (com um servidor HTTP falso nesta máquina) e o controlador dentro do app de verdade (Qt offscreen, Hermes falso). |
@@ -59,6 +60,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_robustez.py` | Robustez: arquivo corrompido, assets faltando, log em arquivo. |
 | `test_robustez_v2.py` | Falhas do relatório técnico (docs/auditorias/ANALISE_TECNICA.md): cada caso tem um teste que reproduz o problema. |
 | `test_conversa_atencao.py` | Falar ou escrever com o pet é atenção: carência e tristeza caem e a rede recebe recompensa na hora, mesmo sem resposta da IA; pausado, não conta. |
+| `test_seguranca.py` | Segurança da IA: imagem de qualquer site mas nunca da rede de casa, serviço de memória sempre com token, personalidade de outro computador só com confirmação e o que o modelo devolve filtrado antes de gravar. |
 | `test_tocando_disco.py` | O cartão de música mostra o tempo: a borda acende do meio de cima e dá a volta (sentido horário) até o fim da música, o número '1:23 / 3:45' acompanha e um disquinho gira no canto, com a capa da música como selo (que dá para tirar pelo 🖼). |
 | `test_video_desenho.py` | Assistir vídeos (conferir o som e perguntar antes, ouvir, olhar a tela, anotar, resumir e guardar) e desenhar na tela: o texto do modelo, o conhecimento em disco, a janela do desenho e os controladores dentro do app de verdade (Qt offscreen, pasta temporária, som e modelo falsos). |
 | `test_voz.py` | Voz: o áudio e o cliente do serviço de transcrição (com um servidor HTTP falso nesta máquina) e o controlador dentro do app de verdade (Qt offscreen, microfone falso). |

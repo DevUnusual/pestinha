@@ -14,8 +14,10 @@ Só a biblioteca padrão do Python (3.10+): nada para instalar. Guarda cada arqu
                                        "maquina"}. Se alguém gravou depois da sua base: 409 com a versão atual
     POST /v1/pets/<pet>/ativo          "estou com ele aberto" ({"maquina"}); devolve quem estava antes
 
-Sem senha por padrão, como o serviço de voz: deixe a porta aberta só para a rede de casa. Com a variável
-PESTINHA_MEMORIA_TOKEN definida, todo pedido (menos /health) precisa de "Authorization: Bearer <token>".
+Todo pedido (menos /health) precisa de "Authorization: Bearer <token>": a memória tem o que o pet viu
+você fazendo e a personalidade dele, que vira o prompt de sistema. O token é o de PESTINHA_MEMORIA_TOKEN
+ou, sem a variável, o do arquivo `token` ao lado da pasta de dados, criado na primeira vez que o serviço
+sobe (só o seu usuário lê). Cole esse token nas Configurações do Pestinha, em cada computador.
 """
 
 import hashlib
@@ -23,6 +25,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -31,6 +34,7 @@ from pathlib import Path
 PORTA = int(os.environ.get("PESTINHA_MEMORIA_PORTA", "11600"))
 DADOS = Path(os.environ.get("PESTINHA_MEMORIA_DADOS", str(Path.home() / "pestinha-memoria" / "dados")))
 TOKEN = os.environ.get("PESTINHA_MEMORIA_TOKEN", "")
+ARQUIVO_TOKEN = Path(os.environ.get("PESTINHA_MEMORIA_TOKEN_ARQUIVO", str(DADOS.parent / "token")))
 MAX_BYTES = 8 * 1024 * 1024         # por documento (o episodes.jsonl é o maior)
 ATIVO_VALE = 120.0                  # s: sem notícia por mais que isso, o computador não está mais com ele aberto
 
@@ -160,7 +164,7 @@ def criar_handler(memoria, token=""):
 
         def _autorizado(self):
             if not token:
-                return True
+                return False                    # sem token configurado, ninguém entra
             recebido = self.headers.get("Authorization", "")
             return hmac.compare_digest(recebido.encode(), f"Bearer {token}".encode())
 
@@ -259,15 +263,42 @@ def criar_handler(memoria, token=""):
     return Handler
 
 
-def servir(porta=PORTA, pasta=DADOS, token=TOKEN, host="0.0.0.0"):
-    """Cria o servidor (sem começar a atender): `servidor.serve_forever()` para atender."""
+def garantir_token(arquivo=ARQUIVO_TOKEN, do_ambiente=TOKEN):
+    """(token, criado_agora): o da variável de ambiente, o do arquivo ou um novo, gravado só para o seu usuário."""
+    if do_ambiente:
+        return do_ambiente, False
+    arquivo = Path(arquivo)
+    try:
+        salvo = arquivo.read_text(encoding="utf-8").strip()
+    except OSError:
+        salvo = ""
+    if salvo:
+        return salvo, False
+    novo = secrets.token_urlsafe(24)
+    arquivo.parent.mkdir(parents=True, exist_ok=True)
+    descritor = os.open(arquivo, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(descritor, "w", encoding="utf-8") as f:
+        f.write(novo + "\n")
+    return novo, True
+
+
+def servir(porta=PORTA, pasta=DADOS, token=None, host="0.0.0.0"):
+    """Cria o servidor (sem começar a atender): `servidor.serve_forever()` para atender. Sem `token`, usa o de
+    garantir_token. Um token vazio é recusado: o serviço nunca atende sem token."""
+    if token is None:
+        token, _criado = garantir_token()
+    if not token:
+        raise ValueError("o serviço de memória precisa de um token")
     return ThreadingHTTPServer((host, porta), criar_handler(Memoria(pasta), token))
 
 
 if __name__ == "__main__":
-    servidor = servir()
-    print(f"[memória] em http://0.0.0.0:{PORTA}, dados em {DADOS}"
-          + (" (com token)" if TOKEN else " (sem token: só na rede de casa)"), flush=True)
+    token, criado = garantir_token()
+    servidor = servir(token=token)
+    print(f"[memória] em http://0.0.0.0:{PORTA}, dados em {DADOS}, com token", flush=True)
+    if criado:
+        print(f"[memória] token novo em {ARQUIVO_TOKEN}: {token}\n"
+              "[memória] cole esse token nas Configurações do Pestinha (Memória em outro computador)", flush=True)
     try:
         servidor.serve_forever()
     except KeyboardInterrupt:

@@ -13,6 +13,7 @@ sobre um deles, o resumo e os pontos daquele. Sem Qt: só arquivos.
 import json
 import time
 
+from ..ia.validacao import para_gravar
 from ..log import log
 from .lembrancas import _palavras, quando
 
@@ -58,10 +59,15 @@ class Conhecimento:
         """Grava um vídeo resumido. Devolve True se gravou."""
         if aprendizado.vazio():
             return False
+        # o resumo veio do modelo, a partir do que foi dito no vídeo: sem link nem instrução antes de gravar
+        resumo = para_gravar(aprendizado.resumo, "o resumo de um vídeo")
+        if not resumo:
+            return False
+        pontos = [p for p in (para_gravar(p, "um ponto de um vídeo") for p in aprendizado.pontos) if p]
         agora = time.time() if agora is None else agora
         item = {"em": round(agora), "fonte": "video", "duracao": round(max(0.0, duracao)),
-                "maquina": self.maquina, "titulo": aprendizado.titulo or "um vídeo",
-                "resumo": aprendizado.resumo, "pontos": list(aprendizado.pontos)}
+                "maquina": self.maquina, "titulo": para_gravar(aprendizado.titulo, "o título de um vídeo") or "um vídeo",
+                "resumo": resumo, "pontos": pontos}
         linhas = [json.dumps(i, ensure_ascii=False) for i in self.todos()[-(MAX_LINHAS - 1):]]
         linhas.append(json.dumps(item, ensure_ascii=False))
         try:

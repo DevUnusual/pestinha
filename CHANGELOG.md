@@ -1,5 +1,20 @@
 # Histórico de versões
 
+## Segurança da parte de IA
+
+- **Imagens de qualquer site, nunca da sua rede:** o link de imagem (que vem do Hermes ou da Wikipédia)
+  só é baixado por `https` na porta padrão. Localhost, IPs privados e nomes que apontam para dentro da rede
+  são recusados, e cada redirecionamento passa pela mesma conferência (no máximo 3). Antes, o pet baixava
+  qualquer link, inclusive `http` e o IP do roteador.
+- **Serviço de memória sempre com token:** o serviço cria o token na primeira vez que sobe
+  (`~/pestinha-memoria/token`, só o seu usuário lê) e não atende sem ele (só o `/health` é aberto). Campo
+  novo **Token da memória** nas Configurações, salvo no `.env`, e o **Testar memória** confere o token.
+- **A personalidade que chega de outro computador não vale sozinha:** ela fica guardada como pendente e o
+  Pestinha pergunta, sem travar o pet, se você quer usar. Recusar mantém a deste computador.
+- **O que vem do modelo é filtrado antes de gravar** (`pestinha/ia/validacao.py`): lembranças, o lugar no
+  jogo, as telas de um vídeo e o conhecimento perdem links e IPs, e um texto que parece instrução para a
+  IA é descartado.
+
 ## Chamadas à IA que sabem se deram certo
 
 - **Limite de resposta por tarefa** (`pestinha/ia/orcamento.py`): olhada 400 tokens, chat 800, notas de

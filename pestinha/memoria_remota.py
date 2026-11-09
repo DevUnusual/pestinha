@@ -15,6 +15,10 @@ só ele grava a dele; as dos outros só são baixadas, para o pet saber o que vi
 
 Conflito (os dois mudaram desde a última sincronia): ao abrir, vale o mais recente; com o pet aberto, vale
 o deste computador, porque é o estado que está vivo aqui. O log diz quando isso acontece.
+
+A definição do pet é diferente: ela vira o prompt de sistema, então uma que chegue do servidor nunca é
+aplicada sozinha. Ela fica guardada como pendente (PENDENTE, na pasta do pet) e o app pergunta se você
+quer usar (aplicar_pendente) ou ficar com a deste computador (recusar_pendente).
 Sem Qt: só arquivos e HTTP. As chamadas bloqueiam, com tempo curto.
 """
 
@@ -33,9 +37,12 @@ from .log import log
 from .store import read_json, write_json
 
 PORTA_MEMORIA = 11600
+CHAVE = "PESTINHA_MEMORIA_TOKEN"    # o token do serviço, no .env (Configurações) ou no ambiente
 TEMPO_LIMITE = 4.0          # s por pedido
 ENVIA_A_CADA = 60.0         # s mínimos entre um envio e outro (o app salva a cada 30 s)
 PREFIXO_LEMBRANCAS = "lembrancas_"
+DEFINICAO = "definicao.json"
+PENDENTE = "definicao_recebida.json"    # a definição que chegou de outro computador, esperando você
 
 
 class ErroMemoria(Exception):
@@ -92,7 +99,7 @@ class Sincronia:
         self.proprias = f"{PREFIXO_LEMBRANCAS}{self.maquina}.jsonl"
         self.arquivos = dict(arquivos, **{self.proprias: pasta / self.proprias})
         self.manifesto_path = pasta / ".sync.json"
-        self.token = os.environ.get("PESTINHA_MEMORIA_TOKEN", "") if token is None else token
+        self.token = os.environ.get(CHAVE, "").strip() if token is None else token
         self.ultimo_envio = float("-inf")
         self.enviando = False
 
@@ -116,7 +123,8 @@ class Sincronia:
             if erro.code in (404, 409):
                 return erro.code, corpo_erro
             if erro.code == 401:
-                raise ErroMemoria("o serviço de memória pediu um token (PESTINHA_MEMORIA_TOKEN)") from erro
+                raise ErroMemoria("o serviço de memória recusou o token: cole o token dele em Configurações, "
+                                  "Memória em outro computador") from erro
             raise ErroMemoria(f"o serviço de memória recusou ({erro.code}): {corpo_erro.get('erro', '')}") from erro
         except (urllib.error.URLError, OSError, ValueError) as erro:
             raise ErroMemoria(f"o serviço de memória não respondeu em {self.base_url}") from erro
@@ -165,6 +173,10 @@ class Sincronia:
             texto = achado.get("conteudo") if isinstance(achado, dict) else None
             if not isinstance(texto, str):
                 continue
+            if doc == DEFINICAO and local is not None:
+                self._guardar_pendente(texto, meta.get("maquina"), achado["meta"]["versao"])
+                manifesto[doc] = {"versao": achado["meta"]["versao"], "hash": _hash(local)}
+                continue
             _gravar_texto(caminho, texto)
             manifesto[doc] = {"versao": achado["meta"]["versao"], "hash": _hash(texto)}
             log(f"[memória] {doc}: veio de {meta.get('maquina')} (versão {meta['versao']})")
@@ -175,6 +187,48 @@ class Sincronia:
         if isinstance(antes, dict) and antes.get("maquina") != self.maquina:
             return antes.get("maquina")
         return None
+
+    # ---------------- a definição que chegou ----------------
+
+    def _guardar_pendente(self, texto, maquina, versao):
+        """Guarda a definição que veio do servidor para você decidir (só se for um JSON de definição)."""
+        try:
+            dados = json.loads(texto)
+        except ValueError:
+            dados = None
+        if not isinstance(dados, dict):
+            log(f"[memória] {DEFINICAO} de {maquina} não é uma definição válida: ignorada")
+            return
+        write_json(self.pasta / PENDENTE, {"maquina": str(maquina or "?")[:60], "versao": versao, "definicao": dados})
+        log(f"[memória] a personalidade mudou em {maquina}: espera você confirmar antes de valer aqui")
+
+    def pendente(self):
+        """A definição que chegou e espera confirmação: {"maquina", "versao", "definicao"}, ou None."""
+        dados = read_json(self.pasta / PENDENTE, default=None)
+        if isinstance(dados, dict) and isinstance(dados.get("definicao"), dict):
+            return dados
+        return None
+
+    def aplicar_pendente(self):
+        """Você aceitou: a definição que chegou passa a ser a deste computador (vale ao reabrir). True se aplicou."""
+        dados = self.pendente()
+        if dados is None:
+            return False
+        texto = json.dumps(dados["definicao"], ensure_ascii=False, indent=2)
+        _gravar_texto(self.arquivos[DEFINICAO], texto)
+        manifesto = self._manifesto()
+        manifesto[DEFINICAO] = {"versao": dados.get("versao", 0), "hash": _hash(_ler_texto(self.arquivos[DEFINICAO]))}
+        self._guardar_manifesto(manifesto)
+        (self.pasta / PENDENTE).unlink(missing_ok=True)
+        log(f"[memória] personalidade de {dados.get('maquina')} aplicada (vale ao reabrir)")
+        return True
+
+    def recusar_pendente(self):
+        """Você recusou: fica a definição deste computador, e a que chegou é esquecida."""
+        dados = self.pendente()
+        (self.pasta / PENDENTE).unlink(missing_ok=True)
+        if dados is not None:
+            log(f"[memória] personalidade de {dados.get('maquina')} recusada: fica a deste computador")
 
     def _caminho(self, doc):
         """Onde fica um documento aqui. Lembranças de outro computador vão para a pasta do pet."""
@@ -230,8 +284,8 @@ class Sincronia:
         return resposta.get("meta")
 
 
-def testar_memoria(endereco, tempo=3.0):
-    """(deu_certo, mensagem): o serviço de memória responde nesse endereço?"""
+def testar_memoria(endereco, tempo=3.0, token=None):
+    """(deu_certo, mensagem): o serviço de memória responde nesse endereço e aceita o token?"""
     base = endereco_memoria(endereco)
     if base is None:
         return False, "endereço inválido (exemplo: 192.168.0.10 ou http://192.168.0.10:11600)"
@@ -242,7 +296,21 @@ def testar_memoria(endereco, tempo=3.0):
         return False, f"o serviço de memória não respondeu em {base} (ligado? aceita conexões da rede?)"
     if not isinstance(dados, dict) or dados.get("servico") != "pestinha-memoria":
         return False, f"{base} respondeu, mas não parece o serviço de memória do Pestinha"
-    return True, f"serviço de memória ok em {base} (este computador: {maquina_atual()}, {sistema_atual()})"
+    token = os.environ.get(CHAVE, "").strip() if token is None else token
+    if not token:
+        return False, (f"o serviço respondeu em {base}, mas falta o token dele: cole abaixo o token que o "
+                       "serviço mostrou ao subir (ou o arquivo token ao lado da pasta de dados)")
+    pedido = urllib.request.Request(f"{base}/v1/pets", headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(pedido, timeout=tempo):
+            pass
+    except urllib.error.HTTPError as erro:
+        if erro.code == 401:
+            return False, "o serviço de memória recusou o token (confira o que ele mostrou ao subir)"
+        return False, f"o serviço de memória respondeu com erro {erro.code}"
+    except (urllib.error.URLError, OSError):
+        return False, f"o serviço de memória não respondeu em {base}"
+    return True, f"serviço de memória ok em {base}, token aceito (este computador: {maquina_atual()}, {sistema_atual()})"
 
 
 def criar(perms, paths, pet_id, pet_paths):
@@ -253,7 +321,7 @@ def criar(perms, paths, pet_id, pet_paths):
     if base is None:
         return None
     arquivos = {p.name: p for p in pet_paths.todos()}
-    arquivos["definicao.json"] = paths.definicao(pet_id)          # a personalidade vai junto
+    arquivos[DEFINICAO] = paths.definicao(pet_id)                 # a personalidade vai junto (e só volta com confirmação)
     arquivos["conhecimento.jsonl"] = pet_paths.conhecimento       # e o que ele aprendeu nos vídeos
     arquivos["jogos.json"] = pet_paths.jogos                      # e os jogos, com o seu progresso
     return Sincronia(base, pet_id, arquivos, pet_paths.base)

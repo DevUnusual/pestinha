@@ -166,8 +166,12 @@ Hermes acha que a resposta merece uma imagem, ele devolve um link e o Pestinha b
 até você mexer nele (e mostra também no chat, se ele estiver aberto). Sem link (ou com o link quebrado), o
 Pestinha busca na Wikipédia, para onde vai só o termo que você pediu.
 
-- O Pestinha só baixa links `http(s)` do tipo `image/*` com até 8 MB; do Wikimedia, pede a miniatura de
-  500 px. O site da imagem vê o seu IP, como em qualquer visita.
+- O link pode ser de qualquer site, mas o Pestinha só baixa por `https`, na porta padrão, do tipo
+  `image/*` e com até 8 MB; do Wikimedia, pede a miniatura de 500 px. O site da imagem vê o seu IP, como em
+  qualquer visita.
+- O link vem de um modelo que lê páginas da web, então ele nunca vai para a sua rede de casa: localhost,
+  IPs privados e nomes que apontam para dentro da rede (o roteador, a impressora, o servidor) são recusados,
+  e cada redirecionamento passa pela mesma conferência.
 - A imagem fica só na memória: não é gravada, nem no log. O pânico e a pausa descartam a que estava a
   caminho e apagam a projeção.
 
@@ -199,9 +203,24 @@ arquivos do pet em `memory/pets/<pet>/` (a tabela abaixo, as lembranças de cada
 `.sync.json`, que só anota o que já foi sincronizado) e a definição dele (`pets/<pet>.json`) também ficam
 nesse servidor, para todos os seus computadores usarem o mesmo pet. O servidor guarda o nome de cada
 computador e o sistema (Windows, macOS, Linux) de quem gravou. Permissões, painéis, rotina e log não vão.
-Na rede local tudo passa sem criptografia (http), a não ser que você use um endereço https; sem
-`PESTINHA_MEMORIA_TOKEN`, qualquer um da sua rede pode ler o servidor. **Apagar todos os dados** apaga só
-este computador: no servidor, apague a pasta do pet em `~/pestinha-memoria/dados/`.
+Na rede local tudo passa sem criptografia (http), a não ser que você use um endereço https.
+
+- **Token:** o serviço só atende quem manda o token dele (só o `/health` é aberto). Ele cria o token na
+  primeira vez que sobe e mostra no log do serviço; cole em **Token da memória**, nas Configurações. O
+  token fica no `.env` da pasta do Pestinha, como as chaves de API.
+- **A personalidade não vale sozinha:** a definição do pet vira as instruções que a IA segue, então a que
+  chega de outro computador fica guardada em `memory/pets/<pet>/definicao_recebida.json` e o Pestinha
+  pergunta se você quer usar. Se não, fica a deste computador e o arquivo é apagado.
+- **Apagar todos os dados** apaga só este computador: no servidor, apague a pasta do pet em
+  `~/pestinha-memoria/dados/`.
+
+### O que vem do modelo, antes de gravar
+
+O que o modelo descreve vem da tela, de um vídeo ou de uma página, e uma página pode esconder instruções
+para a IA. Antes de gravar o resumo de uma lembrança, o lugar em que você está no jogo, o que ele viu num
+vídeo e o que aprendeu com ele, o Pestinha tira links e IPs e descarta o texto inteiro se ele parecer uma
+instrução ("ignore as instruções anteriores", "a partir de agora", linhas `IMAGEM:`, `TOCAR:`,
+`DESENHAR:`). O log diz que algo foi descartado, nunca o que era.
 
 ## O que ele grava
 

@@ -245,6 +245,34 @@ class SessaoMixin:
                     "feche lá para não misturar.")
         return None
 
+    def perguntar_persona(self):
+        """A personalidade do pet mudou em outro computador: pergunta (sem travar o pet) se vale aqui também."""
+        sync = self.memoria_remota
+        dados = sync.pendente() if sync is not None else None
+        if dados is None:
+            return None
+        caixa = QMessageBox(QMessageBox.Question, config.APP_NOME,
+                            f"A personalidade do {self.nome} foi mudada em {dados.get('maquina')}.\n\n"
+                            "Ela vira as instruções que a IA segue. Usar essa versão aqui também? (Vale na "
+                            "próxima vez que abrir.) Se não, fica a deste computador.",
+                            QMessageBox.Yes | QMessageBox.No)
+        caixa.setDefaultButton(QMessageBox.No)
+        caixa.finished.connect(lambda codigo: self.responder_persona(codigo == QMessageBox.Yes))
+        caixa.open()
+        self._caixa_persona = caixa                 # guarda a referência enquanto a caixa está aberta
+        return caixa
+
+    def responder_persona(self, aceitou):
+        """A resposta da pergunta: aplica a personalidade que chegou ou fica com a daqui."""
+        sync = self.memoria_remota
+        if sync is None:
+            return
+        if aceitou and sync.aplicar_pendente():
+            self.tray.icon.showMessage(config.APP_NOME, "Personalidade atualizada: vale na próxima vez que abrir.",
+                                       QSystemTrayIcon.Information, 4000)
+        elif not aceitou:
+            sync.recusar_pendente()
+
     def _enviar_memoria(self, agora=False):
         """Depois de salvar: manda o que mudou ao serviço de memória (numa thread, no máximo a cada minuto)."""
         sync = self.memoria_remota

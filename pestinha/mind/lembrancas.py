@@ -14,6 +14,7 @@ Sem Qt: só arquivos.
 import json
 import time
 
+from ..ia.validacao import para_gravar
 from ..log import log
 from ..memoria_remota import PREFIXO_LEMBRANCAS
 
@@ -79,7 +80,7 @@ class Lembrancas:
     def anotar(self, programa, resumo, agora=None):
         """Guarda o que ele viu, se for assunto novo e já deu o intervalo. Devolve True se anotou."""
         agora = time.time() if agora is None else agora
-        resumo = (resumo or "").strip()[:120]
+        resumo = para_gravar(resumo, "uma lembrança")[:120]      # o resumo veio do modelo: sem link nem instrução
         if not resumo:
             return False
         if self.ultima and (agora - self.ultima[0] < ANOTA_A_CADA or mesmo_assunto(resumo, self.ultima[1])):

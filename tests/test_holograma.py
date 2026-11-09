@@ -68,9 +68,9 @@ def test_baixar_so_aceita_link_de_imagem(monkeypatch):
         imagem.baixar("file:///etc/passwd")
     monkeypatch.setattr(imagem, "_get", lambda url, tempo: (b"<html>", "text/html"))
     with pytest.raises(ValueError, match="não é uma imagem"):
-        imagem.baixar("https://x/pagina")
+        imagem.baixar("https://exemplo.com/pagina")
     monkeypatch.setattr(imagem, "_get", lambda url, tempo: (b"PNG", "image/png"))
-    assert imagem.baixar("https://x/a.png") == b"PNG"
+    assert imagem.baixar("https://exemplo.com/a.png") == b"PNG"
 
 
 def test_buscar_acha_o_link_e_baixa(monkeypatch):
@@ -81,13 +81,13 @@ def test_buscar_acha_o_link_e_baixa(monkeypatch):
         pedidos.append(url)
         if "api.php" in url:
             return json.dumps({"query": {"pages": [
-                {"index": 1, "title": "Manga (fruta)", "thumbnail": {"source": "https://up/manga.jpg"}}]}}).encode(), \
+                {"index": 1, "title": "Manga (fruta)", "thumbnail": {"source": "https://upload.example.org/manga.jpg"}}]}}).encode(), \
                 "application/json"
         return b"JPEG", "image/jpeg"
 
     monkeypatch.setattr(imagem, "_get", get)
     assert imagem.buscar("manga") == ("Manga (fruta)", b"JPEG")
-    assert "gsrsearch=manga" in pedidos[0] and pedidos[1] == "https://up/manga.jpg"
+    assert "gsrsearch=manga" in pedidos[0] and pedidos[1] == "https://upload.example.org/manga.jpg"
 
 
 # ---------------- world/holograma.py ----------------
