@@ -47,6 +47,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_jorge.py` | Etapa 4 do multipet: o Jorge, segundo personagem, feito só de configuração e conteúdo. |
 | `test_memoria.py` | Memória compartilhada: o serviço de servidor/memoria/ de verdade (numa porta livre, pasta temporária) e dois "computadores" (duas pastas) sincronizando por ele. |
 | `test_melhorias_windows.py` | Melhorias para o Windows: tela cheia, vários monitores, pasta de dados, uma cópia só, início automático e fechamento seguro. |
+| `test_memoria_local.py` | Memória local: o diário das conversas (na virada do dia e ao dormir), a busca FTS5 normalizada sem a história dos jogos, o chat com só as conversas de hoje e os trechos que a pergunta pede, e o Esquecer. |
 | `test_mesa.py` | Notebook: sentar e levantar pelo disparo do neurônio SENTAR. |
 | `test_migracao.py` | Etapa 1 do multipet: memória por pet (memory/pets/<pet>/) e a migração da versão antiga. |
 | `test_multimidia.py` | QtMultimedia opcional: com só o PySide6-Essentials o pet abre, e voz, chamado pelo nome e música ficam desligados, com aviso. |

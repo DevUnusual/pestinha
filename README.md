@@ -123,6 +123,14 @@ metade. Cada pedido é montado para caber na janela do modelo: o prompt de siste
 encolhe primeiro é o registro, as lembranças e o contexto mais antigo. O uso de cada chamada (tarefa,
 modelo, tokens, tempo, motivo de parada, sem conteúdo) fica em `memory/logs/uso_ia.jsonl`.
 
+### Lembrar das conversas
+
+Desligado por padrão (precisa de **Usar IA**, **Conversar por texto** e **Guardar o histórico do chat**).
+Quando ele dorme, ou na virada do dia, ele escreve um diário do que vocês conversaram. Quando você pergunta
+algo que pede memória ("lembra do projeto de python?", "o que aprendemos naquele vídeo?"), ele busca no
+diário, nos vídeos, nas lembranças e nos jogos e leva para a IA só os trechos que têm a ver. A busca roda
+neste computador (SQLite), e o resto do chat leva só as conversas de hoje.
+
 ### Acompanhar jogos
 
 Desligado por padrão (precisa de **Usar IA** e **Ver minha tela**). Quando você está jogando, ele olha a

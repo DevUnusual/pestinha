@@ -118,6 +118,7 @@ class SessaoMixin:
         self.paused = not self.paused
         self._atualizar_parada()                                 # empurra os prazos pelo tempo parado
         if self.paused:
+            self.diario.cancelar()
             self.visao.cancelar()
             self.voz.cancelar()
             self.video.cancelar()
@@ -163,6 +164,7 @@ class SessaoMixin:
         """Desliga tudo e grava: só volta quando você religar na tela inicial."""
         self.store.panic()
         self._atualizar_parada()
+        self.diario.cancelar()                     # nem o resumo do dia
         self.visao.cancelar()                      # nada da IA chega depois do pânico
         self.voz.cancelar()                        # o microfone fecha na hora
         self.video.cancelar()                      # e ele para de ouvir o vídeo
@@ -244,6 +246,22 @@ class SessaoMixin:
             return (f"O {self.nome} também está aberto em {outro}. Os dois vão gravar na mesma memória: "
                     "feche lá para não misturar.")
         return None
+
+    def _conversa_de_hoje(self):
+        """Com "Lembrar das conversas" e o histórico: o chat volta a saber o que vocês falaram hoje."""
+        if not (self.perms["memoria_local"] and self.perms["historico_chat"]):
+            return
+        from ..mind.diario import data_de
+        import time as _time
+        hoje = data_de(_time.time())
+        falas = [f for f in self.historico.ultimas(200) if not f.get("erro") and data_de(f.get("t", 0)) == hoje]
+        pergunta = None
+        for fala in falas:
+            if fala["quem"] == "voce":
+                pergunta = fala
+            elif pergunta is not None:
+                self.visao.conversa.registrar(pergunta["texto"], fala["texto"], quando=fala["t"])
+                pergunta = None
 
     def perguntar_persona(self):
         """A personalidade do pet mudou em outro computador: pergunta (sem travar o pet) se vale aqui também."""

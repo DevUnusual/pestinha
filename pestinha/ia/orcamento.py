@@ -38,6 +38,7 @@ LIMITES = {
     "trecho": 400,      # em qual trecho da história a pessoa está
     "chat": 800,        # uma resposta de conversa
     "dica": 800,        # a dica de uma pesquisa
+    "diario": 800,      # o resumo de um dia de conversa (mind/diario.py)
     "notas": 1500,      # os tópicos de um pedaço de vídeo
     "estudo": 4096,     # o estudo de um jogo (medido: até ~1.550 tokens)
     "resumo": 4096,     # o resumo de um vídeo

@@ -76,7 +76,9 @@ from .mind.protest_ctl import ProtestController
 from .mind.revolucao import RevolucaoController
 from .mind.sleep import SleepController
 from .mind.chamado_ctl import ChamadoController
+from .mind.diario import Diario, DiarioController
 from .mind.historico import HistoricoChat
+from .mind.memoria_local import MemoriaLocal
 from .mind.video_ctl import VideoController
 from .mind.visao import VisaoController
 from .mind.conhecimento import Conhecimento
@@ -218,6 +220,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.visao.imagem.connect(self._projetar)
         self.conversa_janela = None     # criada na primeira vez que você abre o chat
         self.historico = HistoricoChat(self.pet_paths.historico_chat)
+        self.diario = DiarioController(self, Diario(self.pet_paths.diario))      # o resumo de cada dia de conversa
         self.visao.resposta.connect(self._fim_conversa)                  # inteira, no chat e no histórico
         self.visao.erro_conversa.connect(lambda texto: self._fim_conversa(texto, erro=True))
         self.voz = VozController(self, self.nome)
@@ -237,6 +240,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.visao.desenho.connect(self._desenhar)
         self.conhecimento = Conhecimento(self.pet_paths.conhecimento, memoria_remota.maquina_atual())
         self.jogo = JogoController(self, self.pet_paths.jogos)     # o jogo de agora, a lore e o seu progresso
+        self.memoria_local = MemoriaLocal(self.pet_paths.base, self.jogo.memoria)   # busca no que ele sabe
+        self._conversa_de_hoje()
         self.jogo.fala.connect(self._mostrar_fala)
         self.video = VideoController(self, self.nome)   # assiste vídeos com você e resume
         self.video.fala.connect(self._mostrar_fala)
@@ -558,6 +563,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.behavior.on_emotion(emotion, time.monotonic())
         self.visao.tick(now)
         self.video.tick(now)
+        self.diario.tick(now)
         self.chamado.atualizar()
         self._atualizar_mente(now)
 

@@ -42,9 +42,20 @@ Só valem com **Usar IA** ligado em Configurações, e cada parte tem a própria
   escrevendo ou falando, e as respostas dele inteiras (sem o corte do balão) ficam em
   `memory/pets/<pet>/historico_chat.jsonl`, com a hora, para você rever quando abrir o chat. Fica só
   neste computador: não vai para a IA nem para a memória compartilhada. O que a IA lembra da conversa
-  continua sendo só as últimas 8 mensagens, na memória, enquanto o app está aberto. O botão **Esquecer**
+  continua sendo só as últimas 8 mensagens, na memória, enquanto o app está aberto (com **Lembrar das
+  conversas**, as de hoje voltam ao abrir). O botão **Esquecer**
   do chat apaga as duas coisas (pede confirmação). Desligar a opção para de guardar, mas não apaga o que
   já estava lá.
+- **Lembrar das conversas (desligado por padrão, precisa do histórico do chat):** quando ele dorme, ou na
+  virada do dia, as falas daquele dia no histórico vão para o modelo do chat (o mesmo provedor da
+  conversa), que escreve um resumo curto em `memory/pets/<pet>/diario.jsonl`, uma linha por dia. O
+  resumo passa pelo filtro do que o modelo devolve (sem links nem instruções). Um índice de busca,
+  `memory/pets/<pet>/memoria.sqlite`, é montado a partir do diário, dos vídeos, das lembranças e dos jogos
+  (sem a história dos jogos) e se refaz sozinho; apagar o arquivo não perde nada. Quando você pergunta
+  algo que pede memória ("lembra do projeto?"), só os até 5 trechos que têm a ver vão para quem responde;
+  nas outras mensagens, nem as lembranças nem os vídeos vão, e a conversa leva só as falas de hoje. Com
+  a opção ligada, a memória é do Pestinha: pedidos de memória não vão para o Hermes. Fica só neste
+  computador, e o **Esquecer** do chat apaga o diário e o índice junto.
 - **Lembrar o que viu (desligado por padrão):** grava, no máximo a cada 10 minutos e só quando muda de
   assunto, o **resumo** da IA (até 12 palavras), o nome do programa, a hora e o computador, em
   `memory/pets/<pet>/lembrancas_<computador>.jsonl` (até 500 linhas). Nunca o print, o título nem o
@@ -256,6 +267,8 @@ De cada personagem, em `memory/pets/<pet>/` (um personagem não lê a memória d
 | `drives.json` | Energia, estimulação e carência |
 | `protest.json`, `sad_protest.json` | Insatisfação e tristeza |
 | `castigo.json` | Fugas do cantinho, rancor e receio |
+| `diario.jsonl` | Com "Lembrar das conversas": o resumo de cada dia de conversa (até 365 dias). Não vai para a memória compartilhada |
+| `memoria.sqlite` | Com "Lembrar das conversas": o índice de busca do diário, dos vídeos, das lembranças e dos jogos (sem a história). Refeito sozinho |
 | `historico_chat.jsonl` | Com "Guardar o histórico do chat": o que você pediu e o que ele respondeu, com a hora (até 3000 falas). Não vai para a memória compartilhada |
 | `lembrancas_<computador>.jsonl` | Só com "Lembrar o que viu": resumo curto do que a IA viu, programa, hora e computador. As de outros computadores chegam pela memória compartilhada |
 | `.sync.json` | Só com a memória compartilhada: a versão de cada arquivo na última sincronia |

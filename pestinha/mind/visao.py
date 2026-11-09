@@ -409,7 +409,8 @@ class VisaoController(QObject):
             return False
         hermes = cliente = None
         # o Hermes (pesquisa e memória, mais lento) só recebe o que pede isso; o resto vai direto ao provedor
-        if self.com_hermes() and roteador.pede_hermes(texto):
+        local = bool(self.perms.get("memoria_local"))
+        if self.com_hermes() and roteador.pede_hermes(texto, memoria_local=local):
             try:
                 hermes = self.hermes()
             except provedores.ErroIA as erro:          # sem chave ou endereço ruim: segue sem ele
@@ -424,11 +425,16 @@ class VisaoController(QObject):
         self._onde_conversa = self._tela_print if imagem else None
         quem = cliente if cliente is not None else hermes
         extra = (orcamento.tokens(INSTRUCOES_DESENHO) if imagem else 0) + (orcamento.tokens(INSTRUCOES_VOZ) if por_voz else 0)
+        # com a memória local, lembranças e vídeos só vão quando a pergunta pede memória, e só os trechos que
+        # têm a ver (mind/memoria_local.py); o chat leva só as conversas de hoje
+        self.conversa.so_hoje = local
+        trechos = self.app.memoria_local.buscar(texto) if local and roteador.pede_memoria(texto) else []
         mensagens = self.conversa.mensagens(texto, self.ultimo_resumo if self.vendo() else "", self.estado(),
-                                            self.lembrado(),
+                                            "" if local else self.lembrado(),
                                             log_recente() if roteador.sobre_o_programa(texto) else (),
-                                            self.conhecido(texto),
+                                            "" if local else self.conhecido(texto),
                                             self.jogos(texto),
+                                            memoria=trechos,
                                             disponivel=orcamento.disponivel(quem, "chat", self.sistema, bool(imagem))
                                             - extra)
         if imagem and self.pode_desenhar():

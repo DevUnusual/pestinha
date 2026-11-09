@@ -256,9 +256,12 @@ class InteracaoMixin:
             self.historico.adicionar("voce" if voce else "pet", texto, erro=erro, voz=voz)
 
     def _esquecer_conversa(self):
-        """O botão Esquecer do chat: a IA esquece a conversa e o histórico é apagado."""
+        """O botão Esquecer do chat: a IA esquece a conversa, e o histórico e o diário (que sai dele) são apagados."""
         self.visao.conversa.limpar()
         self.historico.apagar()
+        self.diario.cancelar()
+        self.diario.diario.apagar()
+        self.memoria_local.apagar()
 
     def falaram_comigo(self):
         """

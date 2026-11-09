@@ -854,6 +854,7 @@ class SettingsDialog(QDialog):
         som = multimidia.disponivel()            # sem o PySide6-Addons não há microfone (multimidia.py)
         self.boxes["voz"].setEnabled(ia and self.perms["conversa"] and som)
         self.boxes["historico_chat"].setEnabled(ia and self.perms["conversa"])
+        self.boxes["memoria_local"].setEnabled(ia and self.perms["conversa"] and self.perms["historico_chat"])
         self.boxes["chamar"].setEnabled(ia and self.perms["conversa"] and self.perms["voz"] and som)
         if not som:
             for key in ("voz", "chamar"):

@@ -1,5 +1,20 @@
 # Histórico de versões
 
+## Memória local: diário das conversas e busca no que ele sabe
+
+- **Opção nova, Lembrar das conversas** (desligada por padrão, precisa do histórico do chat). Quando ele
+  dorme, ou na virada do dia, o modelo do chat resume as conversas daquele dia num diário
+  (`memory/pets/<pet>/diario.jsonl`), passando pelo filtro do que o modelo devolve.
+- **Busca local** (`pestinha/mind/memoria_local.py`): SQLite FTS5 sobre o diário, os vídeos, as lembranças
+  e os jogos, normalizada (sem acento e sem pontuação: "o que aprendemos sobre python?" acha "Aula de
+  Python,"). A história dos jogos não entra no índice, para a busca não virar atalho de spoiler. O índice
+  se refaz sozinho quando uma fonte muda.
+- **O chat leva só o que importa:** as falas de hoje (que voltam ao abrir) e, quando o roteador vê que a
+  pergunta pede memória ("lembra do projeto?"), os até 5 trechos que têm a ver. Nas outras mensagens, as
+  lembranças e os vídeos não vão mais.
+- **A memória local é a oficial:** com a opção ligada, pedidos de memória não vão para o Hermes, que fica só
+  com a pesquisa. O **Esquecer** do chat apaga o diário e o índice junto com o histórico.
+
 ## Roteador do chat
 
 - **O Hermes só recebe o que pede pesquisa ou memória** (`pestinha/ia/roteador.py`): "pesquisa", "procura",

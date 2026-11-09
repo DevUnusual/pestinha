@@ -61,6 +61,7 @@ DEFAULT_PERMISSIONS = {
     "videos": False,           # ouve o som do computador num vídeo, fica quieto e depois resume (precisa de ia)
     "conversa": True,          # chat por texto pelo menu do pet
     "historico_chat": True,    # guarda o que você pediu e as respostas inteiras, para rever no chat (só aqui)
+    "memoria_local": False,    # diário das conversas e busca no que ele sabe (mind/diario.py, mind/memoria_local.py)
     "pesquisar": False,        # "Conectar ao Hermes": o chat passa por ele (pesquisa, memória) e ele pesquisa o que vê na tela
     "hermes_url": "",          # onde está a API do Hermes; vazio: este computador, porta 8642
     "ia_provedor": "claude",   # claude, openai, deepseek ou ollama (ver ia/provedores.py)
@@ -155,6 +156,12 @@ PERMISSION_GROUPS = [
          "O que você pediu (escrito ou falado) e as respostas inteiras, sem o corte do balão, ficam em "
          "memory/pets/<pet>/historico_chat.jsonl e aparecem quando você abre o chat. Só neste computador: "
          "não vai para a IA nem para a memória compartilhada. O botão Esquecer, no chat, apaga."),
+        ("memoria_local", "Lembrar das conversas (diário)",
+         "Quando ele dorme, ou na virada do dia, o modelo do chat resume as conversas do dia (do histórico do chat) "
+         "num diário, em memory/pets/<pet>/diario.jsonl. Quando você pergunta algo que pede memória (\"lembra do "
+         "projeto?\", \"o que aprendemos sobre python?\"), ele busca no diário, nos vídeos, nas lembranças e nos "
+         "jogos e leva só os 5 trechos que têm a ver; o resto do chat leva só as conversas de hoje. Só neste "
+         "computador. Precisa de \"Guardar o histórico do chat\"."),
         ("voz", "Falar com ele (voz para texto)",
          f"Segure {PTT_HOTKEY_TEXT} e fale, ou use o botão de microfone do chat: a sua fala vira texto e ele "
          "responde por escrito. Ele só ouve enquanto você aperta. O áudio vai para o serviço de voz do "

@@ -90,6 +90,11 @@ class PetPaths:
         return self.base / "historico_chat.jsonl"
 
     @property
+    def diario(self):
+        """O diário das conversas (mind/diario.py). Fora de todos(), como o histórico de onde ele sai."""
+        return self.base / "diario.jsonl"
+
+    @property
     def drives(self):
         """Homeostase: energia, estimulação e carência."""
         return self.base / "drives.json"

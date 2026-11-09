@@ -5,8 +5,10 @@ Sem Qt. Antes, com "Conectar ao Hermes", toda mensagem ia para o Hermes (um agen
 mais lento e caro) e toda mensagem levava o registro recente do pet. Agora:
 
     pede_hermes(texto)        pesquisa ("pesquisa", "procura", "notícia", "quem é"...), imagem ("me mostra")
-                              ou memória do Hermes ("lembra", "anota", "da última vez"): vai para o Hermes.
+                              ou memória ("lembra", "anota", "da última vez"): vai para o Hermes. Com a
+                              memória local ligada, a memória é dela, e o Hermes fica só com a pesquisa.
                               O resto ("oi, Bob", "o que acha disso?") vai direto para o provedor escolhido.
+    pede_memoria(texto)       a mensagem pede o que ele lembra: o chat leva os trechos da memória local.
     sobre_o_programa(texto)   a pergunta é sobre o próprio pet ("por que a música parou?", "o que você fez?",
                               "deu erro?"): só então o registro recente (o log dele) vai junto.
 
@@ -25,13 +27,17 @@ def _normal(texto):
     return " ".join(re.sub(r"[^\w\s-]", " ", texto).split())
 
 
-_HERMES = re.compile(
+_PESQUISA = re.compile(
     r"\b(?:pesquis\w*|procur\w*|busc\w*|googl\w*|internet|web|site|noticia\w*|novidade\w*|"
     r"quem (?:e|foi|sao)|o que (?:e|sao|significa)|qual (?:e|foi) o|quando (?:e|foi|sai|saiu|lanca\w*)|"
     r"onde fica|quanto custa|preco|cotacao|previsao|clima|tempo (?:hoje|amanha|agora)|"
-    r"mostr\w*|quero ver|foto|imagem|"
-    r"lembr\w*|esquec\w*|anot\w*|memoriz\w*|guard\w* (?:isso|que)|ultima vez|semana passada|"
-    r"voce sabe (?:que|o que) eu|o que eu (?:te )?(?:disse|falei|contei))\b"
+    r"mostr\w*|quero ver|foto|imagem)\b"
+)
+_MEMORIA = re.compile(
+    r"\b(?:lembr\w*|esquec\w*|anot\w*|memoriz\w*|guard\w* (?:isso|que)|ultima vez|semana passada|"
+    r"mes passado|ontem|outro dia|aquele dia|aprendemos|a gente (?:viu|falou|conversou|fez|assistiu|aprendeu)|"
+    r"(?:ja )?(?:conversamos|falamos) (?:sobre|de|disso)|voce sabe (?:que|o que|sobre)|o que voce sabe|"
+    r"o que eu (?:te )?(?:disse|falei|contei|fiz)|meu projeto|meus projetos|aquele video|aquele jogo)\b"
 )
 _PROGRAMA = re.compile(
     r"\b(?:por ?que (?:a musica|o video|voce|vc|o pet|ele|parou|travou|cortou|sumiu)|"
@@ -42,9 +48,16 @@ _PROGRAMA = re.compile(
 )
 
 
-def pede_hermes(texto):
-    """A mensagem pede pesquisa, imagem ou a memória do Hermes."""
-    return bool(_HERMES.search(_normal(texto)))
+def pede_hermes(texto, memoria_local=False):
+    """A mensagem pede pesquisa, imagem ou memória. Com a memória local ligada ("Lembrar das conversas"), é ela
+    que responde pela memória, e o Hermes só recebe pesquisa e imagem."""
+    normal = _normal(texto)
+    return bool(_PESQUISA.search(normal) or (not memoria_local and _MEMORIA.search(normal)))
+
+
+def pede_memoria(texto):
+    """A mensagem pede o que ele lembra de você ("lembra do projeto?", "o que aprendemos sobre python?")."""
+    return bool(_MEMORIA.search(_normal(texto)))
 
 
 def sobre_o_programa(texto):
