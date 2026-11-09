@@ -223,7 +223,7 @@ def test_hermes_caiu_o_provedor_responde_no_lugar(app, hermes_falso):
     hermes_falso["falhar"] = True
     avisos = []
     a.visao.aviso.connect(avisos.append)
-    assert a.visao.perguntar("oi, tudo bem?")
+    assert a.visao.perguntar("pesquisa como vai ficar o tempo amanhã")    # pesquisa: vai para o Hermes
     assert esperar(lambda: a.balao.texto == "Respondi eu mesmo.")
     assert len(provedor.chamadas) == 1 and any("Hermes" in x for x in avisos)
     assert not a.visao.respondendo and a.visao.ferramentas == 0

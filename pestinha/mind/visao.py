@@ -45,7 +45,7 @@ import time
 from PySide6.QtCore import QBuffer, QIODevice, QObject, QPoint, Qt, QTimer, Signal
 from PySide6.QtGui import QGuiApplication, QImage
 
-from ..ia import orcamento, pesquisa, provedores
+from ..ia import orcamento, pesquisa, provedores, roteador
 from .. import ajustes
 from .politica import PoliticaFala
 from ..ia.desenho import INSTRUCOES_CHAT as INSTRUCOES_DESENHO, separar_desenho
@@ -408,7 +408,8 @@ class VisaoController(QObject):
         if self.respondendo or not self.ligada() or not self.perms["conversa"] or self.app._congelado():
             return False
         hermes = cliente = None
-        if self.com_hermes():
+        # o Hermes (pesquisa e memória, mais lento) só recebe o que pede isso; o resto vai direto ao provedor
+        if self.com_hermes() and roteador.pede_hermes(texto):
             try:
                 hermes = self.hermes()
             except provedores.ErroIA as erro:          # sem chave ou endereço ruim: segue sem ele
@@ -424,7 +425,9 @@ class VisaoController(QObject):
         quem = cliente if cliente is not None else hermes
         extra = (orcamento.tokens(INSTRUCOES_DESENHO) if imagem else 0) + (orcamento.tokens(INSTRUCOES_VOZ) if por_voz else 0)
         mensagens = self.conversa.mensagens(texto, self.ultimo_resumo if self.vendo() else "", self.estado(),
-                                            self.lembrado(), log_recente(), self.conhecido(texto),
+                                            self.lembrado(),
+                                            log_recente() if roteador.sobre_o_programa(texto) else (),
+                                            self.conhecido(texto),
                                             self.jogos(texto),
                                             disponivel=orcamento.disponivel(quem, "chat", self.sistema, bool(imagem))
                                             - extra)

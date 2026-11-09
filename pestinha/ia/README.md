@@ -18,6 +18,7 @@ Visão e conversa por um modelo de IA (Claude, OpenAI, DeepSeek ou Ollama local)
 | `orcamento.py` | Quanto cabe em cada chamada ao modelo, e quanto ele pode responder. |
 | `pesquisa.py` | O pet pesquisa na internet pelo Hermes (um agente com ferramentas), no formato da OpenAI. |
 | `provedores.py` | Quem responde pelo pet: Claude, OpenAI, DeepSeek ou um modelo local no Ollama. |
+| `roteador.py` | Para onde vai cada mensagem e o que vai junto, decidido aqui, sem modelo. |
 | `uso.py` | O registro de cada chamada ao modelo, sem conteúdo: tarefa, provedor, modelo, tokens, tempo e motivo de parada. |
 | `validacao.py` | O que o modelo devolve passa por aqui antes de ser gravado. |
 | `video.py` | O que ele ouve num vídeo que você assiste vira anotações e, no fim, um resumo que ele guarda. |

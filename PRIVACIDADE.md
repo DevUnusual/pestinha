@@ -143,6 +143,9 @@ não lê nada da tela além do que **Ver minha tela** já manda.
 
 Só vale com **Usar IA**, **Conversar por texto** e **Conectar ao Hermes (pesquisa e memória)** ligados.
 
+- **Só o que pede pesquisa ou memória vai para o Hermes:** pedidos de pesquisa ("pesquisa", "procura",
+  "quem é", notícias, o tempo), de imagem ("me mostra") ou de memória ("lembra", "anota"). O resto da
+  conversa ("oi, Bob", "o que acha disso?") vai direto para o provedor escolhido.
 - **O que vai para o Hermes no chat e na voz:** o que você escreve ou fala, as últimas trocas da conversa,
   o resumo curto da última olhada na tela (com **Ver minha tela**), o estado da rede do pet e, com
   **Lembrar o que viu**, as lembranças dos seus computadores. **Nunca** o print nem o título da janela.
@@ -195,7 +198,8 @@ Quando você pede música no chat ou pela voz ("toca um lo-fi"), o Pestinha busc
 
 ### O log que ele lê
 
-Para conseguir explicar o que aconteceu ("por que a música parou?"), cada mensagem do chat leva as últimas
+Para conseguir explicar o que aconteceu ("por que a música parou?"), uma pergunta sobre o próprio pet (o que
+ele fez, o que parou, um erro) leva as últimas
 linhas do log dele (até 10, dos últimos 30 minutos) para quem responde (o Hermes ou o provedor de IA). O log
 nunca tem conteúdo da tela nem a conversa: são avisos do programa (música, voz, Hermes, internet). As linhas
 de depuração do modo teste e os episódios de travessura ficam de fora.

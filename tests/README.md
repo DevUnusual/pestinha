@@ -62,6 +62,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_robustez.py` | Robustez: arquivo corrompido, assets faltando, log em arquivo. |
 | `test_robustez_v2.py` | Falhas do relatório técnico (docs/auditorias/ANALISE_TECNICA.md): cada caso tem um teste que reproduz o problema. |
 | `test_conversa_atencao.py` | Falar ou escrever com o pet é atenção: carência e tristeza caem e a rede recebe recompensa na hora, mesmo sem resposta da IA; pausado, não conta. |
+| `test_roteador.py` | Roteador do chat: o Hermes só recebe pesquisa, imagem e memória; o log só vai em pergunta sobre o próprio pet; no app, "oi" vai direto ao provedor e "pesquisa" passa pelo Hermes. |
 | `test_seguranca.py` | Segurança da IA: imagem de qualquer site mas nunca da rede de casa, serviço de memória sempre com token, personalidade de outro computador só com confirmação e o que o modelo devolve filtrado antes de gravar. |
 | `test_tocando_disco.py` | O cartão de música mostra o tempo: a borda acende do meio de cima e dá a volta (sentido horário) até o fim da música, o número '1:23 / 3:45' acompanha e um disquinho gira no canto, com a capa da música como selo (que dá para tirar pelo 🖼). |
 | `test_video_desenho.py` | Assistir vídeos (conferir o som e perguntar antes, ouvir, olhar a tela, anotar, resumir e guardar) e desenhar na tela: o texto do modelo, o conhecimento em disco, a janela do desenho e os controladores dentro do app de verdade (Qt offscreen, pasta temporária, som e modelo falsos). |

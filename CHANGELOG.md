@@ -1,5 +1,14 @@
 # Histórico de versões
 
+## Roteador do chat
+
+- **O Hermes só recebe o que pede pesquisa ou memória** (`pestinha/ia/roteador.py`): "pesquisa", "procura",
+  "quem é", notícias, o tempo, "me mostra uma foto" ou "lembra", "anota". "Oi, Bob" e o resto da conversa
+  vão direto para o provedor escolhido, mais rápido e mais barato. Se o Hermes cair, o provedor responde,
+  como antes.
+- **O log dele só vai junto quando a pergunta é sobre o próprio pet** ("por que a música parou?", "deu
+  erro?"). Antes, toda mensagem levava as últimas linhas do registro.
+
 ## Modelo da olhada separado
 
 - **Campo novo, Modelo da olhada**, nas Configurações. A olhada é a chamada mais frequente e a mais
