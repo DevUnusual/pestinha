@@ -76,6 +76,22 @@ def processo_ativo():
         return "unknown"
 
 
+def caminho_ativo():
+    """Caminho do executável da janela ativa ('' se não deu), pelo xdotool e o psutil."""
+    janela = _janela_ativa()
+    pid = (rodar(["xdotool", "getwindowpid", janela]) or "").strip() if janela else ""
+    try:
+        return psutil.Process(int(pid)).exe()
+    except (ValueError, psutil.Error):
+        return ""
+
+
+def titulo_ativo():
+    """Título da janela ativa pelo xdotool. Só é lido com "Ver minha tela" ligado."""
+    janela = _janela_ativa()
+    return (rodar(["xdotool", "getwindowname", janela]) or "").strip() if janela else ""
+
+
 def retangulo_ativo(escala=1.0):
     """Retângulo da janela ativa (pixels), ou None se não houver janela ativa."""
     janela = _janela_ativa()
@@ -104,3 +120,13 @@ def sem_foco_nativo(janela_id):
 def iniciar_atalho(callback):
     """Registra Ctrl+Alt+Shift+B pelo pynput; devolve True se conseguiu."""
     return atalho_pynput(callback)
+
+
+def iniciar_atalho_falar(callback):
+    """Registra Ctrl+Alt+Shift+V pelo pynput (aperta para ouvir, aperta de novo para parar)."""
+    return atalho_pynput(callback, "v", "voz")
+
+
+def tecla_falar_segurada():
+    """None: aqui não dá para saber quando a tecla foi solta (o controlador usa aperta-e-aperta)."""
+    return None

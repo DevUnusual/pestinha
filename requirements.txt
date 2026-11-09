@@ -1,9 +1,25 @@
 # Para rodar o Pestinha (Python 3.11 ou mais novo). Windows 10/11, macOS ou Linux (X11).
 # CI Linux: 6.11.3 validado com 340 testes; 6.12.0 provoca abort nativo none_dealloc.
-PySide6==6.11.3; sys_platform == "linux"
-PySide6>=6.11.0; sys_platform != "linux"
+# QtCore, QtGui e QtWidgets vêm no Essentials (o PySide6 completo traz WebEngine, QML, 3D...)
+PySide6-Essentials==6.11.3; sys_platform == "linux"
+PySide6-Essentials>=6.11.0; sys_platform != "linux"
+# QtMultimedia (microfone da voz e do chamado, player da música) vem no Addons. É opcional: sem ele o pet
+# abre e essas três funções ficam desligadas, com aviso (pestinha/multimidia.py)
+PySide6-Addons==6.11.3; sys_platform == "linux"
+PySide6-Addons>=6.11.0; sys_platform != "linux"
 psutil>=7.2.2
+# IA opcional (visão e conversa): Claude pela SDK da Anthropic; OpenAI, DeepSeek e Ollama pela SDK da OpenAI
+anthropic>=2.4
+openai>=1.50
 numpy>=2.4.6
+# Música opcional (pedir no chat "toca um lo-fi"): busca e rádio do YouTube Music, e o áudio pelo yt-dlp
+ytmusicapi>=1.12
+yt-dlp>=2026.10.26
+# Vídeo opcional ("Assistir vídeos comigo"): ouve o som que sai do computador (loopback; no macOS só com
+# um driver como o BlackHole)
+soundcard>=0.4.4
+# Chamar pelo nome opcional ("Bob!"): reconhece só a palavra de chamado, neste computador
+vosk>=0.3.45
 # Atalho global no Linux; Windows usa a API do sistema e macOS usa QuickMacHotKey
 pynput>=1.7.7; sys_platform == "linux"
 # Windows: leitura das janelas e do teclado

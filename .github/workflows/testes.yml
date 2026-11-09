@@ -31,3 +31,11 @@ jobs:
         run: |
           python -c "import PySide6, shiboken6; assert PySide6.__version__ == '6.11.3' and shiboken6.__version__ == '6.11.3', (PySide6.__version__, shiboken6.__version__)"
       - run: python -m pytest -q
+      # O QtMultimedia é opcional (vem no PySide6-Addons): sem ele o app tem que abrir, com voz, chamado e
+      # música desligados. Roda depois da suíte, que precisa do Addons.
+      - name: Abrir sem o PySide6-Addons (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          pip uninstall -y PySide6-Addons
+          python -c "import importlib.util as u; assert u.find_spec('PySide6.QtMultimedia') is None"
+          python -m pytest -q tests/test_multimidia.py tests/test_app.py

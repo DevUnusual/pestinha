@@ -2,7 +2,7 @@ ONDE FICAM AS COISAS
 (pode editar com ele aberto: ele relê os textos e procura imagens novas sozinho)
 
 O que é de um personagem (frases, cartazes, memes) fica na pasta dele: pets/<pet>/.
-Por exemplo, as coisas do Bryan estão em pets/bryan/. Veja pets/README.md.
+Por exemplo, as coisas do Bob estão em pets/bryan/. Veja pets/README.md.
 
 Aqui em assets/comum/ fica só o que é neutro, de qualquer personagem:
 
@@ -14,6 +14,12 @@ Aqui em assets/comum/ fica só o que é neutro, de qualquer personagem:
 Cada item é procurado primeiro na pasta do pet e depois aqui. Então um personagem pode ter a
 própria bolinha, por exemplo, só colocando um bolinha_papel.png em pets/<pet>/.
 Frases e memes NUNCA vêm da pasta de outro personagem.
+
+programas.json lista programas que o pet ainda não reconhece, somados aos que ele já conhece.
+Use o nome do processo, como aparece no Gerenciador de Tarefas. Vale ao reabrir. Exemplo:
+
+    "PROGRAMMING": ["meueditor.exe"],
+    "GAMING": ["meujogo.exe"]
 
 PNG com fundo transparente fica mais bonito. Tamanho não importa: ele reduz.
 Imagem que não abre (arquivo corrompido ou formato estranho) é ignorada.

@@ -38,6 +38,9 @@ HZ_RESPOSTA_CHEIA = 6.0         # aumento de CHEER que vale resposta 1,0
 RESPOSTA_MINIMA = 0.12          # abaixo disso ele só pisca e olha
 RECOMPENSA_CARINHO = 1.0        # recompensa por segundo de carinho (aprendizado)
 PUNICAO_DISPENSA = -0.6         # recompensa negativa depois de dispensar
+RECOMPENSA_CONVERSA = 1.0       # recompensa por segundo logo depois de você falar/escrever para ele
+DURACAO_RECOMPENSA_CONVERSA = 2.0   # s dessa recompensa (uma mensagem vale ~2 s de carinho)
+ALIVIO_CONVERSA = 0.3           # quanto cada mensagem tira da tristeza acumulada
 DISPENSA_RAPIDA = 3.0           # s: fechou tão rápido assim = dispensa "na cara"
 PENALIDADE_DISPENSA = 1.0       # s em que a dispensa pesa no aprendizado
 
@@ -126,6 +129,19 @@ GANHO_CARTAZ = 0.5              # cartazes por segundo, por Hz do motor CARTAZ
 GANHO_PAPEL = 0.05              # bolinhas de papel por segundo, por Hz do motor PAPEL
 
 # ---------------------------------------------------------------------------
+# Política de fala (mind/politica.py): quando o comentário da olhada aparece
+# ---------------------------------------------------------------------------
+FALA_LIMIAR_ERRO = 0.6          # erro na tela acima disso: fala
+FALA_LIMIAR_FOCO = 0.7          # foco acima disso: só um erro interrompe
+FALA_LIMIAR_GRACA = 0.6         # graça acima disso...
+FALA_LIMIAR_CHEER = 0.3         # ...e a rede alegre (tom de CHEER) acima disso: fala
+FALA_LIMIAR_NOVIDADE = 0.6      # novidade acima disso...
+FALA_LIMIAR_WATCH = 0.15        # ...e a rede atenta (tom de WATCH) acima disso: fala
+FALA_INTERVALO_MIN = 60.0       # s mínimos entre duas falas espontâneas
+FALA_MAX_POR_HORA = 6           # falas espontâneas por hora, no máximo
+FALA_ESPERA_REDE = 1.5          # s entre os sinais da olhada entrarem na rede e a decisão de falar
+
+# ---------------------------------------------------------------------------
 # Rosto e janela
 # ---------------------------------------------------------------------------
 LADO_JANELA_PET = 200         # px da janela transparente do corpo
@@ -138,6 +154,15 @@ ZZZ_PERIODO = 2.4               # s que cada Z leva para subir e sumir
 
 # nome: (tipo, mínimo, máximo) para números; listas e tuplas têm regra própria
 _LIMITES = {
+    "FALA_LIMIAR_ERRO": (float, 0.0, 1.0),
+    "FALA_LIMIAR_FOCO": (float, 0.0, 1.0),
+    "FALA_LIMIAR_GRACA": (float, 0.0, 1.0),
+    "FALA_LIMIAR_CHEER": (float, 0.0, 1.0),
+    "FALA_LIMIAR_NOVIDADE": (float, 0.0, 1.0),
+    "FALA_LIMIAR_WATCH": (float, 0.0, 1.0),
+    "FALA_INTERVALO_MIN": (float, 0.0, 3600.0),
+    "FALA_MAX_POR_HORA": (int, 0, 600),
+    "FALA_ESPERA_REDE": (float, 0.0, 30.0),
     "COOLDOWN_CUTUCADA": (float, 0.0, 5.0),
     "TEMPO_MAX_CUTUCADA_MS": (int, 50, 2000),
     "DISTANCIA_INICIO_ARRASTE": (int, 0, 100),
@@ -157,6 +182,9 @@ _LIMITES = {
     "RESPOSTA_MINIMA": (float, 0.0, 1.0),
     "RECOMPENSA_CARINHO": (float, 0.0, 10.0),
     "PUNICAO_DISPENSA": (float, -10.0, 0.0),
+    "RECOMPENSA_CONVERSA": (float, 0.0, 10.0),
+    "DURACAO_RECOMPENSA_CONVERSA": (float, 0.0, 30.0),
+    "ALIVIO_CONVERSA": (float, 0.0, 5.0),
     "DISPENSA_RAPIDA": (float, 0.0, 60.0),
     "PENALIDADE_DISPENSA": (float, 0.0, 60.0),
     "GRAVIDADE": (float, 0.0, 100000.0),

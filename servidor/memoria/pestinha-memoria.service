@@ -1,0 +1,18 @@
+# Serviço de usuário (sem sudo): ~/.config/systemd/user/pestinha-memoria.service
+# Instalar: systemctl --user daemon-reload && systemctl --user enable --now pestinha-memoria
+# Sobrevive a reinícios com "loginctl enable-linger".
+[Unit]
+Description=Pestinha memoria (o mesmo pet em todos os computadores)
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/pestinha-memoria
+Environment=PESTINHA_MEMORIA_DADOS=%h/pestinha-memoria/dados
+ExecStart=/usr/bin/python3 %h/pestinha-memoria/pestinha_memoria.py
+Nice=10
+CPUWeight=20
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

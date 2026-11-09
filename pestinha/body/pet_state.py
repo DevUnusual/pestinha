@@ -2,7 +2,7 @@
 PET STATE - o que o pet está sentindo e mostrando, num lugar só.
 
 Quem escreve aqui:
-    app         emoção, tom motor, protesto, modo de rótulo
+    app         emoção, tom motor, protesto, modo de rótulo, o que a mente está fazendo (mente)
     behavior    olhar (gaze), tremor (shake), tontura, quando fica parado
     pet (input) carinho (esfregar o mouse), e o rosto em animação
 
@@ -16,6 +16,7 @@ Assim nenhum dos três precisa conhecer os outros atributos da janela.
 import time
 
 from ..core.emotion import EYE_SHAPES
+from .animacoes import Animacoes
 from ..core.motor import MotorTone
 from ..ajustes import DURACAO_CARINHO as CARESS_HOLD, FELIZ_APOS_CARINHO
 
@@ -42,6 +43,10 @@ class PetState:
         self.at_desk = False
         self.desk_top = None        # y (na tela) da tampa do notebook quando ele está sentado: o corpo para ali
         self.castigo = False        # no cantinho do castigo: parado, sem passear
+        self.ouvindo = False        # você está segurando a tecla de falar: ele mostra que está ouvindo
+        self.assistindo = None      # (x do lugar, ponto do jogo) quando está assistindo você jogar (mind/assistir.py)
+        self.mente = frozenset()    # atividades da IA/voz agora (animacoes.ATIVIDADES): olhando, pensando...
+        self.anim = Animacoes()     # como essas atividades e as falas aparecem no corpo, quadro a quadro
 
     def mark_caress(self, now=None):
         """Marca que ele está recebendo carinho agora (dura um instante)."""

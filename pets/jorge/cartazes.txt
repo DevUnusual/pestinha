@@ -1,6 +1,6 @@
 # Cartazes do Jorge, coach de finanças e IA. Uma frase por linha, dentro de cada seção.
 # É sátira: nada aqui vende, cobra ou bloqueia nada de verdade.
-# Os estágios são os mesmos do Bryan; muda só a leitura:
+# Os estágios são os mesmos do Bob; muda só a leitura:
 #   reclamação = prospecção de clientes, manifestação = marketing agressivo,
 #   greve = o "premium" que não existe (cursos e mentorias), revolução = colapso financeiro e delírio de IA.
 # Pode editar com ele rodando: ele relê ao levantar um cartaz novo.

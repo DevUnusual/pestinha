@@ -36,6 +36,11 @@ CANAIS_SENSORIAIS = {
     "VISITA": "visita no canto",
     "RECEIO": "receio de fugir",
     "RANCOR": "rancor",
+    "VISAO_GRACA": "vê graça",
+    "VISAO_ERRO": "vê erro",
+    "VISAO_FOCO": "vê foco",
+    "VISAO_NOVO": "vê novidade",
+    "CONVERSA": "conversa",
 }
 
 INTERNEURONIOS = {

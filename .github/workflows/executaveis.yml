@@ -23,7 +23,9 @@ jobs:
         run: |
           EXTRA=""
           if [ "$RUNNER_OS" = "Windows" ]; then EXTRA="--windowed --hidden-import win32timezone"; fi
-          python -m PyInstaller --noconfirm --onefile $EXTRA --name Pestinha \
+          # O QtMultimedia é importado só na hora de usar (pestinha/multimidia.py): o PyInstaller não o acha
+          # sozinho, então vai pedido aqui (voz, chamado e música no executável)
+          python -m PyInstaller --noconfirm --onefile $EXTRA --hidden-import PySide6.QtMultimedia --name Pestinha \
             --distpath dist --workpath build/work --specpath build main.py
       - name: Montar a pasta de entrega (executável + assets + pets)
         shell: bash

@@ -1,5 +1,7 @@
 """
-DESENHO DO ROSTO - só o que se desenha do pet: moldura, olhos, brilho, acessórios e os Zzz.
+DESENHO DO ROSTO - só o que se desenha do pet: moldura, olhos, brilho, acessórios, os Zzz e o que a mente
+está fazendo na telinha (linha de leitura, reflexo do jogo; o tempo vem de animacoes.py). As fantasias
+ficam em desenho_fantasias.py.
 
 Não tem estado nem decisão: recebe a forma dos olhos, a direção do olhar e a aparência do pet
 (cores e acessórios, de pets/<pet>.json) e pinta. Os acessórios são uma camada por cima do rosto:
@@ -11,9 +13,11 @@ import re
 from dataclasses import dataclass, field
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QPainterPath, QPen, QPolygonF
+from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainterPath, QPen, QPolygonF
 
 from ..ajustes import ZZZ_PERIODO as ZZZ_PERIOD, ZZZ_QUANTIDADE as ZZZ_COUNT
+from .animacoes import ease_out_cubic
+from .desenho_fantasias import desenhar as desenhar_fantasias
 
 BODY_W, BODY_H = 120, 90
 FRAME = QColor("#63e56f")
@@ -69,15 +73,32 @@ def lerp_shape(current, target, k):
     return {key: current[key] + (target[key] - current[key]) * k for key in target}
 
 
-def draw_face(p, shape, gaze=(0.0, 0.0), blink=1.0, emotion="observando", carinho=False, aparencia=PADRAO):
-    """Desenha moldura + tela + olhos (+ acessórios) com centro na origem do painter."""
+def tela_rect():
+    """Retângulo da telinha (dentro da moldura), com centro na origem."""
+    return QRectF(-BODY_W / 2 + 11, -BODY_H / 2 + 11, BODY_W - 22, BODY_H - 22)
+
+
+def com_alfa(cor, alfa):
+    """A mesma cor com opacidade `alfa` (0..1)."""
+    c = QColor(cor)
+    c.setAlphaF(max(0.0, min(1.0, alfa)))
+    return c
+
+
+def draw_face(p, shape, gaze=(0.0, 0.0), blink=1.0, emotion="observando", carinho=False, aparencia=PADRAO,
+              ouvindo=False, mente=None, agora=0.0):
+    """
+    Desenha moldura + tela + olhos (+ sinal de ouvindo, + acessórios) com centro na origem do painter.
+    Com `mente` (animacoes.Animacoes), desenha também o que está dentro da tela: leitura e reflexo do jogo
+    (a orelha de ouvir vem com as fantasias); sem ela, as ondinhas de ouvir são as paradas de sempre.
+    """
     a = aparencia
     p.setPen(QPen(a.moldura, 5))
     p.setBrush(a.casca)
     p.drawRoundedRect(QRectF(-BODY_W / 2, -BODY_H / 2, BODY_W, BODY_H), 20, 20)
     p.setPen(Qt.NoPen)
     p.setBrush(a.tela)
-    p.drawRoundedRect(QRectF(-BODY_W / 2 + 11, -BODY_H / 2 + 11, BODY_W - 22, BODY_H - 22), 12, 12)
+    p.drawRoundedRect(tela_rect(), 12, 12)
     for nome, cor in a.acessorios:
         if nome == "gravata":                          # por cima da tela, sempre dentro do contorno do corpo
             _gravata(p, cor)
@@ -91,14 +112,73 @@ def draw_face(p, shape, gaze=(0.0, 0.0), blink=1.0, emotion="observando", carinh
             p.drawArc(QRectF(cx - 15, cy - 8, 30, 22), 0, 180 * 16)
         p.setPen(Qt.NoPen)
     else:
-        _olhos(p, shape, gaze, blink, emotion, a)
+        _olhos(p, shape, gaze, blink, emotion, a, reflexo=mente.nivel("jogo") if mente else 0.0, agora=agora)
+    if mente is not None:
+        _leitura(p, mente.nivel("olhando"), mente.linha_leitura(agora), a.olho)
+    elif ouvindo:
+        _ouvindo(p, a.olho)
     for nome, cor in a.acessorios:
         if nome == "oculos":
             _oculos(p, cor)
 
 
-def _olhos(p, shape, gaze, blink, emotion, a):
-    """Desenha os dois olhos: forma, piscada, brilho e direção do olhar."""
+def _ouvindo(p, cor):
+    """Três ondinhas no canto da tela: ele está ouvindo você."""
+    p.setPen(QPen(cor, 2.2, Qt.SolidLine, Qt.RoundCap))
+    p.setBrush(Qt.NoBrush)
+    for r in (4, 8, 12):
+        p.drawArc(QRectF(36 - r, -26 - r, 2 * r, 2 * r), -45 * 16, 90 * 16)
+
+
+def _leitura(p, nivel, altura, cor):
+    """A linha de leitura varrendo a telinha, com um rastro de luz que some para cima."""
+    if nivel <= 0.0:
+        return
+    tela = tela_rect()
+    y = tela.top() + 3 + (tela.height() - 6) * altura
+    p.save()
+    clip = QPainterPath()
+    clip.addRoundedRect(tela, 12, 12)
+    p.setClipPath(clip)
+    rastro = QLinearGradient(0, y - 16, 0, y)
+    rastro.setColorAt(0.0, com_alfa(cor, 0.0))
+    rastro.setColorAt(1.0, com_alfa(cor, 0.22 * nivel))
+    p.setPen(Qt.NoPen)
+    p.setBrush(rastro)
+    p.drawRect(QRectF(tela.left(), y - 16, tela.width(), 16))
+    p.setPen(QPen(com_alfa(cor, 0.85 * nivel), 1.4))
+    largura = tela.width() * ease_out_cubic(nivel)                 # a linha abre do meio para os lados
+    p.drawLine(QPointF(-largura / 2, y), QPointF(largura / 2, y))
+    p.restore()
+
+
+def draw_mente(p, mente, agora, aparencia=PADRAO, frente=True):
+    """
+    As fantasias do que a mente está fazendo (desenho_fantasias.py). Chame com `frente=False` antes do
+    rosto (capa, orelha) e com `frente=True` depois (chapéu, óculos 3D, pipoca, holograma...).
+    """
+    desenhar_fantasias(p, mente, agora, aparencia, frente)
+
+
+# cores que passam no reflexo dos olhos quando ele acompanha um jogo
+CORES_JOGO = (QColor("#ff5d73"), QColor("#ffd23f"), QColor("#3fa7ff"), QColor("#b46bff"))
+
+
+def _reflexo_jogo(p, eye, cx, top, w, h, nivel, agora, side):
+    """O reflexo da partida no olho: faixas coloridas que passam devagar, como a tela do jogo refletida."""
+    p.save()
+    p.setClipPath(eye)
+    p.setPen(Qt.NoPen)
+    for i, cor in enumerate(CORES_JOGO):
+        fase = (agora * 0.35 + i / len(CORES_JOGO) + side * 0.13) % 1.0
+        yy = top + h * fase
+        p.setBrush(com_alfa(cor, 0.30 * nivel * math.sin(math.pi * fase)))
+        p.drawRect(QRectF(cx - w / 2, yy - 2.5, w, 5))
+    p.restore()
+
+
+def _olhos(p, shape, gaze, blink, emotion, a, reflexo=0.0, agora=0.0):
+    """Desenha os dois olhos: forma, piscada, brilho, direção do olhar e o reflexo do jogo."""
     gx, gy = gaze
     for side in (-1, 1):
         w = shape["w"]
@@ -132,6 +212,8 @@ def _olhos(p, shape, gaze, blink, emotion, a):
 
         p.setBrush(a.olho)
         p.drawPath(eye)
+        if reflexo > 0.0 and blink > 0.5 and h >= 8:
+            _reflexo_jogo(p, eye, cx, top, w, h, reflexo, agora, side)
 
         if blink > 0.5 and h >= 8:                 # olho fechado não tem brilho
             p.save()

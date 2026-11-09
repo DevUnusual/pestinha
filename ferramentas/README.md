@@ -12,9 +12,12 @@ python ferramentas/gerar_doc_rede.py
 - `fuzz_pestinha.py` roda o app com ações aleatórias e checa invariantes:
   `python -B ferramentas/fuzz_pestinha.py 150 80` (rodadas, ações por rodada).
 - `medir_cartazes.py` confere se cada frase cabe na placa (rode no Windows, com as fontes reais).
+- `avaliar_ia.py` roda os casos fixos de avaliação da IA contra o Ollama (sem custo) e grava o relatório em
+  docs/avaliacoes/: `python ferramentas/avaliar_ia.py` (veja `--help`).
 
 | Arquivo | O que faz |
 |---|---|
+| `avaliar_ia.py` | Casos fixos (Apêndice B de docs/auditorias/AUDITORIA_ARQUITETURA_IA.md) rodando contra o Ollama, pelo mesmo caminho do app: os prompts saem de pestinha/ia/mente.py e jogo_info.py, a resposta é lida pelos parsers do app, e a chamada passa pelo cliente do app (pestinha/ia/provedores.py). |
 | `fuzz_pestinha.py` | Roda o app inteiro com relógio virtual e ações aleatórias, checando invariantes. |
 | `gerar_doc_rede.py` | Gera docs/REDE_NEURAL.md a partir do código (canais, interneurônios, motores, conexões e limiares). |
 | `gerar_panfleto.py` | Desenha pets/jorge/bolinha_papel.png: um panfleto de mentoria amassado, que o Jorge atira na revolução. |

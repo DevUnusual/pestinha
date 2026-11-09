@@ -15,11 +15,14 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | Arquivo | O que faz |
 |---|---|
 | `test_30_bugs.py` | Regressão dos 30 bugs encontrados na rodada de fuzzing e revisão (docs/auditorias/BUGS_30_RODADA.md). |
+| `test_animacoes.py` | Animações da mente: o corpo mostra o que a IA e a voz estão fazendo (olhando, pensando, pesquisando, ouvindo, jogo) e dá o pop quando o balão aparece. |
 | `test_aparencia.py` | Etapa 5 do multipet: cores e acessórios por pet, numa camada por cima do rosto. |
 | `test_app.py` | Testes de integração do app, com Qt em modo offscreen e tudo numa pasta temporária. |
 | `test_arquitetura.py` | Regra de camadas do pacote `pestinha`: cada camada só importa das que estão abaixo dela. |
+| `test_assistir.py` | Assistindo você jogar: com "Acompanhar jogos" e um jogo na tela, ele vai para o monitor ao lado (o mais à direita que não é o do jogo), fica parado olhando para a partida e comenta, sem passear nem aprontar. |
 | `test_atividade.py` | Programas de trabalho: VS Code, Claude e Codex contam como programação. |
 | `test_auditoria_30.py` | Contratos dos 30 bugs da auditoria (docs/auditorias/AUDITORIA_30_BUGS.md). |
+| `test_avaliar_ia.py` | O conjunto de avaliação da IA (ferramentas/avaliar_ia.py) com um modelo falso: cada caso monta a entrada do app, aplica o critério certo e o relatório sai em Markdown e JSON. |
 | `test_bolinha.py` | Testes da bolinha e da tristeza (abandono). |
 | `test_brincadeira.py` | Bolinha: colisão com post-its e estilos de brincadeira por pet. |
 | `test_cantinho_cenarios.py` | 100 cenários explícitos do cantinho. |
@@ -29,17 +32,39 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_castigo_bugs_rede.py` | Reproduções diagnósticas: asserções descrevem o comportamento esperado. |
 | `test_castigo_integracao.py` | Cantinho do castigo dentro do app: o castigo vence a mesa e as travessuras, e o pânico encerra a fuga. |
 | `test_castigo_real.py` | Cantinho no app inteiro, com relógio virtual: soltar no ar, pousar, ficar preso e reagir pela rede. |
+| `test_chamado.py` | Chamar pelo nome ("Bob!"): as grafias que o modelo ouve, a leitura do resultado do Vosk, o recorte do pedido, a escuta depois do nome, a conversa que emenda depois da resposta, o nome exigente com vídeo tocando, o download do modelo (de um zip local) e o controlador dentro do app de verdade (Qt offscreen, detector e serviço de voz falsos). |
+| `test_chaves.py` | Chaves de API no .env: gravar pela tela de Configurações, carregar ao abrir, nunca aceitar uma chave no campo de modelo. |
 | `test_condicionamento.py` | Testes do condicionamento: aprender a reagir antes, extinguir, e persistir. |
 | `test_conteudo.py` | Etapa 2 do multipet: conteúdo por pet (frases, cartazes, memes, imagens). |
 | `test_escolha_pet.py` | Etapa 3 do multipet: escolha do personagem nas configurações e o nome certo em cada texto. |
 | `test_festa.py` | Fogos de artifício ligados à rede e brincadeira mais animada quando feliz. |
+| `test_hermes_conectado.py` | Pet e Hermes conectados: o chat passa pelo Hermes (persona do pet, pesquisa, memória por sessão), a IA vilã aparece só enquanto ele usa uma ferramenta, o link de imagem da resposta vira holograma e, se o Hermes cair, o provedor escolhido responde no lugar sem a conversa quebrar. |
+| `test_historico_chat.py` | Histórico do chat: o arquivo (guardar, ler, linha estragada, limite), a resposta inteira no chat e curta no balão, e no app de verdade as falas escritas e pela voz guardadas e de volta ao abrir, a opção desligada e o Esquecer. |
+| `test_holograma.py` | Imagem pedida no chat: "pesquisa o que é manga" acha o link de uma imagem na Wikipédia, baixa e o pet projeta como holograma. |
 | `test_homeostase.py` | Homeostase: trabalhar é estímulo, então o tédio não sobe enquanto ele programa. |
+| `test_ia.py` | Visão e conversa pela IA: o texto do modelo, os clientes (com SDK falsa, sem rede) e o controlador dentro do app de verdade (Qt offscreen, pasta temporária). |
+| `test_jogo.py` | Acompanhar jogos (#4): o Ollama sem "pensar", o reconhecimento do jogo, o pedido de jogo, o print repetido que não é mandado e o freio da fala, com o controlador dentro do app de verdade (Qt offscreen, modelo falso). |
 | `test_jorge.py` | Etapa 4 do multipet: o Jorge, segundo personagem, feito só de configuração e conteúdo. |
+| `test_memoria.py` | Memória compartilhada: o serviço de servidor/memoria/ de verdade (numa porta livre, pasta temporária) e dois "computadores" (duas pastas) sincronizando por ele. |
+| `test_melhorias_windows.py` | Melhorias para o Windows: tela cheia, vários monitores, pasta de dados, uma cópia só, início automático e fechamento seguro. |
+| `test_memoria_local.py` | Memória local: o diário das conversas (na virada do dia e ao dormir), a busca FTS5 normalizada sem a história dos jogos, o chat com só as conversas de hoje e os trechos que a pergunta pede, e o Esquecer. |
 | `test_mesa.py` | Notebook: sentar e levantar pelo disparo do neurônio SENTAR. |
 | `test_migracao.py` | Etapa 1 do multipet: memória por pet (memory/pets/<pet>/) e a migração da versão antiga. |
+| `test_multimidia.py` | QtMultimedia opcional: com só o PySide6-Essentials o pet abre, e voz, chamado pelo nome e música ficam desligados, com aviso. |
+| `test_musica.py` | Música pelo chat: "toca um lo-fi" monta a fila no YouTube Music, 👍/👎/pulo/ouvir até o fim ensinam o gosto e a fila se renova pelo rádio. |
 | `test_nucleo.py` | Testes dos módulos puros: nada de Qt, nada de Windows. |
+| `test_olhada.py` | Modelo da olhada separado: Ollama se configurado, senão Claude Haiku ou o do chat; o chat segue no escolhido; o Haiku sem fallback e o sistema no cache do Claude. |
+| `test_orcamento_uso.py` | Chamadas confiáveis: o limite de saída de cada tarefa, a resposta cortada que vira erro, o registro de uso sem conteúdo, o orçamento de contexto que nunca corta o prompt de sistema e o aviso quando o Ollama corta o pedido. |
 | `test_paineis.py` | Painéis do menu (monitor neural e painel de protesto): abrir à mão deve manter o painel na tela. |
 | `test_pedido.py` | Pedir para trabalhar: o neurônio SENTAR decide. |
+| `test_pesquisa.py` | Pesquisa na internet pelo Hermes: o prompt, o cliente (com um servidor HTTP falso nesta máquina) e o controlador dentro do app de verdade (Qt offscreen, Hermes falso). |
 | `test_plataforma.py` | Plataforma: cada sistema expõe as mesmas funções, e as leituras de texto (wmctrl, xdotool, ioreg, janelas do Quartz) são testadas com saídas de exemplo, em qualquer sistema. |
+| `test_politica.py` | Política de fala: o modelo propõe e o app decide pelo tom da rede, pelos sinais, pelo intervalo e pelo teto por hora; pânico e pausa cancelam a fala que esperava a rede. |
 | `test_robustez.py` | Robustez: arquivo corrompido, assets faltando, log em arquivo. |
 | `test_robustez_v2.py` | Falhas do relatório técnico (docs/auditorias/ANALISE_TECNICA.md): cada caso tem um teste que reproduz o problema. |
+| `test_conversa_atencao.py` | Falar ou escrever com o pet é atenção: carência e tristeza caem e a rede recebe recompensa na hora, mesmo sem resposta da IA; pausado, não conta. |
+| `test_roteador.py` | Roteador do chat: o Hermes só recebe pesquisa, imagem e memória; o log só vai em pergunta sobre o próprio pet; no app, "oi" vai direto ao provedor e "pesquisa" passa pelo Hermes. |
+| `test_seguranca.py` | Segurança da IA: imagem de qualquer site mas nunca da rede de casa, serviço de memória sempre com token, personalidade de outro computador só com confirmação e o que o modelo devolve filtrado antes de gravar. |
+| `test_tocando_disco.py` | O cartão de música mostra o tempo: a borda acende do meio de cima e dá a volta (sentido horário) até o fim da música, o número '1:23 / 3:45' acompanha e um disquinho gira no canto, com a capa da música como selo (que dá para tirar pelo 🖼). |
+| `test_video_desenho.py` | Assistir vídeos (conferir o som e perguntar antes, ouvir, olhar a tela, anotar, resumir e guardar) e desenhar na tela: o texto do modelo, o conhecimento em disco, a janela do desenho e os controladores dentro do app de verdade (Qt offscreen, pasta temporária, som e modelo falsos). |
+| `test_voz.py` | Voz: o áudio e o cliente do serviço de transcrição (com um servidor HTTP falso nesta máquina) e o controlador dentro do app de verdade (Qt offscreen, microfone falso). |

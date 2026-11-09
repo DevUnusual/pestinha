@@ -21,6 +21,8 @@ from ..store import read_json, write_json
 
 
 
+MAX_MOTIVOS = 6
+
 STAGE_NAMES = {0: "em paz", 1: "reclamação", 2: "manifestação", 3: "greve", 4: "revolução"}
 
 # Neutros de propósito: valem para qualquer pet que não tenha o próprio cartazes.txt (ou uma seção dele).
@@ -84,6 +86,7 @@ class Protesto:
         self.respawn_at = None
         self.end_until = 0.0
         self.last_caress = 0.0
+        self.motivos = []               # (time.time(), texto): por que a insatisfação subiu de repente
 
     # ---------------- dinâmica ----------------
 
@@ -123,6 +126,20 @@ class Protesto:
         """Fecharam o cartaz: mais insatisfação, e ele volta maior."""
         self.grievance = min(MAX_GRIEVANCE, self.grievance + REPRESSION)
         self.repressions += 1
+        self.anotar("fecharam meu cartaz à força")
+
+    def anotar(self, motivo):
+        """Guarda o motivo de um salto da insatisfação (os últimos MAX_MOTIVOS), para o log e para a IA."""
+        self.motivos = (self.motivos + [(time.time(), motivo)])[-MAX_MOTIVOS:]
+
+    def motivos_recentes(self, segundos=3600.0):
+        """Os motivos da última hora, do mais antigo ao mais novo, sem repetir."""
+        limite = time.time() - segundos
+        vistos = []
+        for quando, motivo in self.motivos:
+            if quando >= limite and motivo not in vistos:
+                vistos.append(motivo)
+        return vistos
 
     def scale(self):
         """Tamanho da bandeira: cresce a cada revolução."""

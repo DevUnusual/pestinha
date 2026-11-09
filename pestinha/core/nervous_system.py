@@ -84,6 +84,12 @@ SENSORY_SPEC = {
     "VISITA":  (6,  60.0, 0.0,        1.0),   # você está perto dele enquanto ele está preso
     "RECEIO":  (6,  40.0, 0.0,        1.0),   # interno: fugas que deram errado (devolvido ao canto)
     "RANCOR":  (6,  40.0, 0.0,        1.0),   # interno: tempo de castigo acumulado, decai devagar
+    # visão e conversa (IA, opcional): o modelo descreve a tela, a rede decide o que sentir
+    "VISAO_GRACA": (6, 60.0, 0.0004,  600.0),  # algo engraçado ou divertido na sua tela
+    "VISAO_ERRO":  (6, 60.0, 0.0004,  600.0),  # erro, falha, algo dando errado
+    "VISAO_FOCO":  (6, 40.0, 0.00007, 1200.0), # você concentrado em algo sério
+    "VISAO_NOVO":  (6, 60.0, 0.0004,  600.0),  # algo novo ou interessante na tela
+    "CONVERSA":    (6, 60.0, 0.0002,  600.0),  # você conversou com ele pelo chat
 }
 
 # ============================================================
@@ -290,6 +296,22 @@ CONNECTIONS = [
     ("RECEIO",  "GLOOM",   0.04, 0.6),
     ("CARTAZ",  "FRUSTRATION", -0.20, 0.6), # 9) colar cartaz é desabafo
     ("BOREDOM", "FUGIR",   0.15, 0.6),      # 10) entediado no canto, foge do tédio
+
+    # ---- visão e conversa (IA) ----
+    ("VISAO_GRACA", "PLAYFUL", 0.10, 0.6),  # coisa engraçada na tela: dá vontade de brincar
+    ("VISAO_GRACA", "CURIOUS", 0.04, 0.6),
+    ("VISAO_ERRO", "ALERT",    0.08, 0.6),  # deu erro: alerta, e um pouco de frustração junto
+    ("VISAO_ERRO", "FRUSTRATION", 0.04, 0.6),
+    ("VISAO_ERRO", "GLOOM",    0.02, 0.6),
+    ("VISAO_FOCO", "FOCUS",    0.10, 0.6),  # você concentrado: ele fica quieto junto
+    ("VISAO_FOCO", "CALM",     0.04, 0.6),
+    ("VISAO_FOCO", "TRAVESSURA", -0.20, 0.6),   # ...e não atrapalha com travessura
+    ("VISAO_NOVO", "CURIOUS",  0.10, 0.6),
+    ("VISAO_NOVO", "ALERT",    0.02, 0.6),
+    ("CONVERSA", "PLAYFUL",    0.08, 0.6),  # você falou com ele: anima, acalma e chama a atenção
+    ("CONVERSA", "CALM",       0.06, 0.6),
+    ("CONVERSA", "WATCH",      0.15, 0.6),
+    ("CONVERSA", "GLOOM",     -0.12, 0.6),  # conversar espanta a tristeza (antes -0,06: quase não sentia)
 ]
 
 DECISION_MOTORS = {"SENTAR", "FUGIR", "CARTAZ", "CANTO", "TRAVESSURA", "PAPEL", "ACEITAR"}   # decisões, não expressão

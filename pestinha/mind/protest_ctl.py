@@ -50,9 +50,12 @@ class ProtestController:
             rate = tone.r["ANGRY"] + 0.5 * tone.r["SAD"]  # raiva
         return self.protest.update(dt, rate, prof, caressing, now)
 
-    def provoke(self, amount):
-        """Algo que o deixa mais insatisfeito (ex.: arrancaram o notebook dele)."""
+    def provoke(self, amount, motivo=""):
+        """Algo que o deixa mais insatisfeito (ex.: arrancaram o notebook dele); o motivo fica anotado."""
         self.protest.grievance = min(INSATISFACAO_MAXIMA, self.protest.grievance + amount)
+        if motivo:
+            self.protest.anotar(motivo)
+            log(f"[{self.protest.kind}] +{amount:.2f} ({motivo}): insatisfação {self.protest.grievance:.2f}")
 
     def on_stage(self, old, new):
         """Mudou de estágio: tira o cartaz antigo. Voltando à calma, mostra um cartaz de fim; senão, solta o que ele carregava e prepara o cartaz do novo estágio."""
@@ -65,10 +68,10 @@ class ProtestController:
         else:
             self.protest.respawn_at = now           # o cartaz do estágio novo sobe no próximo quadro
             self.behavior.drop_carried()
-        if self.debug():
-            extra = f" (revolução nº {self.protest.revolutions})" if new == 4 else ""
-            log(f"[protesto] {STAGE_NAMES[old]} -> {STAGE_NAMES[new]}{extra}  "
-                  f"insatisfação {self.protest.grievance:.2f}")
+        # sempre no log (não só na depuração): é o que explica um acesso de raiva depois
+        extra = f" (revolução nº {self.protest.revolutions})" if new == 4 else ""
+        log(f"[{self.protest.kind}] {STAGE_NAMES[old]} -> {STAGE_NAMES[new]}{extra}  "
+            f"insatisfação {self.protest.grievance:.2f}")
 
     def on_sign_clicked(self, sign):
         """Fechar o cartaz é repressão: ele fica mais bravo e volta maior."""
@@ -81,8 +84,7 @@ class ProtestController:
         self.senses.dismissed()
         self.drives.touched("dismiss")
         self.protest.respawn_at = time.monotonic() + 3.0
-        if self.debug():
-            log(f"[protesto] cartaz arrancado! insatisfação {self.protest.grievance:.2f}")
+        log(f"[protesto] cartaz arrancado! insatisfação {self.protest.grievance:.2f}")
 
     # ---------------- cena ----------------
 

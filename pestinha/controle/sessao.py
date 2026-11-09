@@ -9,9 +9,11 @@ Mixin de PestinhaApp: usa os atributos criados em PestinhaApp.__init__.
 
 from .. import log as log_module
 from ..log import log
+import threading
 import time
-from PySide6.QtWidgets import QApplication, QSystemTrayIcon
-from .. import config
+from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
+from .. import config, memoria_remota, store
+from ..ia import uso as uso_ia
 from ..ui.ui import SettingsDialog
 
 
@@ -29,6 +31,15 @@ class SessaoMixin:
             self.timeline.close()      # grava o minuto em andamento e para
         self.prof = config.profile(self.perms)
         self.conditioning.rate = self.prof["cond_rate"]
+        if not self.visao.vendo():
+            self.visao.cancelar()                  # desligou a IA ou a visão: o que estava a caminho não vale
+        if not self.voz.ligada():
+            self.voz.cancelar()                    # desligou a voz: o microfone fecha na hora
+        if not self.video.ligado():
+            self.video.cancelar()                  # desligou os vídeos: para de ouvir na hora
+        self.voz.registrar_atalho()
+        self.chamado.sincronizar()                 # liga ou desliga o microfone do chamado
+        self.atualizar_microfone()
         self._apply_settings()
 
     def _apply_settings(self):
@@ -37,6 +48,7 @@ class SessaoMixin:
         st.show_label = self.perms["modo_teste"] and self.perms["mostrar_emocao"]
         st.allow_drag = self.perms["arrastar"]
         st.allow_poke = self.perms["cutucar"]
+        self._atualizar_parada()
         self.update_visibility()
 
     def floats_allowed(self):
@@ -68,6 +80,10 @@ class SessaoMixin:
         self.castigo.set_visible(visible)
         if not visible:
             self.revolucao.esconder()
+            self.balao.esconder()                    # o balão e a projeção só seguem o pet enquanto ele aparece
+            self.holograma.esconder()
+            self.rabisco.esconder()
+            self.tocando.hide()                      # a música continua; o cartão volta com ele
         self.floats.sync(self.floats_allowed(), self.floats_base())
         self.protest_ctl.set_visible(visible, self.asleep)
         self.sad_ctl.set_visible(visible, self.asleep)
@@ -88,6 +104,7 @@ class SessaoMixin:
             return
         self.settings = SettingsDialog(self.perms, self.paths, first_run=False)
         self.settings.changed.connect(self.apply_perms)
+        self.settings.chave_salva.connect(lambda _nome: self.visao.chave_nova())
         self.settings.wipe_all.connect(self.wipe_all_data)
         self.settings.history_wiped.connect(self.timeline.discard)
         self.settings.show()
@@ -99,20 +116,35 @@ class SessaoMixin:
     def toggle_pause(self):
         """Pausa ou retoma: na pausa a rede e os sentidos param, e os prazos são empurrados para não 'vencerem' de uma vez."""
         self.paused = not self.paused
-        now = time.monotonic()
+        self._atualizar_parada()                                 # empurra os prazos pelo tempo parado
         if self.paused:
-            self._pausado_em = now
-        else:
-            if self._pausado_em is not None:
-                parado = now - self._pausado_em
-                self.memory.deslocar(parado)                     # o tempo parado não expira episódios
-                self.castigo.deslocar(parado)                    # nem a fuga, a entrada e o cartaz
-                self.mesa.deslocar(parado)                       # nem o pedido de trabalho
-                self.conditioning.deslocar(parado)               # nem as janelas de condicionamento
-                self._pausado_em = None
-            self._ultimo_think = now                             # a retomada não cobra o tempo parado
+            self.diario.cancelar()
+            self.visao.cancelar()
+            self.voz.cancelar()
+            self.video.cancelar()
+            self.musica.pausar()
+            self.balao.esconder()
+            self.holograma.esconder()
+            self.rabisco.esconder()
+        self.chamado.sincronizar()                               # pausado: o microfone do chamado fecha
         self.festa.fogos.pausar(self.paused)
         self.update_visibility()
+
+    def _atualizar_parada(self):
+        """Marca quando o pet parou (pausa ou pânico) e, ao voltar, empurra os prazos pelo tempo parado."""
+        now = time.monotonic()
+        parado_agora = self.paused or not self.perms["ativo"]
+        if parado_agora:
+            if self._pausado_em is None:
+                self._pausado_em = now
+        elif self._pausado_em is not None:
+            parado = now - self._pausado_em
+            self.memory.deslocar(parado)                     # o tempo parado não expira episódios
+            self.castigo.deslocar(parado)                    # nem a fuga, a entrada e o cartaz
+            self.mesa.deslocar(parado)                       # nem o pedido de trabalho
+            self.conditioning.deslocar(parado)               # nem as janelas de condicionamento
+            self._pausado_em = None
+            self._ultimo_think = now                         # a retomada não cobra o tempo parado
 
     def menu_close(self):
         """Esconde o pet pelo menu (sem desligar)."""
@@ -131,6 +163,19 @@ class SessaoMixin:
     def panic(self):
         """Desliga tudo e grava: só volta quando você religar na tela inicial."""
         self.store.panic()
+        self._atualizar_parada()
+        self.diario.cancelar()                     # nem o resumo do dia
+        self.visao.cancelar()                      # nada da IA chega depois do pânico
+        self.voz.cancelar()                        # o microfone fecha na hora
+        self.video.cancelar()                      # e ele para de ouvir o vídeo
+        self.chamado.parar()                       # e de esperar o nome
+        self.musica.parar()                        # e o som para
+        self.balao.esconder()
+        self.holograma.esconder()
+        self.rabisco.esconder()
+        self.tocando.hide()
+        if self.conversa_janela:
+            self.conversa_janela.hide()
         self.pet.cancel_interaction()
         self.clear_things()
         self.protest_ctl.drop_sign()
@@ -145,14 +190,18 @@ class SessaoMixin:
 
     def wipe_all_data(self):
         """Apaga a pasta memory/ inteira e fecha. Nada é gravado depois disso, nem o log."""
-        import shutil
         self.wiping = True
         log_module.desligar_arquivo()
-        falhas = []
-        if self.paths.memory.exists():
-            shutil.rmtree(self.paths.memory, onerror=lambda _f, caminho, _e: falhas.append(caminho))
+        uso_ia.configurar(None)                     # nem o registro de uso da IA recria a pasta
+        falhas = store.apagar_pasta(self.paths.memory) if self.paths.memory.exists() else []
         if falhas or self.paths.memory.exists():
             print(f"[dados] não consegui apagar tudo: {falhas or self.paths.memory}")
+            lista = "\n".join(falhas[:5]) or str(self.paths.memory)
+            QMessageBox.warning(
+                self.settings, "Não foi possível apagar tudo",
+                f"Alguns dados continuam em {self.paths.memory}. O programa vai fechar; feche o que possa "
+                f"estar usando esses arquivos e tente de novo.\n\nArquivos que falharam:\n{lista}",
+            )
         else:
             print("[dados] tudo apagado pelo usuário")
         self.quit()
@@ -161,25 +210,20 @@ class SessaoMixin:
         """Grava o estado do pet e do app (não grava depois de 'apagar tudo')."""
         if self.wiping:
             return
-        try:
-            self.brain.save(str(self.state_file))
-        except Exception as error:
-            log(f"[app] não salvou o cérebro: {error}")
-        try:
-            self.drives.save(self.pet_paths.drives)
-        except OSError as error:
-            log(f"[app] não salvou a homeostase: {error}")
-        self.memory.save()
-        self.castigo.salvar()
-        try:
-            self.conditioning.save()
-        except OSError as error:
-            log(f"[app] não salvou o condicionamento: {error}")
-        try:
-            self.protest_ctl.save()
-            self.sad.save()
-        except OSError as error:
-            log(f"[app] não salvou o protesto: {error}")
+        for nome, gravar in (
+            ("o cérebro", lambda: self.brain.save(str(self.state_file))),
+            ("a homeostase", lambda: self.drives.save(self.pet_paths.drives)),
+            ("a memória", self.memory.save),
+            ("o cantinho", self.castigo.salvar),
+            ("o condicionamento", self.conditioning.save),
+            ("o protesto", self.protest_ctl.save),
+            ("a tristeza", self.sad.save),
+        ):
+            try:
+                gravar()
+            except Exception as error:       # uma parte com problema não impede as outras nem o fechamento
+                log(f"[app] não salvou {nome}: {error}")
+        self._enviar_memoria()
         if self.perms["modo_teste"]:
             sleeping = "  (dormindo)" if self.asleep else ""
             log(f"[homeostase] {self.drives.describe()}{sleeping}")
@@ -188,20 +232,117 @@ class SessaoMixin:
             if learned:
                 log("[aprendizado] " + "  ".join(f"{c}->{post} {w:+.3f}" for c, post, w in learned))
 
+    def _baixar_memoria(self):
+        """Ao abrir: traz do serviço de memória o que outro computador gravou. Devolve um aviso, ou None."""
+        sync = self.memoria_remota
+        if sync is None:
+            return None
+        try:
+            outro = sync.baixar()
+        except memoria_remota.ErroMemoria as erro:
+            log(f"[memória] {erro}")
+            return f"Memória compartilhada: {erro}. Usando a memória deste computador."
+        if outro:
+            return (f"O {self.nome} também está aberto em {outro}. Os dois vão gravar na mesma memória: "
+                    "feche lá para não misturar.")
+        return None
+
+    def _conversa_de_hoje(self):
+        """Com "Lembrar das conversas" e o histórico: o chat volta a saber o que vocês falaram hoje."""
+        if not (self.perms["memoria_local"] and self.perms["historico_chat"]):
+            return
+        from ..mind.diario import data_de
+        import time as _time
+        hoje = data_de(_time.time())
+        falas = [f for f in self.historico.ultimas(200) if not f.get("erro") and data_de(f.get("t", 0)) == hoje]
+        pergunta = None
+        for fala in falas:
+            if fala["quem"] == "voce":
+                pergunta = fala
+            elif pergunta is not None:
+                self.visao.conversa.registrar(pergunta["texto"], fala["texto"], quando=fala["t"])
+                pergunta = None
+
+    def perguntar_persona(self):
+        """A personalidade do pet mudou em outro computador: pergunta (sem travar o pet) se vale aqui também."""
+        sync = self.memoria_remota
+        dados = sync.pendente() if sync is not None else None
+        if dados is None:
+            return None
+        caixa = QMessageBox(QMessageBox.Question, config.APP_NOME,
+                            f"A personalidade do {self.nome} foi mudada em {dados.get('maquina')}.\n\n"
+                            "Ela vira as instruções que a IA segue. Usar essa versão aqui também? (Vale na "
+                            "próxima vez que abrir.) Se não, fica a deste computador.",
+                            QMessageBox.Yes | QMessageBox.No)
+        caixa.setDefaultButton(QMessageBox.No)
+        caixa.finished.connect(lambda codigo: self.responder_persona(codigo == QMessageBox.Yes))
+        caixa.open()
+        self._caixa_persona = caixa                 # guarda a referência enquanto a caixa está aberta
+        return caixa
+
+    def responder_persona(self, aceitou):
+        """A resposta da pergunta: aplica a personalidade que chegou ou fica com a daqui."""
+        sync = self.memoria_remota
+        if sync is None:
+            return
+        if aceitou and sync.aplicar_pendente():
+            self.tray.icon.showMessage(config.APP_NOME, "Personalidade atualizada: vale na próxima vez que abrir.",
+                                       QSystemTrayIcon.Information, 4000)
+        elif not aceitou:
+            sync.recusar_pendente()
+
+    def _enviar_memoria(self, agora=False):
+        """Depois de salvar: manda o que mudou ao serviço de memória (numa thread, no máximo a cada minuto)."""
+        sync = self.memoria_remota
+        if sync is None or self.wiping:
+            return
+        if agora:
+            if self._envio is not None:
+                self._envio.join(memoria_remota.TEMPO_LIMITE * 3)     # termina o envio que estava a caminho
+        elif self._fechando or not sync.hora_de_enviar(time.monotonic()):
+            return
+
+        def trabalho():
+            """Roda fora da thread do Qt; uma falha de rede só vai para o log."""
+            try:
+                sync.enviar()
+            except memoria_remota.ErroMemoria as erro:
+                log(f"[memória] {erro}")
+
+        if agora:
+            trabalho()                      # ao fechar: espera (cada pedido tem tempo curto)
+        else:
+            self._envio = threading.Thread(target=trabalho, name="pestinha-memoria", daemon=True)
+            self._envio.start()
+
     def quit(self):
-        """Salva tudo e fecha o programa."""
-        self.save()
-        self.mesa.fechar()
-        self.festa.fechar()
-        self.revolucao.fechar()
-        if self.wiping:
+        """Salva tudo e fecha o programa; um erro no caminho nunca impede de fechar."""
+        self._fechando = True               # o save daqui não abre outra thread de envio
+        try:
+            self.save()
+            self._enviar_memoria(agora=True)
+            self.visao.cancelar()
+            self.voz.cancelar()
+            self.video.cancelar()
+            self.chamado.parar()
+            self.musica.parar()
+            self.balao.esconder()
+            self.holograma.esconder()
+            self.rabisco.esconder()
+            self.tocando.close()
+            if self.conversa_janela:
+                self.conversa_janela.close()
+            self.mesa.fechar()
+            self.festa.fechar()
+            self.revolucao.fechar()
+            if not self.wiping:
+                self.protest_ctl.drop_sign()
+                self.sad_ctl.drop_sign()
+                if self.perms["rotina"]:
+                    self.timeline.close()
+                self.mischief.clear()
+        except Exception as error:
+            log(f"[app] erro ao fechar: {error}")
+        finally:
             self.tray.icon.hide()
             QApplication.quit()
-            return
-        self.protest_ctl.drop_sign()
-        self.sad_ctl.drop_sign()
-        if self.perms["rotina"]:
-            self.timeline.close()
-        self.mischief.clear()
-        self.tray.icon.hide()
-        QApplication.quit()

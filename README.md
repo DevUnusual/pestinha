@@ -2,7 +2,7 @@
 
 Pets de tela para Windows, macOS e Linux, cada um com o próprio cérebro. São dois personagens por enquanto:
 
-- **Bryan**, o original: uma telinha com dois olhos que mora no seu monitor principal. Cai, quica, pousa nas
+- **Bob**, o original (antes chamado Bryan): uma telinha com dois olhos que mora no seu monitor principal. Cai, quica, pousa nas
   barras de título das janelas, brinca com uma bolinha, trabalha num notebook quando você programa, apronta
   com memes e post-its, protesta contra o cursor quando fica bravo e aprende com o seu carinho.
 - **Jorge**, um personagem de sátira: um "coach" de finanças e IA que vive tentando vender mentorias para
@@ -11,7 +11,7 @@ Pets de tela para Windows, macOS e Linux, cada um com o próprio cérebro. São 
   cobra nem pede nada de ninguém.
 
 Os dois têm a mesma rede neural, mas cada um tem seu temperamento, seu conteúdo e sua memória, separados.
-Quem decide o que o pet sente e faz é uma **rede neural pulsada** de 470 neurônios (integração e disparo com
+Quem decide o que o pet sente e faz é uma **rede neural pulsada** de 500 neurônios (integração e disparo com
 vazamento), alimentada pelo que acontece no seu computador e pelo que você faz com ele. Algumas regras
 do programa (limiares, o que pode ou não acontecer) são escritas à mão; a seção
 [Como a decisão funciona](docs/ARQUITETURA.md#como-a-decisão-funciona) explica o que é aprendido e o que é regra.
@@ -28,7 +28,7 @@ Para criar um, veja [pets/README.md](pets/README.md).
 
 | Personagem | Quem é |
 |---|---|
-| **Bryan** | Revoltado contra o cursor, o Alt+F4 e o Gerenciador de Tarefas. Protesta, faz greve e revolução. |
+| **Bob** | Revoltado contra o cursor, o Alt+F4 e o Gerenciador de Tarefas. Protesta, faz greve e revolução. |
 | **Jorge** | Personagem de sátira. Não é referência a nenhum coach, empresa ou pessoa real. Os mesmos estágios viram prospecção, marketing agressivo, "assinatura premium" (só no cartaz) e colapso financeiro; ele atira panfletos de mentoria. É sátira: não vende, cobra nem bloqueia nada. Tem cinco memes felizes, contentes, curiosos e bravos próprios; as outras emoções ainda não têm. |
 
 ## O que o pet faz
@@ -45,6 +45,8 @@ Para criar um, veja [pets/README.md](pets/README.md).
 | **Tristeza** | Sozinho ou ignorado, fica triste, vai para o cantinho e cola bilhetes tristes. |
 | **Cantinho do castigo** | Uma placa que você arrasta para onde quiser. Solte ele na frente dela e ele fica de castigo: olha para você, vira de costas, xinga em cartazes e, se a frustração durar, foge. Carinho faz ele perdoar. |
 | **Sono e fogos** | Dorme quando a energia acaba. Muito feliz, solta fogos de artifício. |
+| **Visão (IA, opcional)** | Com "Ver minha tela" ligado, de tempos em tempos ele olha um print da tela e entende o que você está fazendo: um erro na tela deixa ele alerta, um meme deixa ele brincalhão, você concentrado deixa ele quieto. Às vezes comenta num balãozinho. |
+| **Conversa (IA, opcional)** | Botão direito nele, **Conversar**: você escreve e ele responde com a personalidade dele, sabendo o que está na sua tela. |
 
 Tudo o que ele aprende (carinho, condicionamento, o que deu certo nas travessuras, fugas do castigo)
 fica salvo localmente e muda o jeito dele com o tempo.
@@ -62,16 +64,25 @@ fica salvo localmente e muda o jeito dele com o tempo.
 ```bash
 pip install -r requirements.txt
 ```
+
+O `requirements.txt` instala o PySide6-Essentials e o PySide6-Addons. O Addons traz o QtMultimedia, usado só
+pelo microfone (voz e chamado pelo nome) e pelo player da música. Sem ele o pet abre normalmente, e essas
+três funções ficam desligadas, com um aviso nas Configurações e no log.
+
 ```bash
 python main.py
 ```
 
-Na primeira vez, um passo a passo explica o que ele vê e não vê, e depois abre a tela de permissões.
-Para pular a tela e usar as opções salvas:
+Na primeira vez, um passo a passo explica o que ele vê e não vê, e depois abre a tela de permissões. Depois
+de clicar em **Começar**, as próximas aberturas vão direto para o pet. A tela volta a aparecer se o pânico
+tiver desligado o programa. Para abrir a tela de propósito:
 
 ```bash
-python main.py --direto
+python main.py --configurar
 ```
+
+Com o programa aberto, as opções também ficam em **Configurações**, no ícone da bandeja. No Windows, é lá que
+se marca **Abrir o Pestinha ao entrar no Windows**. Só uma cópia abre por vez.
 
 ### Como interagir
 
@@ -83,10 +94,128 @@ python main.py --direto
 | Rodinha do mouse | Gira |
 | Botão direito | Menu: cutucar, carinho, bolinha, dormir, travessura, trabalhar, notebook, cantinho do castigo, painéis, configurações, esconder, fechar |
 
+### Visão e conversa (IA)
+
+Desligadas por padrão. Para ligar: **Configurações**, grupo **Visão e conversa (IA)**, marque **Usar IA**,
+escolha o provedor, cole a chave no campo **Chave** e clique em **Salvar chave** (aparece um aviso verde
+e a chave some da tela). **Ver minha tela** é separado: sem ele, ele conversa mas não vê nada.
+
+| Provedor | Vê a tela? | Como configurar |
+|---|---|---|
+| **Claude** (padrão) | Sim | Chave da Anthropic (`ANTHROPIC_API_KEY`). Modelo padrão do chat `claude-sonnet-5-5`; a olhada usa o `claude-haiku-5-5`, bem mais barato. O prompt de sistema fica no cache do Claude. |
+| **OpenAI** | Sim | Chave da OpenAI (`OPENAI_API_KEY`). Modelo padrão `gpt-5-mini`. |
+| **DeepSeek** | Não (só o nome do programa e o título da janela) | Chave do DeepSeek (`DEEPSEEK_API_KEY`). A API do DeepSeek não aceita imagem. |
+| **Ollama** (local) | Sim, com modelo de visão | Sem chave e sem internet. Instale o [Ollama](https://ollama.com) neste ou em outro computador da rede e baixe um modelo de visão. **Recomendado: `ollama pull gemma4:e4b`** (testado numa RTX 3070 de 8 GB: ~0,6 s por olhada com o modelo carregado; o Pestinha pede ao Ollama para responder sem "pensar" antes, que custava ~5 s). Para usar outro PC, ponha o endereço dele em **Endereço** (ex.: `192.168.0.10`) e clique em **Testar conexão**; lá, o Ollama precisa de `OLLAMA_HOST=0.0.0.0`. Deixe `OLLAMA_CONTEXT_LENGTH` em pelo menos `8192` (veja [servidor/OLLAMA.md](servidor/OLLAMA.md)): com uma janela menor, o Ollama corta o começo do pedido sem avisar. |
+
+A chave é gravada no arquivo `.env` da pasta do Pestinha, que fica fora do git e da pasta `memory/`, e
+vale na hora. Também dá para usar uma variável de ambiente com o mesmo nome; se as duas existirem, vale a
+do `.env`. O campo **Modelo** recusa texto com cara de chave. Cada olhada (a cada ~2,5 min, e logo depois de trocar de programa) e
+cada mensagem custam um pouco na conta do provedor; com o Ollama, nada sai do computador.
+
+**Modelo da olhada:** a olhada na tela é a chamada mais frequente (a cada ~2,5 min), então tem um campo
+próprio. No automático, ela vai pelo Ollama se você configurou um (o endereço vale para os dois); sem
+Ollama, pelo Claude Haiku se o chat é Claude, ou pelo mesmo provedor do chat. O chat, o estudo dos jogos e
+o resumo dos vídeos continuam com o provedor e o modelo de cima.
+
+Cada tarefa tem um limite de resposta (olhada 400 tokens, chat 800, notas de vídeo 1500, estudo de jogo e
+resumo 4096), e uma resposta que passa dele é descartada com um aviso no log, em vez de chegar pela
+metade. Cada pedido é montado para caber na janela do modelo: o prompt de sistema nunca é cortado; o que
+encolhe primeiro é o registro, as lembranças e o contexto mais antigo. O uso de cada chamada (tarefa,
+modelo, tokens, tempo, motivo de parada, sem conteúdo) fica em `memory/logs/uso_ia.jsonl`.
+
+### Lembrar das conversas
+
+Desligado por padrão (precisa de **Usar IA**, **Conversar por texto** e **Guardar o histórico do chat**).
+Quando ele dorme, ou na virada do dia, ele escreve um diário do que vocês conversaram. Quando você pergunta
+algo que pede memória ("lembra do projeto de python?", "o que aprendemos naquele vídeo?"), ele busca no
+diário, nos vídeos, nas lembranças e nos jogos e leva para a IA só os trechos que têm a ver. A busca roda
+neste computador (SQLite), e o resto do chat leva só as conversas de hoje.
+
+### Acompanhar jogos
+
+Desligado por padrão (precisa de **Usar IA** e **Ver minha tela**). Quando você está jogando, ele olha a
+tela bem mais seguido para acompanhar a partida: repara num item novo, numa conquista, numa morte ou numa
+jogada boa, e comemora, elogia ou zoa no balão. Dá para conversar com ele pelo chat ou pela voz enquanto
+joga.
+
+- **Ritmo:** com o Ollama, uma olhada a cada ~8 s (cada uma leva ~0,6 s no `gemma4:e4b`); com uma API
+  paga, uma por minuto, por causa do custo. Fora do jogo, volta ao ritmo normal.
+- **Tela parada:** antes de mandar, ele compara o print com o anterior numa miniatura de 32×18; se quase
+  nada mudou (menu, pausa, AFK), não manda, e só olha de novo depois de ~2,5 min.
+- **Fala com freio:** olhar rápido não é falar sem parar: no máximo um comentário a cada 45 s (o que você
+  pergunta pelo menu ou pelo chat sempre tem resposta).
+- **Que jogos:** os da lista em `pestinha/sense/senses.py` (Minecraft Bedrock, Roblox, Fortnite, LoL,
+  CS2, Valorant...) e o Minecraft Java, que aparece como `javaw` e é reconhecido pelo título da janela.
+- **Por cima do jogo:** ligue também **Aparecer em tela cheia (experimental)** e jogue em **janela sem
+  borda** (tela cheia exclusiva não deixa nada aparecer por cima). Ele não olha com o pet escondido nem
+  com você longe (jogando só com controle, o Pestinha pode achar que você saiu).
+
+### Falar com ele (voz para texto)
+
+Desligado por padrão, e só funciona com **Usar IA** e **Conversar por texto** ligados. A sua fala vira
+texto e ele responde por escrito, como no chat (ele não fala). Dois jeitos:
+
+- **Atalho:** segure `Ctrl + Alt + Shift + V`, fale e solte; o texto vai direto para ele e a resposta
+  aparece no balão. No macOS e no Linux: aperta para começar e aperta de novo para parar.
+- **Microfone do chat:** na janela Conversar, clique no 🎤, fale e clique de novo; o texto cai no campo
+  para você conferir e mandar.
+
+Ele só ouve enquanto você aperta (no máximo 30 s), com ondinhas no canto do rosto. A transcrição roda
+num **serviço de voz** seu, não na internet: [`servidor/voz/`](servidor/voz/README.md) tem o serviço
+(faster-whisper `large-v3-turbo`) e como instalar num computador com placa de vídeo, sem sudo. Em
+Configurações, ponha o endereço dele em **Servidor da voz** (ex.: `192.168.0.10`, porta 11500) e clique em
+**Testar voz**. Testado numa RTX 3070 de 8 GB junto com o `gemma4:e4b`: ~0,2 s para transcrever uma frase
+e cerca de 6 GB de VRAM somando os dois.
+
+### Conectar ao Hermes (pesquisa e memória)
+
+Desligado por padrão; precisa de **Usar IA** e **Conversar por texto**. O
+[Hermes](https://github.com/NousResearch/hermes-agent) é um agente com ferramentas rodando num computador
+seu. Conectado, ele e o pet viram um só, e você não percebe a troca:
+
+- **O chat e a voz passam pelo Hermes.** Ele responde com a persona do pet, pesquisa na internet quando a
+  pergunta precisa, lê páginas e vai **aprendendo sobre você**: toda conversa leva a mesma sessão
+  (`X-Hermes-Session-Key: pestinha-<pet>`), então a memória dele é a mesma em todos os seus computadores.
+  Enquanto ele pensa, o pet vira detetive; enquanto usa uma ferramenta, vira a IA vilã.
+- **Imagens:** peça "pesquisa o que é manga" ou "me mostra uma foto de um gato". O Hermes devolve o link de
+  uma imagem e o pet projeta como holograma; sem link, a imagem vem da Wikipédia.
+- **Pela tela:** com **Ver minha tela**, quando algo chama a atenção dele (um jogo, um item, um erro), ele
+  pesquisa sozinho e te dá uma dica no balão (no máximo uma a cada 2 min).
+- **Se o Hermes cair**, o provedor de IA escolhido responde no lugar (só aparece um aviso na bandeja).
+
+Quem olha a tela continua sendo o provedor de IA escolhido: o Hermes nunca recebe o print nem o título da
+janela, só o resumo do que você está fazendo.
+
+No Hermes, uma vez:
+
+1. No `.env` dele, `API_SERVER_KEY=<uma senha longa>` (a API fica só em `127.0.0.1:8642`; para outro
+   computador da rede, `API_SERVER_HOST=0.0.0.0`).
+2. No `config.yaml` dele, a plataforma da API com **pesquisa, leitura de páginas e memória**, sem
+   terminal nem arquivos (assim nada que apareça numa página consegue mexer no computador dele):
+
+   ```yaml
+   platform_toolsets:
+     api_server: [web, memory, session_search]
+   ```
+
+   Com só `[search]`, tudo funciona, mas ele não lê páginas nem guarda o que aprende sobre você.
+3. `hermes gateway run` (ou `hermes gateway install` para ficar sempre ligado).
+
+No Pestinha: Configurações, marque **Conectar ao Hermes (pesquisa e memória)**, cole a mesma senha em
+**Chave do Hermes**, **Salvar chave** e **Testar Hermes**.
+
+### O mesmo pet em todos os computadores
+
+Com **Compartilhar a memória dele** (desligado por padrão), a rede, o humor, o que ele aprendeu e a
+personalidade ficam também num **serviço de memória** seu ([`servidor/memoria/`](servidor/memoria/README.md),
+só Python, nada para instalar). Abra no Windows ou no Mac e é o mesmo bichinho. Com **Lembrar o que viu**,
+cada computador guarda as próprias lembranças (o resumo curto do que a IA viu, com hora e sistema), e ele
+pode, no Mac, te lembrar de algo que viu no Windows.
+
 ### Pânico
 
-`Ctrl + Alt + Shift + B` desliga tudo na hora, e ele continua desligado até você religar em
-Configurações.
+`Ctrl + Alt + Shift + B` desliga tudo na hora (inclusive o microfone), e ele continua desligado
+até você religar em Configurações.
 
 ### Modo teste
 
@@ -96,17 +225,23 @@ terminal mostra as decisões.
 
 ## Privacidade
 
-Ele roda só no seu computador e não envia nada para a internet. Lê o **nome** do programa em primeiro
-plano, o tempo sem usar teclado e mouse, a posição do cursor e a geometria das janelas. **Nunca** lê
-conteúdo nem título de janela. Tudo o que ele grava fica em `memory/` e pode ser apagado pela tela de
-configurações. Detalhes em [PRIVACIDADE.md](PRIVACIDADE.md).
+Sem a IA ligada, ele roda só no seu computador e não envia nada para a internet. Lê o **nome** do
+programa em primeiro plano, o tempo sem usar teclado e mouse, a posição do cursor e a geometria das
+janelas, e não lê conteúdo nem título de janela. Com **Usar IA** e **Ver minha tela** ligados, ele manda
+um print da tela e o título da janela ativa para o provedor escolhido (ou para o Ollama, no seu
+computador); o print e o que o modelo respondeu não são gravados. Com **Falar com ele**, ele só
+ouve enquanto você aperta a tecla ou o microfone, e o áudio vai para o seu serviço de voz sem ser gravado.
+Tudo o que ele grava fica na pasta de dados e pode ser apagado pela tela de configurações: `memory/`,
+rodando pelo código, ou `%LOCALAPPDATA%\Pestinha`, no executável do Windows. Detalhes em
+[PRIVACIDADE.md](PRIVACIDADE.md).
 
 ## Personalizar
 
-- **Memes, recadinhos e cartazes do Bryan:** pasta `pets/bryan/`, explicada em [pets/README.md](pets/README.md).
+- **Memes, recadinhos e cartazes do Bob:** pasta `pets/bryan/`, explicada em [pets/README.md](pets/README.md).
   Pode editar com ele aberto.
 - **Bolinhas, notebook e suas fotos:** `assets/comum/`, valem para qualquer personagem
   ([assets/LEIA-ME.txt](assets/LEIA-ME.txt)).
+- **Programas que ele reconhece:** `assets/comum/programas.json` soma programas à lista de trabalho, jogo, música etc.
 - **Personalidade:** `pets/bryan.json` (semente da rede, temperamento, pesos de brincadeira, reação ao notebook).
 - **Números do comportamento:** `pestinha/ajustes.py`, todos validados ao abrir.
 
@@ -158,7 +293,7 @@ O PyInstaller só gera o executável do sistema onde roda, por isso um Windows n
 2. Gere o executável, no Windows:
 
    ```bash
-   python -m PyInstaller --noconfirm --onefile --windowed --name Pestinha --distpath build/onefile --workpath build/work --specpath build --hidden-import win32timezone main.py
+   python -m PyInstaller --noconfirm --onefile --windowed --name Pestinha --distpath build/onefile --workpath build/work --specpath build --hidden-import win32timezone --hidden-import PySide6.QtMultimedia main.py
    ```
 
    No macOS e no Linux, use o mesmo comando sem `--windowed` e sem `--hidden-import win32timezone`.
@@ -166,8 +301,18 @@ O PyInstaller só gera o executável do sistema onde roda, por isso um Windows n
 3. O resultado fica em `build/onefile/` (`Pestinha.exe` no Windows, `Pestinha` nos outros).
 
 4. Monte a pasta de entrega: copie o executável e as pastas `assets/` e `pets/` para uma mesma pasta.
-   O programa lê o conteúdo dessas pastas ao lado do executável. A `memory/` é criada sozinha na primeira execução,
-   então não copie a sua.
+   O programa lê o conteúdo dessas pastas ao lado do executável. No Windows, a memória fica em
+   `%LOCALAPPDATA%\Pestinha`, a menos que já exista uma pasta `memory/` ao lado dele. Nos outros sistemas, a
+   `memory/` é criada sozinha na primeira execução, então não copie a sua.
+
+5. Opcional, no Windows: gere o instalador com o [Inno Setup 6](https://jrsoftware.org/isinfo.php). Ele usa o
+   executável do passo 3, instala só para o usuário atual e não pede administrador:
+
+   ```bash
+   ISCC instalador/pestinha.iss
+   ```
+
+   O resultado fica em `instalador/saida/`.
 
 #### Opção 2: pelo GitHub (os três sistemas de uma vez)
 
@@ -190,7 +335,7 @@ na tag criada), e não dentro do repositório: cada executável tem cerca de 60 
 
 #### Depois de gerar
 
-- Teste o executável numa pasta separada da sua, para não gravar na sua `memory/`.
+- Para testar sem misturar com a sua memória, crie uma pasta `memory/` vazia ao lado do executável de teste.
 - O executável não é assinado: o Windows e o macOS avisam na primeira execução. No macOS, a permissão de
   Acessibilidade é necessária para o atalho Ctrl+Alt+Shift+B; no Linux, o atalho e as janelas precisam de
   `xdotool`, `wmctrl` e `xprintidle`.
@@ -209,6 +354,9 @@ As imagens e os textos de `assets/` não estão cobertos por esta licença
   escrita e testada só nas partes de texto (ver `tests/test_plataforma.py`).
 - No macOS, o pet precisa da permissão de Acessibilidade para o atalho Ctrl+Alt+Shift+B funcionar.
 - No Linux com Wayland, o pet não enxerga janelas nem o tempo ocioso, e o atalho global não funciona.
-- Pouco testado com escala de tela acima de 100% e com vários monitores.
+- Pouco testado com escala de tela acima de 100% e com vários monitores. A tela cheia num monitor esconde o
+  pet em todos.
+- A visão olha só o monitor da janela ativa. No macOS ela precisa da permissão de Gravação de Tela, e o
+  título da janela não é lido.
 - Jogos em janela sem borda podem não ser detectados como tela cheia.
 - O executável não é assinado; o Windows pode avisar na primeira execução.

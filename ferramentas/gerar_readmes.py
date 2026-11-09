@@ -15,19 +15,24 @@ PACOTE = RAIZ / "pestinha"
 CAMADAS = [
     ("core", "Cérebro e regras puras: rede neural, emoção, homeostase, memória, condicionamento, física e protesto. "
              "Sem Qt e sem API do sistema, para ser testável em qualquer lugar.", "módulos compartilhados"),
+    ("ia", "Visão e conversa por um modelo de IA (Claude, OpenAI, DeepSeek ou Ollama local): os clientes, os "
+           "prompts e a leitura das respostas, e a voz para texto (pelo serviço de servidor/voz/). Sem Qt; "
+           "as chamadas rodam em thread (ver mind/visao.py e mind/voz_ctl.py).",
+     "core e módulos compartilhados"),
     ("plataforma", "Tudo que depende do sistema operacional: programa em primeiro plano, tempo ocioso, janelas, "
                    "tela cheia, foco e o atalho de pânico. Um módulo por sistema (Windows, macOS, Linux). "
-                   "Só nome de programa e geometria; nunca conteúdo nem título de janela.", "nada (só o sistema)"),
+                   "Só nome de programa e geometria; o título da janela só com \"Ver minha tela\" ligado.",
+     "nada (só o sistema)"),
     ("sense", "Sentidos: o que as leituras da plataforma significam (atividade, tela cheia, janela para pousar) "
-              "e registro da rotina. Nunca conteúdo nem título de janela.", "core, plataforma"),
+              "e registro da rotina. Título de janela só para a visão da IA, se você ligar.", "core, plataforma"),
     ("body", "O corpo do pet: a janela com o rosto, o estado que ele mostra, o comportamento (movimento) e a "
              "bolinha.", "core, sense"),
-    ("world", "Objetos que aparecem na tela: post-its, memes, cartazes, notebook, fogos e a janela arrastável "
-              "base.", "core, sense, body"),
+    ("world", "Objetos que aparecem na tela: post-its, memes, cartazes, notebook, fogos, o balão de fala e a "
+              "janela arrastável base.", "core, sense, body"),
     ("mind", "Controladores de decisão: ligam o que a rede decide à cena (sono, mesa, protesto, travessuras, "
-             "festa, revolução, cantinho do castigo).", "core, sense, body, world"),
-    ("ui", "Janelas de interface: tela de permissões, bandeja, passo a passo, monitor neural e painel de "
-           "protesto.", "core, sense, body, world, mind"),
+             "festa, revolução, cantinho do castigo, visão e conversa pela IA).", "core, ia, sense, body, world"),
+    ("ui", "Janelas de interface: tela de permissões, bandeja, passo a passo, monitor neural, painel de "
+           "protesto e o chat com o pet.", "core, ia, sense, body, world, mind"),
     ("controle", "Mixins de `PestinhaApp`: sessão (permissões, visibilidade, pausa, pânico, salvar, sair, apagar) e "
                  "interação (cutucar, arrastar, menus, notebook).", "todas as anteriores"),
 ]
@@ -72,7 +77,7 @@ O código do pet, em camadas. Cada pasta tem o seu README com a lista de arquivo
 Cada camada só importa das que estão acima dela nesta tabela (verificado por `tests/test_arquitetura.py`):
 
 ```text
-core  <  sense  <  body  <  world  <  mind  <  ui  <  controle  <  app.py
+core  <  ia  <  sense  <  body  <  world  <  mind  <  ui  <  controle  <  app.py
 ```
 
 | Pasta | Papel |
@@ -116,7 +121,9 @@ python ferramentas/gerar_doc_rede.py
 
 - `fuzz_pestinha.py` roda o app com ações aleatórias e checa invariantes:
   `python -B ferramentas/fuzz_pestinha.py 150 80` (rodadas, ações por rodada).
-- `medir_cartazes.py` confere se cada frase cabe na placa (rode no Windows, com as fontes reais)."""),
+- `medir_cartazes.py` confere se cada frase cabe na placa (rode no Windows, com as fontes reais).
+- `avaliar_ia.py` roda os casos fixos de avaliação da IA contra o Ollama (sem custo) e grava o relatório em
+  docs/avaliacoes/: `python ferramentas/avaliar_ia.py` (veja `--help`)."""),
 ]
 
 

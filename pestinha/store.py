@@ -8,6 +8,8 @@ por registro para os históricos. Todos os módulos usam isto.
 
 import json
 import os
+import shutil
+import sys
 from pathlib import Path
 
 
@@ -42,6 +44,30 @@ def read_json(path, default=None):
         except OSError:
             pass
         return default
+
+
+def apagar_pasta(path):
+    """Apaga uma pasta inteira; devolve os caminhos que não deu para apagar (lista vazia = tudo certo).
+
+    Python 3.12+ usa `onexc` (o `onerror` está obsoleto lá); o 3.11 só conhece `onerror`.
+    As duas recebem (função, caminho, erro), então o mesmo callback serve.
+    """
+    falhas = []
+    chave = "onexc" if sys.version_info >= (3, 12) else "onerror"
+    shutil.rmtree(path, **{chave: lambda _f, caminho, _e: falhas.append(str(caminho))})
+    return falhas
+
+
+def pasta_gravavel(pasta):
+    """Diz se dá para criar e gravar arquivos na pasta (criando-a, se preciso)."""
+    teste = Path(pasta) / ".teste_de_gravacao"
+    try:
+        teste.parent.mkdir(parents=True, exist_ok=True)
+        teste.write_bytes(b"")
+        teste.unlink()
+    except OSError:
+        return False
+    return True
 
 
 def append_line(path, line):

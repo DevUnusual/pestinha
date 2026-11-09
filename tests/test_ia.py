@@ -1,0 +1,591 @@
+"""
+Visão e conversa pela IA: o texto do modelo, os clientes (com SDK falsa, sem rede) e o controlador
+dentro do app de verdade (Qt offscreen, pasta temporária). Nenhum teste chama uma API real.
+"""
+
+import os
+import sys
+import time
+from pathlib import Path
+from types import SimpleNamespace
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+import pytest  # noqa: E402
+from PySide6.QtWidgets import QApplication  # noqa: E402
+
+from pestinha import config  # noqa: E402
+from pestinha.app import PestinhaApp  # noqa: E402
+from pestinha.core.nervous_system import SENSORY_SPEC  # noqa: E402
+from pestinha.ia import mente, provedores  # noqa: E402
+from pestinha.mind import visao as visao_mod  # noqa: E402
+from pestinha.paths import Paths  # noqa: E402
+from pestinha.settings_store import SettingsStore  # noqa: E402
+
+RESPOSTA_OK = ('Claro! ```json\n{"resumo": "programando em Python", "comentario": "Esse bug de novo?", '
+               '"graca": 0.1, "erro": 0.9, "foco": 2, "novidade": "muito"}\n```')
+
+
+# ---------------- mente: o texto do modelo ----------------
+
+def test_observacao_tolera_texto_em_volta_e_valores_ruins():
+    obs = mente.ler_observacao(RESPOSTA_OK)
+    assert obs.resumo == "programando em Python"
+    assert obs.comentario == "Esse bug de novo?"
+    assert obs.sinais == {"VISAO_GRACA": 0.1, "VISAO_ERRO": 0.9, "VISAO_FOCO": 1.0, "VISAO_NOVO": 0.0}
+
+
+@pytest.mark.parametrize("texto", ["", "não sei", "{quebrado", '["lista"]', None])
+def test_observacao_sem_json_nao_inventa_fala(texto):
+    obs = mente.ler_observacao(texto)
+    assert obs.comentario == "" and obs.sinais == {}
+
+
+def test_sinal_booleano_nao_vira_numero():
+    assert mente.ler_observacao('{"erro": true}').sinais["VISAO_ERRO"] == 0.0
+
+
+def test_todo_sinal_da_ia_e_um_canal_da_rede():
+    assert set(mente.SINAIS.values()) | {"CONVERSA"} <= set(SENSORY_SPEC)
+
+
+def test_fala_vira_uma_linha_curta():
+    fala = mente.limpar_fala('  "oi\n\n' + "a" * 500 + '"  ')
+    assert "\n" not in fala and len(fala) == mente.MAX_COMENTARIO and fala.endswith("…")
+
+
+def test_ele_le_o_proprio_log_sem_o_ruido():
+    import datetime
+    from pestinha import log as log_mod
+    log_mod.log("[homeostase] energia 0.5")                       # depuração: fica de fora
+    log_mod.log("[memória] IDLE|observando -> atravessar")         # episódio de travessura: fica de fora
+    log_mod.log("[música] cortou Só Os Loucos Sabem · Charlie Brown Jr. em 1:32 (Demuxing failed)")
+    linhas = log_mod.recentes()
+    assert linhas[-1].endswith("música: cortou Só Os Loucos Sabem · Charlie Brown Jr. em 1:32 (Demuxing failed)")
+    assert not any("homeostase" in l or "IDLE|" in l for l in linhas)
+    daqui_a_uma_hora = datetime.datetime.now() + datetime.timedelta(hours=1)
+    assert log_mod.recentes(agora=daqui_a_uma_hora) == []          # só o que é recente
+
+    conversa = mente.Conversa().mensagens("o que aconteceu com a música?", registro=linhas[-1:])
+    assert "[Seu registro recente: " in conversa[-1]["content"] and "Demuxing" in conversa[-1]["content"]
+    assert "registro recente" in mente.prompt_sistema("Bryan")
+    eco = f"[Seu registro recente: {linhas[-1]}] A música cortou e eu recomecei."
+    assert mente.limpar_fala(eco) == "A música cortou e eu recomecei."
+
+
+def test_limpar_fala_tira_o_contexto_que_o_modelo_ecoou():
+    eco = ("[Seu estado agora: emoção: observando (valência +0.2, ativação +0.1); energia médio]\n"
+           "[Suas lembranças: no notebook, jogando]\nÉ o LampLight, eu acho!")
+    assert mente.limpar_fala(eco) == "É o LampLight, eu acho!"
+    assert mente.limpar_fala("[Seu estado agora: emoção: observando, vê f") == ""
+    assert mente.limpar_fala("[Seu estado agora]: Puxa, vou te animar!") == "Puxa, vou te animar!"
+    assert mente.limpar_fala("[Alerta de curiosidade] Meu dia foi cheio!") == "Meu dia foi cheio!"
+    assert mente.limpar_fala("Gosto de [colchetes] no meio.") == "Gosto de [colchetes] no meio."
+
+
+def test_conversa_guarda_pouco_e_sem_o_contexto_da_tela():
+    conversa = mente.Conversa()
+    msgs = conversa.mensagens("oi", contexto="lendo e-mail")
+    assert "lendo e-mail" in msgs[-1]["content"]
+    for i in range(20):
+        conversa.registrar(f"pergunta {i}", f"resposta {i}")
+    assert len(conversa.turnos) == mente.MAX_TURNOS
+    assert all("lendo e-mail" not in t["content"] for t in conversa.turnos)
+    assert conversa.turnos[0]["role"] == "user"
+
+
+def test_persona_entra_no_prompt():
+    assert "pirata" in mente.prompt_sistema("Bryan", "Você é um pirata.")
+    assert mente.PERSONA_PADRAO in mente.prompt_sistema("Bryan")
+
+
+# ---------------- provedores (SDK falsa) ----------------
+
+def test_sem_chave_explica_qual_variavel(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with pytest.raises(provedores.ErroIA, match="Salvar chave"):
+        provedores.criar_cliente("openai")
+
+
+def test_provedor_desconhecido_vira_o_padrao_e_modelo_vazio_o_do_provedor():
+    assert provedores.info("xyz") is provedores.PROVEDORES[provedores.PROVEDOR_PADRAO]
+    assert provedores.modelo_de("ollama", "  ") == provedores.PROVEDORES["ollama"]["modelo"]
+    assert provedores.modelo_de("ollama", "gemma3") == "gemma3"
+
+
+def test_ollama_nao_precisa_de_chave(monkeypatch):
+    cliente = provedores.criar_cliente("ollama")
+    assert cliente.ollama and cliente.ve_imagem and cliente.base_url == "http://localhost:11434/v1"
+
+
+@pytest.mark.parametrize("texto, esperado", [
+    ("", "http://localhost:11434"),
+    ("192.168.3.250", "http://192.168.3.250:11434"),
+    (" http://192.168.3.250:11434/ ", "http://192.168.3.250:11434"),
+    ("https://ia.casa.lan:8443/v1", "https://ia.casa.lan:8443"),
+    ("[::1]", "http://[::1]:11434"),
+    ("ftp://x", None), ("1.2.3.4:99999", None), ("a b", None), ("http://x/caminho", None),
+])
+def test_endereco_do_ollama(texto, esperado):
+    assert provedores.endereco_ollama(texto) == esperado
+
+
+def test_ollama_de_outro_computador():
+    cliente = provedores.criar_cliente("ollama", "gemma4:e4b", "192.168.3.250")
+    assert cliente.base_url == "http://192.168.3.250:11434/v1" and cliente.modelo == "gemma4:e4b"
+    with pytest.raises(provedores.ErroIA, match="inválido"):
+        provedores.criar_cliente("ollama", "", "ftp://x")
+
+
+class _RespostaHTTP:
+    def __init__(self, dados):
+        self.dados = dados
+
+    def read(self):
+        import json
+        return json.dumps(self.dados).encode()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+
+def _ollama_falso(monkeypatch, modelos, chamadas):
+    def abrir(url, timeout):
+        chamadas.append(url)
+        if url.endswith("/api/version"):
+            return _RespostaHTTP({"version": "0.40.13"})
+        return _RespostaHTTP({"models": [{"name": m} for m in modelos]})
+    monkeypatch.setattr(provedores.urllib.request, "urlopen", abrir)
+
+
+def test_testar_conexao_diz_se_falta_o_modelo(monkeypatch):
+    chamadas = []
+    _ollama_falso(monkeypatch, ["gemma4:e4b"], chamadas)
+    ok, msg = provedores.testar_ollama("192.168.3.250", "gemma4:e4b")
+    assert ok and "0.40.13" in msg and chamadas[0] == "http://192.168.3.250:11434/api/version"
+    ok, msg = provedores.testar_ollama("192.168.3.250", "llava")
+    assert not ok and "ollama pull llava" in msg
+
+
+def test_testar_conexao_sem_resposta(monkeypatch):
+    def recusa(url, timeout):
+        raise provedores.urllib.error.URLError("recusado")
+    monkeypatch.setattr(provedores.urllib.request, "urlopen", recusa)
+    ok, msg = provedores.testar_ollama("192.168.3.251", "")
+    assert not ok and "192.168.3.251:11434" in msg
+    assert provedores.testar_ollama("ftp://x", "")[0] is False
+
+
+def test_gemma4_e_a_recomendacao_do_ollama():
+    assert provedores.PROVEDORES["ollama"]["recomendado"] == "gemma4:e4b"
+
+
+class _Chamadas:
+    """Guarda os argumentos da chamada e devolve a resposta pronta."""
+
+    def __init__(self, resposta):
+        self.resposta = resposta
+        self.kwargs = None
+
+    def create(self, **kwargs):
+        self.kwargs = kwargs
+        return self.resposta
+
+
+def test_claude_manda_o_print_e_le_o_texto(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "teste")
+    cliente = provedores.criar_cliente("claude")
+    resposta = SimpleNamespace(stop_reason="end_turn",
+                               content=[SimpleNamespace(type="text", text=" oi ")])
+    chamadas = _Chamadas(resposta)
+    cliente.cliente = SimpleNamespace(beta=SimpleNamespace(messages=chamadas))
+    assert cliente.responder("sistema", [{"role": "user", "content": "o que é isso?"}], imagem="AAAA") == "oi"
+    ultima = chamadas.kwargs["messages"][-1]["content"]
+    assert ultima[0]["source"]["data"] == "AAAA" and ultima[1]["text"] == "o que é isso?"
+    assert chamadas.kwargs["model"] == provedores.PROVEDORES["claude"]["modelo"]
+    assert chamadas.kwargs["system"] == [{"type": "text", "text": "sistema", "cache_control": {"type": "ephemeral"}}]
+    assert chamadas.kwargs["fallbacks"] == "default"                      # o Sonnet tem fallback de recusa
+
+
+def test_claude_recusa_vira_erro_explicado(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "teste")
+    cliente = provedores.criar_cliente("claude")
+    cliente.cliente = SimpleNamespace(beta=SimpleNamespace(
+        messages=_Chamadas(SimpleNamespace(stop_reason="refusal", content=[]))))
+    with pytest.raises(provedores.ErroIA, match="não responder"):
+        cliente.responder("s", [{"role": "user", "content": "x"}])
+
+
+def test_deepseek_nao_recebe_imagem(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "teste")
+    cliente = provedores.criar_cliente("deepseek")
+    resposta = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="beleza"))])
+    chamadas = _Chamadas(resposta)
+    cliente.cliente = SimpleNamespace(chat=SimpleNamespace(completions=chamadas))
+    assert cliente.responder("s", [{"role": "user", "content": "x"}], imagem="AAAA") == "beleza"
+    assert chamadas.kwargs["messages"][0] == {"role": "system", "content": "s"}
+    assert chamadas.kwargs["messages"][-1]["content"] == "x"           # sem o print
+
+
+# ---------------- controlador, dentro do app ----------------
+
+@pytest.fixture(scope="module")
+def qapp():
+    app = QApplication.instance() or QApplication([])
+    app.setQuitOnLastWindowClosed(False)
+    return app
+
+
+class ClienteFalso:
+    """Responde na hora (na thread do controlador) e conta as chamadas."""
+
+    ve_imagem = True
+
+    def __init__(self, resposta=RESPOSTA_OK, erro=None):
+        self.resposta, self.erro = resposta, erro
+        self.chamadas = []
+
+    def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
+        self.chamadas.append((sistema, mensagens, imagem))
+        if self.erro:
+            raise self.erro
+        return self.resposta
+
+
+@pytest.fixture
+def pet(qapp, tmp_path, monkeypatch):
+    paths = Paths(root=tmp_path)
+    store = SettingsStore(paths)
+    store.update(dict(config.DEFAULT_PERMISSIONS, ia=True, ver_tela=True, modo_teste=True))
+    app = PestinhaApp(store, paths)
+    falso = ClienteFalso()
+    monkeypatch.setattr(app.visao, "cliente", lambda: falso)
+    monkeypatch.setattr(visao_mod, "capturar_tela", lambda *_a, **_k: "PRINT")
+    monkeypatch.setattr(visao_mod.senses, "get_active_title", lambda: "main.py - pestinha")
+    app.activity = "PROGRAMMING"
+    app.pet.show()
+    yield app, falso
+    app.visao.cancelar()
+    app.balao.esconder()
+    app.mischief.clear()
+    app.tray.icon.hide()
+
+
+def esperar(qapp, condicao, segundos=3.0):
+    fim = time.monotonic() + segundos
+    while time.monotonic() < fim:
+        qapp.processEvents()
+        if condicao():
+            return True
+        time.sleep(0.01)
+    return False
+
+
+def test_olhada_vira_sinal_na_rede_e_comentario_no_balao(qapp, pet):
+    app, falso = pet
+    app.visao.tick(time.monotonic())
+    assert esperar(qapp, lambda: not app.visao.olhando)
+    _sistema, mensagens, imagem = falso.chamadas[0]
+    assert imagem == "PRINT" and "main.py - pestinha" in mensagens[0]["content"]
+    assert app.senses.pulse["VISAO_ERRO"] == pytest.approx(0.9)
+    assert esperar(qapp, lambda: app.balao.texto == "Esse bug de novo?")      # erro na tela: a política deixa
+    assert app.visao.ultimo_resumo == "programando em Python"
+
+
+def test_sem_comentarios_ele_so_sente(qapp, pet):
+    app, _falso = pet
+    app.apply_perms({"comentarios": False})
+    app.visao.tick(time.monotonic())
+    assert esperar(qapp, lambda: not app.visao.olhando)
+    assert app.senses.pulse["VISAO_ERRO"] > 0.5 and app.balao.texto == ""
+
+
+def test_intervalo_entre_olhadas(qapp, pet):
+    app, falso = pet
+    agora = time.monotonic()
+    app.visao.tick(agora)
+    assert esperar(qapp, lambda: not app.visao.olhando)
+    app.visao.tick(agora + 1.0)
+    assert len(falso.chamadas) == 1
+    app.visao.tick(agora + app.prof["visao_intervalo"] + 0.1)
+    assert esperar(qapp, lambda: len(falso.chamadas) == 2)
+
+
+@pytest.mark.parametrize("mudanca", [{"ia": False}, {"ver_tela": False}])
+def test_sem_permissao_nada_sai_do_computador(qapp, pet, mudanca):
+    app, falso = pet
+    app.apply_perms(mudanca)
+    app.visao.tick(time.monotonic() + 1e6)
+    app.visao.olhar_agora()
+    qapp.processEvents()
+    assert falso.chamadas == []
+
+
+def test_nao_olha_com_voce_longe_dormindo_ou_escondido(qapp, pet):
+    app, falso = pet
+    app.activity = "AWAY"
+    app.visao.tick(time.monotonic() + 1e6)
+    app.activity = "PROGRAMMING"
+    app.sleep.asleep = True
+    app.visao.tick(time.monotonic() + 1e6)
+    app.sleep.asleep = False
+    app.toggle_hidden()
+    app.visao.tick(time.monotonic() + 1e6)
+    assert falso.chamadas == []
+
+
+def test_panico_descarta_a_resposta_a_caminho(qapp, pet):
+    app, falso = pet
+    geracao = app.visao.geracao
+    app.panic()
+    app.visao._ao_pronto("observacao", RESPOSTA_OK, geracao)     # chegou depois do pânico
+    assert app.senses.pulse["VISAO_ERRO"] == 0.0 and app.balao.texto == ""
+
+
+def test_falha_avisa_uma_vez_e_espera(qapp, pet):
+    app, falso = pet
+    falso.erro = provedores.ErroIA("falta a chave")
+    avisos = []
+    app.visao.aviso.connect(avisos.append)
+    agora = time.monotonic()
+    app.visao.tick(agora)
+    assert esperar(qapp, lambda: not app.visao.olhando and avisos)
+    assert app.visao.proxima >= agora + visao_mod.ESPERA_APOS_ERRO
+    app.visao.olhar(agora + 1)
+    assert esperar(qapp, lambda: not app.visao.olhando)
+    assert avisos == ["falta a chave"]
+
+
+def test_conversa_responde_e_conta_como_atencao(qapp, pet):
+    app, falso = pet
+    falso.resposta = "Oi! Tô vendo seu código."
+    respostas = []
+    app.visao.resposta.connect(respostas.append)
+    app.visao.ultimo_resumo = "programando"
+    contato = app.drives.contact
+    assert app.visao.perguntar("o que acha?")
+    assert esperar(qapp, lambda: respostas)
+    assert respostas == ["Oi! Tô vendo seu código."]
+    assert app.balao.texto == respostas[0]
+    assert app.senses.pulse["CONVERSA"] > 0.5 and app.drives.contact <= contato
+    _s, mensagens, imagem = falso.chamadas[-1]
+    assert imagem == "PRINT" and "programando" in mensagens[-1]["content"]
+    assert app.visao.conversa.turnos[-2]["content"] == "o que acha?"
+
+
+def test_conversa_sem_ver_a_tela_nao_manda_print(qapp, pet):
+    app, falso = pet
+    app.apply_perms({"ver_tela": False})
+    assert app.visao.perguntar("oi")
+    assert esperar(qapp, lambda: not app.visao.respondendo)
+    assert falso.chamadas[-1][2] is None
+
+
+def test_conversa_desligada_nao_pergunta(qapp, pet):
+    app, falso = pet
+    app.apply_perms({"conversa": False})
+    assert not app.visao.perguntar("oi") and falso.chamadas == []
+
+
+def test_balao_some_com_o_pet(qapp, pet):
+    app, _falso = pet
+    app.balao.mostrar("oi", time.monotonic())
+    app.balao.seguir(300, 300, time.monotonic())
+    assert app.balao.isVisible()
+    app.toggle_hidden()
+    assert not app.balao.isVisible()
+
+
+def test_endereco_do_ollama_na_tela(qapp, tmp_path, monkeypatch):
+    from pestinha.ui.ui import SettingsDialog
+    perms = dict(config.DEFAULT_PERMISSIONS, ia=True, ia_provedor="ollama")
+    dialogo = SettingsDialog(perms, Paths(root=tmp_path), first_run=False)
+    try:
+        assert not dialogo.ollama_linha.isHidden() and dialogo.chave_linha.isHidden()
+        assert "gemma4:e4b" in dialogo.provedor_dica.text()
+        dialogo.ollama_campo.setText("192.168.3.250")
+        dialogo.ollama_campo.editingFinished.emit()
+        assert dialogo.ollama_campo.text() == "http://192.168.3.250:11434"
+        assert dialogo.perms["ia_ollama_url"] == "http://192.168.3.250:11434"
+        dialogo.ollama_campo.setText("ftp://nada")
+        dialogo.ollama_campo.editingFinished.emit()
+        assert dialogo.perms["ia_ollama_url"] == "http://192.168.3.250:11434"      # recusado: fica o anterior
+        assert dialogo.chave_estado.objectName() == "erro"
+        monkeypatch.setattr(provedores, "testar_ollama", lambda endereco, modelo: (True, f"ok {endereco}"))
+        dialogo.ollama_botao.click()
+        assert dialogo.chave_estado.objectName() == "ok" and "192.168.3.250" in dialogo.chave_estado.text()
+        dialogo.provedor_combo.setCurrentIndex(dialogo.provedor_combo.findData("claude"))
+        assert not dialogo.ollama_linha.isHidden()                       # a olhada no automático usa o Ollama
+        assert "Ollama" in dialogo.olhada_dica.text() and "gemma4:e4b" in dialogo.olhada_dica.text()
+        dialogo.olhada_combo.setCurrentIndex(dialogo.olhada_combo.findData("claude"))
+        assert dialogo.ollama_linha.isHidden() and "claude-haiku-5-5" in dialogo.olhada_dica.text()
+    finally:
+        dialogo.close()
+
+
+def test_trocar_de_provedor_sem_querer_nao_perde_o_modelo(qapp, tmp_path, monkeypatch):
+    from PySide6.QtCore import QPoint, QPointF, Qt
+    from PySide6.QtGui import QWheelEvent
+    from pestinha.ui.ui import SettingsDialog
+    perms = dict(config.DEFAULT_PERMISSIONS, ia=True, ia_provedor="ollama", ia_modelo="gemma4:e4b")
+    dialogo = SettingsDialog(perms, Paths(root=tmp_path), first_run=False)
+    try:
+        combo = dialogo.provedor_combo
+        rodinha = QWheelEvent(QPointF(5, 5), QPointF(5, 5), QPoint(), QPoint(0, -120), Qt.NoButton,
+                              Qt.NoModifier, Qt.NoScrollPhase, False)
+        combo.wheelEvent(rodinha)                                     # rolando a página por cima dela
+        assert dialogo.perms["ia_provedor"] == "ollama" and not rodinha.isAccepted()
+
+        combo.setCurrentIndex(combo.findData("claude"))               # trocou mesmo (ou sem querer)...
+        assert dialogo.perms["ia_modelo"] == "" and dialogo.perms["ia_modelos"]["ollama"] == "gemma4:e4b"
+        combo.setCurrentIndex(combo.findData("ollama"))               # ...e voltou: o modelo volta junto
+        assert dialogo.perms["ia_modelo"] == "gemma4:e4b" and dialogo.modelo_campo.currentText() == "gemma4:e4b"
+    finally:
+        dialogo.close()
+
+
+def test_lista_os_modelos_do_ollama_e_escolhe_um_que_existe(qapp, tmp_path, monkeypatch):
+    from pestinha.ui.ui import SettingsDialog
+    monkeypatch.setattr(provedores, "modelos_ollama", lambda endereco, tempo=3.0: ["gemma4:e4b", "lfm3-omni:2b"])
+    perms = dict(config.DEFAULT_PERMISSIONS, ia=True, ia_provedor="ollama", ia_modelo="",
+                 ia_ollama_url="http://192.168.3.250:11434")
+    dialogo = SettingsDialog(perms, Paths(root=tmp_path), first_run=False)
+    mudancas = []
+    dialogo.changed.connect(mudancas.append)
+    try:
+        assert esperar(qapp, lambda: dialogo.modelo_campo.count() == 2)
+        assert [dialogo.modelo_campo.itemText(i) for i in range(2)] == ["gemma4:e4b", "lfm3-omni:2b"]
+        # o padrão (qwen2.5vl:7b) não está lá: ele escolhe o recomendado, grava e avisa
+        assert dialogo.perms["ia_modelo"] == "gemma4:e4b" and {"ia_modelo": "gemma4:e4b"} in mudancas
+        assert dialogo.chave_estado.objectName() == "ok" and "não está instalado" in dialogo.chave_estado.text()
+        dialogo.modelo_campo.setCurrentIndex(1)
+        dialogo.modelo_campo.activated.emit(1)                        # escolheu outro na lista
+        assert dialogo.perms["ia_modelo"] == "lfm3-omni:2b"
+        assert dialogo.perms["ia_modelos"] == {"ollama": "lfm3-omni:2b"}
+    finally:
+        dialogo.close()
+
+
+def test_modelos_ollama_le_o_api_tags(monkeypatch):
+    import io
+    import json
+    monkeypatch.undo()                                                # a função de verdade (sem o falso do conftest)
+    corpo = json.dumps({"models": [{"name": "zeta:1b"}, {"name": "gemma4:e4b"}, {}]}).encode()
+
+    class Resposta(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+    pedidos = []
+    monkeypatch.setattr(provedores.urllib.request, "urlopen",
+                        lambda url, timeout: pedidos.append(url) or Resposta(corpo))
+    assert provedores.modelos_ollama("192.168.3.250") == ["gemma4:e4b", "zeta:1b"]
+    assert pedidos == ["http://192.168.3.250:11434/api/tags"]
+    with pytest.raises(provedores.ErroIA):
+        provedores.modelos_ollama("ftp://nada")
+
+
+def test_permissoes_guardam_o_modelo_de_cada_provedor():
+    validas = config.permissoes_validas({"ia_modelos": {"ollama": " gemma4:e4b ", "claude": "sk-ant-api03-" + "x" * 40,
+                                                        3: "x"}})
+    assert validas["ia_modelos"] == {"ollama": "gemma4:e4b"}             # chave de API e lixo não entram
+
+
+def test_visao_recria_o_cliente_ao_trocar_o_endereco(qapp, pet):
+    app, _falso = pet
+    del app.visao.cliente                       # volta ao método de verdade (o fixture troca por um falso)
+    app.apply_perms({"ia_provedor": "ollama", "ia_ollama_url": "http://192.168.3.250:11434"})
+    assert app.visao.cliente().base_url == "http://192.168.3.250:11434/v1"
+    assert "192.168.3.250" in app.visao.descricao()
+    app.apply_perms({"ia_ollama_url": ""})
+    assert app.visao.cliente().base_url == "http://localhost:11434/v1"
+
+
+def test_tela_de_configuracoes_trava_o_que_depende_da_ia(qapp, tmp_path):
+    from pestinha.ui.ui import SettingsDialog
+    perms = dict(config.DEFAULT_PERMISSIONS)
+    dialogo = SettingsDialog(perms, Paths(root=tmp_path), first_run=False)
+    assert not dialogo.boxes["ver_tela"].isEnabled() and not dialogo.provedor_combo.isEnabled()
+    dialogo.boxes["ia"].setChecked(True)
+    assert dialogo.boxes["ver_tela"].isEnabled() and not dialogo.boxes["comentarios"].isEnabled()
+    dialogo.provedor_combo.setCurrentIndex(dialogo.provedor_combo.findData("ollama"))
+    assert dialogo.perms["ia_provedor"] == "ollama" and "ollama pull" in dialogo.provedor_dica.text()
+    dialogo.close()
+
+
+def test_permissoes_de_ia_comecam_desligadas():
+    assert config.DEFAULT_PERMISSIONS["ia"] is False and config.DEFAULT_PERMISSIONS["ver_tela"] is False
+
+
+def test_personas_carregam(tmp_path):
+    paths = Paths()
+    for pet_id in ("bryan", "jorge"):
+        assert config.load_pet(paths, pet_id)["persona"]
+    assert "NUNCA vende" in config.load_pet(paths, "jorge")["persona"]
+
+
+# ---------------- sincronia: a rede fala pelo modelo ----------------
+
+def test_temperamento_vira_texto_so_com_o_que_foge_do_normal():
+    from pestinha.mind.sincronia import descrever_temperamento
+    texto = descrever_temperamento({"CURIOUS": 1.3, "PLAYFUL": 1.1, "DISMISS->FRUSTRATION": 1.6, "DRAG->FRUSTRATION": 0.5})
+    assert "curiosidade alta" in texto and "brincadeira" not in texto
+    assert "dispensa -> frustração (forte)" in texto and "arraste -> frustração (fraco)" in texto
+    assert descrever_temperamento({}) == ""
+
+
+def test_estado_da_rede_vai_na_olhada_e_no_chat(qapp, pet):
+    app, falso = pet
+    app.protest_ctl.provoke(0.9, "arrancaram o meu notebook")
+    app.protest.stage = 2
+    app.visao.tick(time.monotonic())
+    assert esperar(qapp, lambda: not app.visao.olhando)
+    olhada = falso.chamadas[-1][1][-1]["content"]
+    assert olhada.startswith("[Seu estado agora:") and "arrancaram o meu notebook" in olhada
+    assert app.visao.perguntar("por que você tá bravo?")
+    assert esperar(qapp, lambda: not app.visao.respondendo)
+    sistema, mensagens, _ = falso.chamadas[-1]
+    assert "manifestação porque arrancaram o meu notebook" in mensagens[-1]["content"]
+    assert "rede neural" in sistema
+    assert app.visao.conversa.turnos[-2]["content"] == "por que você tá bravo?"   # o estado não fica no histórico
+
+
+def test_ele_nao_repete_o_que_ja_disse(qapp, pet):
+    app, falso = pet
+    agora = time.monotonic()
+    app.visao.tick(agora)
+    assert esperar(qapp, lambda: not app.visao.olhando and app.visao.ja_disse)
+    app.visao.tick(agora + app.prof["visao_intervalo"] + 0.1)
+    assert esperar(qapp, lambda: len(falso.chamadas) == 2 and not app.visao.olhando)
+    assert '"Esse bug de novo?"' in falso.chamadas[-1][1][-1]["content"]
+
+
+def test_exemplos_e_frases_proibidas_do_pet():
+    pet = config.load_pet(Paths(), "bryan")
+    assert pet["exemplos"] and "vai compilar" in pet["evitar"]
+    sistema = mente.prompt_sistema("Bryan", pet["persona"], "", pet["exemplos"], pet["evitar"])
+    assert "Nunca diga" in sistema and pet["exemplos"][0] in sistema
+    assert "compilar" not in pet["persona"]
+
+
+def test_pet_invalido_nao_quebra_exemplos(tmp_path):
+    out = config._pet_valido({"exemplos": ["ok", 3, "  ", None], "evitar": "não é lista"})
+    assert out["exemplos"] == ["ok"] and "evitar" not in out
+
+
+def test_motivo_da_raiva_fica_anotado(tmp_path):
+    from pestinha.core.protesto import MAX_MOTIVOS, Protesto
+    pr = Protesto(tmp_path / "c.txt", tmp_path / "p.json")
+    for i in range(MAX_MOTIVOS + 3):
+        pr.anotar(f"motivo {i % 2}")
+    pr.repressed()
+    assert pr.motivos_recentes() == ["motivo 0", "motivo 1", "fecharam meu cartaz à força"]
+    assert len(pr.motivos) == MAX_MOTIVOS

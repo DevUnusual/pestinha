@@ -1,0 +1,8 @@
+# pestinha-voz (roda no servidor, não no computador do pet). Python 3.12; testado num Ubuntu com RTX 3070.
+faster-whisper>=1.2
+av<16                       # o faster-whisper ainda chama av.open(metadata_errors=...), que o PyAV 16 tirou
+nvidia-cublas-cu12
+nvidia-cudnn-cu12==9.*
+fastapi
+uvicorn
+python-multipart

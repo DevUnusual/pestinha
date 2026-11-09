@@ -7,6 +7,7 @@ e é gravado a CADA mudança (se o programa cair, a escolha não se perde).
 
 import random
 
+from .ia.chaves import parece_chave
 from .paths import pet_id_valido
 from .store import read_json, read_lines, write_json
 
@@ -27,6 +28,7 @@ EMOTION_NAMES = {
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 PANIC_HOTKEY_TEXT = "Ctrl + Alt + Shift + B"
+PTT_HOTKEY_TEXT = "Ctrl + Alt + Shift + V"     # segurar para falar com ele (macOS/Linux: aperta e aperta de novo)
 
 # ============================================================
 # PERMISSÕES
@@ -34,6 +36,7 @@ PANIC_HOTKEY_TEXT = "Ctrl + Alt + Shift + B"
 
 DEFAULT_PERMISSIONS = {
     "ativo": True,             # False depois do pânico, até religar na tela inicial
+    "configurado": False,      # True depois de clicar em Começar: as próximas aberturas pulam a tela
     "pet": "bryan",
     "travessuras": False,      # interruptor mestre de memes/fotos/bilhetes
     "memes": True,
@@ -44,11 +47,36 @@ DEFAULT_PERMISSIONS = {
     "arrastar": True,
     "pousar_janelas": True,
     "tela_cheia": False,       # experimental: aparecer em jogo/vídeo/apresentação
-    "rotina": True,            # grava a timeline por minuto (só categorias) para o LSTM
+    "rotina": False,           # grava a timeline por minuto (só categorias); nada usa esses dados ainda
     "modo_teste": False,       # desligado por padrão: o modo teste é só para desenvolvimento
     "mostrar_emocao": False,   # só vale com modo_teste ligado
     "bolinha": True,           # a bolinha para ele brincar
     "fogos": True,             # fogo de artifício quando ele fica feliz de verdade (rede)
+    "ia": False,               # interruptor mestre da IA: sem ele, nada sai do computador
+    "ver_tela": False,         # print da tela + título da janela vão para o modelo de IA
+    "comentarios": True,       # ele comenta em balão o que vê (só com ver_tela)
+    "jogos": False,            # em jogo, ele olha bem mais seguido para acompanhar a partida (só com ver_tela)
+    "estudar_jogos": False,    # lê sobre o jogo (Wikipédia, só o nome) e segue seu progresso sem spoiler (só com jogos)
+    "desenhar": True,          # ele pode desenhar por cima da tela para mostrar algo (só com ver_tela)
+    "videos": False,           # ouve o som do computador num vídeo, fica quieto e depois resume (precisa de ia)
+    "conversa": True,          # chat por texto pelo menu do pet
+    "historico_chat": True,    # guarda o que você pediu e as respostas inteiras, para rever no chat (só aqui)
+    "memoria_local": False,    # diário das conversas e busca no que ele sabe (mind/diario.py, mind/memoria_local.py)
+    "pesquisar": False,        # "Conectar ao Hermes": o chat passa por ele (pesquisa, memória) e ele pesquisa o que vê na tela
+    "hermes_url": "",          # onde está a API do Hermes; vazio: este computador, porta 8642
+    "ia_provedor": "claude",   # claude, openai, deepseek ou ollama (ver ia/provedores.py)
+    "ia_modelo": "",           # vazio: o modelo padrão do provedor
+    "ia_modelos": {},          # o último modelo de cada provedor: trocar e voltar não perde o que estava
+    "ia_ollama_url": "",       # vazio: o Ollama deste computador; ou outro PC da rede (ex.: 192.168.0.10)
+    "olhada_provedor": "auto", # quem olha a tela: auto (Ollama se configurado, senão Claude Haiku), ollama, claude, mesmo
+    "olhada_modelo": "",       # vazio: o padrão do provedor da olhada (ver ia/provedores.py, modelo_da_olhada)
+    "voz": False,              # sua fala vira texto (só com a tecla ou o botão do microfone); precisa de ia e conversa
+    "voz_url": "",             # serviço de voz (servidor/voz/); vazio: este computador, porta 11500
+    "chamar": False,           # microfone aberto esperando o nome dele (detecção local, Vosk); precisa de voz
+    "chamado_palavra": "",     # a palavra de chamado; vazio: o nome do pet
+    "lembrar": False,          # grava o resumo do que a IA viu (nunca o print nem o título), por computador
+    "memoria_compartilhada": False,   # sincroniza o pet com o serviço de memória (servidor/memoria/)
+    "memoria_url": "",         # onde está o serviço de memória (ex.: 192.168.0.10); vazio: desligado
 }
 
 # (chave, rótulo, descrição) na ordem da tela inicial
@@ -72,13 +100,89 @@ PERMISSION_GROUPS = [
          "Por padrão ele some em jogos, vídeos e apresentações."),
     ]),
     ("Rotina", [
-        ("rotina", "Aprender minha rotina",
-         "Grava 1 linha por minuto em memory/timeline.csv: hora, categoria de atividade, "
-         "trocas de programa, ocioso. Nunca títulos, sites ou conteúdo."),
+        ("rotina", "Registrar minha rotina",
+         "Grava 1 linha por minuto em timeline.csv, na pasta de dados: hora, categoria de atividade, "
+         "trocas de programa, ocioso. Nunca títulos, sites ou conteúdo. O pet ainda não usa esse histórico."),
     ]),
     ("Brincadeira", [
         ("fogos", "Fogos de artifício", "Quando ele fica muito feliz, a alegria da rede pode soltar um fogo."),
         ("bolinha", "Bolinha", "Uma bolinha para ele brincar. Se você levar para longe, ele reage (pode ficar triste, bravo ou ir atrás)."),
+    ]),
+    ("Visão e conversa (IA)", [
+        ("ia", "Usar IA",
+         "Interruptor geral. Liga a conversa e a visão por um modelo de IA (Claude, OpenAI, DeepSeek ou "
+         "Ollama local). Com Claude, OpenAI ou DeepSeek, o que ele vê e o que você escreve vai para a API."),
+        ("ver_tela", "Ver minha tela",
+         "De tempos em tempos ele tira um print da tela e lê o título da janela ativa, e manda para o modelo "
+         "descrever o que você está fazendo. O print não é gravado em disco."),
+        ("comentarios", "Comentar o que vê", "Às vezes ele comenta num balãozinho o que você está fazendo."),
+        ("jogos", "Acompanhar jogos",
+         "Quando você está jogando, ele olha a tela bem mais seguido (com o Ollama, a cada poucos segundos; "
+         "com uma API paga, mais devagar, por causa do custo) para perceber itens, conquistas e jogadas e "
+         "comentar. Se a tela quase não mudou, ele não manda o print. Enquanto você joga, ele vai para o "
+         "monitor da direita (com um monitor só, para o canto de baixo) e fica parado lá assistindo e "
+         "comentando, sem passear nem aprontar; a tela cheia do jogo não esconde ele no outro monitor. Com um "
+         "monitor só, para ele aparecer por cima do jogo, ligue também \"Aparecer em tela cheia\" e jogue em "
+         "janela sem borda."),
+        ("estudar_jogos", "Estudar os jogos (sem spoiler)",
+         "Quando ele percebe qual jogo você está jogando (pela tela ou pelo título da janela), procura o jogo "
+         "na Wikipédia (vai só o nome do jogo) e o modelo de IA resume a premissa, as mecânicas, dicas e a "
+         "história inteira em trechos; sem artigo, com o Hermes conectado, ele pesquisa. Fica guardado em "
+         "memory/pets/<pet>/jogos.json, junto com onde ele te viu no jogo (capítulo, área, missão). A cada "
+         "lugar novo, ele descobre em que parte da história você está: a história só vai para o modelo até "
+         "ali, então ele não dá spoiler. No chat, peça \"pode dar spoiler\" ou \"como termina?\" para ele "
+         "contar o resto. Só com \"Acompanhar jogos\"."),
+        ("desenhar", "Desenhar na tela",
+         "Quando quer te mostrar algo que está na tela (um erro, um botão, algo que chamou a atenção dele), ele "
+         "rabisca um círculo, um quadrado, uma seta ou um ícone por cima, por alguns segundos. Peça no chat: "
+         "\"me mostra onde fica o botão de salvar\". O desenho não recebe clique e some sozinho (ou quando "
+         "você mexe nele). Só com \"Ver minha tela\"."),
+        ("videos", "Assistir vídeos comigo",
+         "Peça \"assiste esse vídeo comigo\" (ou pelo menu; com \"Ver minha tela\", ele percebe sozinho quando "
+         "você está vendo uma aula, tutorial ou podcast): ele ouve o som do computador, fica quietinho "
+         "prestando atenção e, quando o vídeo acaba (ou você pede \"resume o vídeo\"), resume e guarda o que "
+         "aprendeu em memory/pets/<pet>/conhecimento.jsonl, para conversar sobre isso depois. O áudio vai para "
+         "o serviço de voz (o mesmo de \"Falar com ele\") e o texto ouvido vai para o modelo de IA; nenhum dos "
+         "dois é gravado, só o resumo."),
+        ("pesquisar", "Conectar ao Hermes (pesquisa e memória)",
+         "O chat e a voz passam pelo Hermes: ele responde como o pet, pesquisa na internet quando precisa e "
+         "vai aprendendo sobre você (a memória dele é a mesma em todos os seus computadores). Se o Hermes "
+         "cair, o provedor de IA responde no lugar. Quando algo na tela chama a atenção (um jogo, um item, "
+         "um erro), ele também pesquisa sozinho e te dá uma dica no balão. Peça \"pesquisa o que é manga\" e "
+         "ele projeta uma imagem como holograma. Vai para o Hermes a conversa, o resumo do que você está "
+         "fazendo e o estado do pet; nunca o print nem o título da janela."),
+        ("conversa", "Conversar por texto", "Botão direito nele, Conversar: você escreve e ele responde."),
+        ("historico_chat", "Guardar o histórico do chat",
+         "O que você pediu (escrito ou falado) e as respostas inteiras, sem o corte do balão, ficam em "
+         "memory/pets/<pet>/historico_chat.jsonl e aparecem quando você abre o chat. Só neste computador: "
+         "não vai para a IA nem para a memória compartilhada. O botão Esquecer, no chat, apaga."),
+        ("memoria_local", "Lembrar das conversas (diário)",
+         "Quando ele dorme, ou na virada do dia, o modelo do chat resume as conversas do dia (do histórico do chat) "
+         "num diário, em memory/pets/<pet>/diario.jsonl. Quando você pergunta algo que pede memória (\"lembra do "
+         "projeto?\", \"o que aprendemos sobre python?\"), ele busca no diário, nos vídeos, nas lembranças e nos "
+         "jogos e leva só os 5 trechos que têm a ver; o resto do chat leva só as conversas de hoje. Só neste "
+         "computador. Precisa de \"Guardar o histórico do chat\"."),
+        ("voz", "Falar com ele (voz para texto)",
+         f"Segure {PTT_HOTKEY_TEXT} e fale, ou use o botão de microfone do chat: a sua fala vira texto e ele "
+         "responde por escrito. Ele só ouve enquanto você aperta. O áudio vai para o serviço de voz do "
+         "endereço abaixo (o seu servidor) e não é gravado."),
+        ("chamar", "Chamar pelo nome (como a Alexa)",
+         "O microfone fica aberto e um reconhecedor pequeno, rodando só neste computador, espera a palavra de "
+         "chamado (o nome dele, ou a que você escrever abaixo). Diga \"Bob, que horas são?\" ou só \"Bob\" e, "
+         "quando a orelha dele levantar, faça o pedido. Até ouvir o nome, nada sai do computador e nada é "
+         "gravado; depois, só o seu pedido vai para o serviço de voz. Na primeira vez baixa o modelo de "
+         "português do Vosk (31 MB, alphacephei.com) para memory/modelos/."),
+        ("lembrar", "Lembrar o que viu",
+         "Grava o resumo curto do que a IA viu (até 12 palavras) e o nome do programa, com a hora e o "
+         "computador, em memory/pets/<pet>/lembrancas_<computador>.jsonl. Nunca o print, o título da "
+         "janela nem o que ele comentou. Com a memória compartilhada, ele lembra num computador do que viu "
+         "no outro (e pode te perguntar como ficou)."),
+    ]),
+    ("Memória em outro computador", [
+        ("memoria_compartilhada", "Compartilhar a memória dele",
+         "O mesmo pet em todos os seus computadores: a rede, a memória, o humor e a personalidade (pets/<pet>.json) "
+         "ficam também no serviço de memória (servidor/memoria/) de um computador da sua casa. Vale na "
+         "próxima vez que abrir. Permissões, painéis e rotina continuam de cada computador."),
     ]),
     ("Teste", [
         ("modo_teste", "Modo teste", "Tempos curtos: travessuras e emoções acontecem em segundos."),
@@ -88,9 +192,19 @@ PERMISSION_GROUPS = [
 
 
 def permissoes_validas(novo):
-    """Mantém só as chaves conhecidas e com o mesmo tipo do padrão."""
-    return {k: v for k, v in novo.items()
-            if k in DEFAULT_PERMISSIONS and type(v) is type(DEFAULT_PERMISSIONS[k])}
+    """Mantém só as chaves conhecidas e com o mesmo tipo do padrão; o modelo nunca guarda uma chave de API."""
+    validas = {k: v for k, v in novo.items()
+               if k in DEFAULT_PERMISSIONS and type(v) is type(DEFAULT_PERMISSIONS[k])}
+    if parece_chave(validas.get("ia_modelo")):
+        validas["ia_modelo"] = ""                  # chave colada no lugar do modelo: não grava
+    if parece_chave(validas.get("olhada_modelo")):
+        validas["olhada_modelo"] = ""
+    if "olhada_provedor" in validas and validas["olhada_provedor"] not in ("auto", "ollama", "claude", "mesmo"):
+        validas.pop("olhada_provedor")
+    if "ia_modelos" in validas:
+        validas["ia_modelos"] = {p: m.strip()[:100] for p, m in validas["ia_modelos"].items()
+                                 if isinstance(p, str) and isinstance(m, str) and not parece_chave(m)}
+    return validas
 
 
 def load_permissions(paths):
@@ -143,6 +257,14 @@ PROFILES = {
         "sad_down": 300.0,
         "sad_stage_up": [0.2, 0.5, 0.8, 1.0],
         "stage_hyst": 0.06,          # cartaz só some quando cai este tanto abaixo do limiar
+        # visão (IA): quanto tempo entre uma olhada e outra
+        "visao_intervalo": 25.0,     # s entre olhadas
+        "visao_apos_troca": 8.0,     # s depois de você trocar de programa (se já deu o mínimo)
+        "pesquisa_intervalo": 60.0,  # s mínimos entre uma pesquisa na internet e outra
+        "visao_jogo": 4.0,           # s entre olhadas em jogo, com o Ollama ("Acompanhar jogos")
+        "visao_jogo_nuvem": 20.0,    # s entre olhadas em jogo, com uma API paga
+        "fala_jogo": 12.0,           # s mínimos entre um comentário e outro em jogo
+        "video_silencio": 40.0,      # s sem som nenhum: o vídeo acabou (ou foi pausado) e ele resume
     },
     "normal": {
         "mischief_interval": (300.0, 900.0),
@@ -172,8 +294,24 @@ PROFILES = {
         "sad_down": 5400.0,
         "sad_stage_up": [0.25, 0.5, 0.75, 1.0],
         "stage_hyst": 0.12,
+        "visao_intervalo": 150.0,    # ~2,5 min entre olhadas: o custo da API fica baixo
+        "visao_apos_troca": 45.0,
+        "pesquisa_intervalo": 120.0,     # no máximo uma pesquisa espontânea a cada 2 min
+        "visao_jogo": 8.0,           # Ollama: ~0,7 s por olhada no gemma4:e4b, sobra placa para o jogo
+        "visao_jogo_nuvem": 60.0,    # API paga: ~1 olhada por minuto em jogo
+        "fala_jogo": 45.0,           # olhar rápido não é falar sem parar
+        "video_silencio": 240.0,     # 4 min sem som: pausa curta não encerra o vídeo
     },
 }
+
+
+def load_programas(paths):
+    """Lê assets/comum/programas.json: {categoria: [nomes de programa]}. Categoria ou nome inválido é ignorado."""
+    salvo = read_json(paths.programas, default=None)
+    if not isinstance(salvo, dict):
+        return {}
+    return {categoria: [nome for nome in nomes if isinstance(nome, str)]
+            for categoria, nomes in salvo.items() if isinstance(nomes, list)}
 
 
 def check_assets(conteudo):
@@ -214,6 +352,9 @@ DEFAULT_PET = {
     "brincadeira": {"bola": 1.0, "arremesso": 0.6, "postit": 0.5},   # pesos: 0 desliga
     "temperamento": {},
     "reacao_notebook": "bravo",         # o que sente se arrancarem o notebook: "bravo" ou "triste"
+    "persona": None,                    # como ele fala com a IA (texto livre); sem isso, a persona padrão
+    "exemplos": [],                     # falas que mostram o jeito dele (a IA pega o tom, não copia)
+    "evitar": [],                       # frases batidas que ele nunca deve dizer
 }
 
 
@@ -254,6 +395,12 @@ def _pet_valido(saved):
         out["temperamento"] = dict(temp)
     if saved.get("reacao_notebook") in ("bravo", "triste"):
         out["reacao_notebook"] = saved["reacao_notebook"]
+    if isinstance(saved.get("persona"), str) and saved["persona"].strip():
+        out["persona"] = saved["persona"].strip()[:2000]
+    for campo in ("exemplos", "evitar"):
+        lista = saved.get(campo)
+        if isinstance(lista, list):
+            out[campo] = [t.strip()[:200] for t in lista if isinstance(t, str) and t.strip()][:12]
     if isinstance(saved.get("aparencia"), dict):
         out["aparencia"] = dict(saved["aparencia"])    # cores e acessórios: validados em body/desenho_rosto.py
     return out

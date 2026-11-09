@@ -1,4 +1,4 @@
-# Bilhetes que o Bryan cola quando está triste. Um por linha. Linhas com # são ignoradas.
+# Bilhetes que o Bob cola quando está triste. Um por linha. Linhas com # são ignoradas.
 # Pode editar com o app rodando: ele relê o arquivo sozinho.
 
 ninguém lê o que eu escrevo
