@@ -55,6 +55,7 @@ DEFAULT_PERMISSIONS = {
     "ver_tela": False,         # print da tela + título da janela vão para o modelo de IA
     "comentarios": True,       # ele comenta em balão o que vê (só com ver_tela)
     "jogos": False,            # em jogo, ele olha bem mais seguido para acompanhar a partida (só com ver_tela)
+    "estudar_jogos": False,    # lê sobre o jogo (Wikipédia, só o nome) e segue seu progresso sem spoiler (só com jogos)
     "desenhar": True,          # ele pode desenhar por cima da tela para mostrar algo (só com ver_tela)
     "videos": False,           # ouve o som do computador num vídeo, fica quieto e depois resume (precisa de ia)
     "conversa": True,          # chat por texto pelo menu do pet
@@ -119,6 +120,14 @@ PERMISSION_GROUPS = [
          "comentando, sem passear nem aprontar; a tela cheia do jogo não esconde ele no outro monitor. Com um "
          "monitor só, para ele aparecer por cima do jogo, ligue também \"Aparecer em tela cheia\" e jogue em "
          "janela sem borda."),
+        ("estudar_jogos", "Estudar os jogos (sem spoiler)",
+         "Quando ele percebe qual jogo você está jogando (pela tela ou pelo título da janela), procura o jogo "
+         "na Wikipédia (vai só o nome do jogo) e o modelo de IA resume a premissa, as mecânicas, dicas e a "
+         "história inteira em trechos; sem artigo, com o Hermes conectado, ele pesquisa. Fica guardado em "
+         "memory/pets/<pet>/jogos.json, junto com onde ele te viu no jogo (capítulo, área, missão). A cada "
+         "lugar novo, ele descobre em que parte da história você está: a história só vai para o modelo até "
+         "ali, então ele não dá spoiler. No chat, peça \"pode dar spoiler\" ou \"como termina?\" para ele "
+         "contar o resto. Só com \"Acompanhar jogos\"."),
         ("desenhar", "Desenhar na tela",
          "Quando quer te mostrar algo que está na tela (um erro, um botão, algo que chamou a atenção dele), ele "
          "rabisca um círculo, um quadrado, uma seta ou um ícone por cima, por alguns segundos. Peça no chat: "

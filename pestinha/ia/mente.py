@@ -46,6 +46,22 @@ INSTRUCOES_MUSICA = (
 _TOCAR = re.compile(r"(?:^[ \t*_]*(?i:tocar)[ \t*_]*:|(?<!\w)TOCAR\b[ \t*_]*[:\-–=]?)[ \t*_]*(.*?)[ \t*_.!]*$",
                     re.MULTILINE)
 
+INSTRUCOES_JOGO = (
+    " Ela está jogando e você está acompanhando a partida de perto, como um amigo que entende do jogo. "
+    "Comente a JOGABILIDADE: o que ela fez desde a última olhada e como fez (uma jogada boa, uma morte, um "
+    "chefe, a build, o equipamento, a estratégia, a mira, o timing, os recursos, uma decisão arriscada, um "
+    "item ou uma conquista). Se foi bem, comemore ou elogie o lance específico; se ela se deu mal, zoe com "
+    "carinho e, se souber, diga numa frase o que costuma funcionar ali (uma mecânica, uma dica), como "
+    "sugestão, nunca ordem. Nunca comente o visual, a atmosfera, o clima, os gráficos, a música ou o "
+    "cenário (nada de \"que lugar sombrio\", \"que atmosfera\", \"que bonito\"), nem narre o que está na "
+    "tela. Sem spoiler: nunca fale do que vem depois na história, de reviravoltas, de quem trai, morre ou é "
+    "o vilão de verdade, nem de lugares ou chefes que ela ainda não viu; da história, só o que ela já viveu. "
+    "Se não mudou nada que valha, fique quieto. "
+    "Em \"jogo\", o nome do jogo (se der para saber pela tela ou pelo título; senão \"\"). Em \"onde\", onde "
+    "ela está no jogo, pelo que aparece na tela (capítulo, missão, área, chefe), em até 10 palavras, ou \"\" "
+    "se não der para saber."
+)
+
 INSTRUCOES_VOZ = (
     "(Ela falou isso em voz alta, chamando você pelo nome. Se for uma dúvida ou pergunta, responda e termine "
     "perguntando, bem curto, se ela quer saber mais alguma coisa. Se for só conversa ou um pedido simples, "
@@ -109,6 +125,16 @@ def bloco_conhecimento(conhecimento):
     return f"[O que você aprendeu em vídeos: {conhecimento}]\n" if conhecimento else ""
 
 
+def bloco_jogo(sobre):
+    """O que ele sabe do jogo de agora, até onde a pessoa chegou (mind/jogos.py), como prefixo (vazio se nada)."""
+    return f"[O que você sabe deste jogo: {sobre}]\n" if sobre else ""
+
+
+def bloco_jogos(sobre):
+    """O que ele sabe dos jogos da pessoa, para o chat (mind/jogos.py), como prefixo (vazio se nada)."""
+    return f"[Os jogos dela: {sobre}]\n" if sobre else ""
+
+
 def bloco_registro(linhas):
     """As últimas linhas do log dele (log.recentes), como prefixo de uma mensagem (vazio se não houver)."""
     return f"[Seu registro recente: {'; '.join(linhas)}]\n" if linhas else ""
@@ -116,11 +142,13 @@ def bloco_registro(linhas):
 
 def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", estado="", ja_disse=(),
                       lembrancas="", pesquisa=False, jogo=False, desenhar=False, video=False,
-                      assistindo=False):
+                      assistindo=False, sobre_jogo=""):
     """Pergunta da observação periódica. A resposta vem em JSON (ver ler_observacao).
 
     Com `pesquisa`, o JSON ganha o campo "pesquisar": um termo para ele procurar na internet (pelo Hermes).
-    Com `jogo`, ele acompanha a partida: repara no que mudou e comemora ou zoa (ver "Acompanhar jogos").
+    Com `jogo`, ele acompanha a partida: comenta a jogabilidade (não o visual), sem spoiler, e o JSON ganha
+    "jogo" (o nome) e "onde" (capítulo, área, missão); `sobre_jogo` é o que ele sabe do jogo até onde a pessoa
+    chegou (mind/jogos.py, com "Estudar os jogos").
     Com `desenhar`, ganha "desenhar": formas para destacar algo na tela (ia/desenho.py).
     Com `video`, ganha "video": se a pessoa está vendo um vídeo com fala (ele pergunta se assiste junto).
     Com `assistindo`, ele já está assistindo junto: o resumo descreve o que aparece no vídeo, sem comentar.
@@ -135,13 +163,15 @@ def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", est
         contexto.append("Você já disse há pouco (não repita nem parafraseie): "
                         + " | ".join(f'"{f}"' for f in ja_disse) + ".")
     return (
-        bloco_estado(estado) + bloco_lembrancas(lembrancas) + " ".join(contexto) + "\n"
+        bloco_estado(estado) + bloco_lembrancas(lembrancas) + (bloco_jogo(sobre_jogo) if jogo else "")
+        + " ".join(contexto) + "\n"
         "Olhe o que a pessoa está fazendo agora e responda SÓ com um JSON, sem texto em volta:\n"
         '{"resumo": "o que ela está fazendo, em até 12 palavras", '
         '"comentario": "uma fala sua para ela, no seu jeito, ou \\"\\" se for melhor ficar quieto", '
         '"graca": 0.0, "erro": 0.0, "foco": 0.0, "novidade": 0.0'
         + (', "pesquisar": ""' if pesquisa else "") + (', "desenhar": []' if desenhar else "")
-        + (', "video": false' if video else "") + '}\n'
+        + (', "video": false' if video else "")
+        + (', "jogo": "", "onde": ""' if jogo else "") + '}\n'
         "graca, erro, foco e novidade vão de 0 a 1: algo engraçado ou divertido na tela; um erro de "
         "verdade (mensagem de erro, teste falhando; código normal não é erro); a pessoa concentrada em "
         "algo sério; algo novo em relação à última olhada. "
@@ -150,10 +180,7 @@ def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", est
         "um risco ou um jeito mais simples, diga numa frase e sugira a alternativa. Nunca questione se aquilo "
         "vale a pena, se é importante ou se vai dar em algo. Fora isso, fique quieto (comentario vazio) na "
         "maior parte das vezes, principalmente se ela estiver focada."
-        + (" Ela está jogando e você está acompanhando a partida de perto: repare no que mudou desde a última "
-           "olhada (um item novo, uma conquista, uma morte, um chefe, uma construção, uma jogada boa). Se foi "
-           "legal, comemore ou elogie; se ela se deu mal, zoe com carinho; se não mudou nada, fique quieto. "
-           "Nunca dê ordens nem fique narrando o jogo." if jogo else "")
+        + (INSTRUCOES_JOGO if jogo else "")
         + (" Você pode pesquisar na internet: se algo na tela chamou sua atenção (um jogo, um item, um erro, "
            "um assunto) e uma curiosidade ou dica ajudaria, ponha em \"pesquisar\" o que procurar, em até 6 "
            "palavras, sem nomes de pessoas, e-mails, senhas, números ou qualquer dado pessoal da tela. Quase "
@@ -232,6 +259,8 @@ class Observacao:
     pesquisar: str = ""                             # termo para pesquisar na internet (vazio: nada)
     desenhar: list = field(default_factory=list)    # formas para destacar na tela (ia/desenho.Forma)
     video: bool = False                             # ela está vendo um vídeo com fala
+    jogo: str = ""                                  # em jogo: o nome do jogo que ele reconheceu
+    onde: str = ""                                  # em jogo: onde ela está (capítulo, área, missão)
 
 
 def _numero(valor):
@@ -243,7 +272,7 @@ def _numero(valor):
 
 # Modelos pequenos às vezes repetem o começo da mensagem: "[Seu estado agora: ...]" não é fala dele.
 _ECO = re.compile(r"\[\s*(?:Seu estado agora|Suas lembranças|Seu registro recente|O que você viu na tela por último"
-                  r"|O que você aprendeu em vídeos|Você pode desenhar)"
+                  r"|O que você aprendeu em vídeos|Você pode desenhar|O que você sabe deste jogo|Os jogos dela)"
                   r"\s*:[^\]]*\]?\s*",
                   re.IGNORECASE)
 _ROTULO = re.compile(r"^\[[^\]]{1,40}\]\s*:?\s*")    # um rótulo curto entre colchetes no começo da fala
@@ -296,7 +325,14 @@ def ler_observacao(texto):
         pesquisar=limpar_fala(dados.get("pesquisar") if isinstance(dados.get("pesquisar"), str) else "")[:MAX_TERMO],
         desenhar=ler_formas(dados.get("desenhar")),
         video=dados.get("video") is True,
+        jogo=_texto_curto(dados.get("jogo"), 80),
+        onde=_texto_curto(dados.get("onde"), 120),
     )
+
+
+def _texto_curto(valor, limite):
+    """Um campo de texto do JSON, numa linha e cortado; qualquer outra coisa vira ''."""
+    return limpar_fala(valor)[:limite] if isinstance(valor, str) else ""
 
 
 def ler_dica(texto):
@@ -312,12 +348,12 @@ class Conversa:
         """Começa sem nada."""
         self.turnos = []
 
-    def mensagens(self, texto, contexto="", estado="", lembrancas="", registro=(), conhecimento=""):
+    def mensagens(self, texto, contexto="", estado="", lembrancas="", registro=(), conhecimento="", jogos=""):
         """Mensagens para o modelo: o histórico e a fala nova (com o estado da rede, as lembranças, o que
-        aprendeu em vídeos, o log recente dele e a tela)."""
+        aprendeu em vídeos, os jogos dela, o log recente dele e a tela)."""
         nova = texto if not contexto else f"[O que você viu na tela por último: {contexto}]\n{texto}"
         prefixo = (bloco_estado(estado) + bloco_lembrancas(lembrancas) + bloco_conhecimento(conhecimento)
-                   + bloco_registro(registro))
+                   + bloco_jogos(jogos) + bloco_registro(registro))
         return self.turnos + [{"role": "user", "content": prefixo + nova}]
 
     def registrar(self, texto, resposta):

@@ -77,6 +77,7 @@ from .mind.historico import HistoricoChat
 from .mind.video_ctl import VideoController
 from .mind.visao import VisaoController
 from .mind.conhecimento import Conhecimento
+from .mind.jogo_ctl import JogoController
 from .world.rabisco import Rabisco
 from .mind.voz_ctl import VozController
 from .paths import Paths
@@ -230,6 +231,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.rabisco = Rabisco()                        # a IA desenha por cima da tela para mostrar algo
         self.visao.desenho.connect(self._desenhar)
         self.conhecimento = Conhecimento(self.pet_paths.conhecimento, memoria_remota.maquina_atual())
+        self.jogo = JogoController(self, self.pet_paths.jogos)     # o jogo de agora, a lore e o seu progresso
+        self.jogo.fala.connect(self._mostrar_fala)
         self.video = VideoController(self, self.nome)   # assiste vídeos com você e resume
         self.video.fala.connect(self._mostrar_fala)
         self.video.resumo.connect(self._resumo_do_video)
@@ -543,7 +546,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         mente = set()
         if v.olhando:
             mente.add("olhando")
-        if v.pesquisando or v.buscando_imagem or v.ferramentas:
+        if v.pesquisando or v.buscando_imagem or v.ferramentas or self.jogo.estudando:
             mente.add("pesquisando")                  # o Hermes usando uma ferramenta: IA vilã
         elif v.respondendo or self.voz.transcrevendo or self.video.resumindo:
             mente.add("pensando")                     # pensando na resposta: detetive

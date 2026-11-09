@@ -55,6 +55,12 @@ Só valem com **Usar IA** ligado em Configurações, e cada parte tem a própria
   provedor (a cada ~8 s com o Ollama, ~1 min com uma API paga), com as mesmas regras de cima: nada é
   gravado. Para comparar com o anterior, ele guarda na memória só uma miniatura cinza de 32×18 do último
   print enviado. Para reconhecer o Minecraft Java, lê o título da janela, como já faz com **Ver minha tela**.
+- **Estudar os jogos (desligado por padrão, só com Acompanhar jogos):** quando ele reconhece o jogo, manda
+  **só o nome do jogo** para a busca da Wikipédia; o artigo (jogabilidade e enredo) vai para o mesmo
+  provedor de IA, que resume. Sem artigo, com o Hermes conectado, vai para o Hermes só o nome do jogo. Em
+  `memory/pets/<pet>/jogos.json` ficam o resumo do jogo e os últimos lugares em que ele te viu (capítulo,
+  área, missão, até 120 caracteres cada) com a hora; nunca o print nem o título. Com a memória
+  compartilhada, esse arquivo vai junto.
 - O pânico (`Ctrl + Alt + Shift + B`) corta tudo, inclusive a resposta que ainda estava a caminho.
 
 ## Falar com ele: voz para texto (desligado por padrão)

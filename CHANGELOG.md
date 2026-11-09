@@ -1,5 +1,19 @@
 # Histórico de versões
 
+## Companheiro de jogo que entende do jogo
+
+- **Comenta a jogabilidade, não o visual:** em jogo, ele fala da jogada, da build, do equipamento, da
+  estratégia, da morte para o chefe, e sugere uma mecânica quando você se dá mal. Nada mais de "que
+  atmosfera sombria" ou "que lugar bonito".
+- **Estudar os jogos (sem spoiler):** opção nova em Configurações, abaixo de "Acompanhar jogos". Quando ele
+  reconhece o jogo (pela tela ou pelo título, confirmado em duas olhadas), lê o artigo da Wikipédia (só
+  o nome do jogo vai para lá) e a IA resume premissa, mecânicas, dicas e a história inteira em trechos,
+  guardados em `memory/pets/<pet>/jogos.json`. Sem artigo, com o Hermes, ele pesquisa.
+- **Sabe onde você está:** cada olhada diz onde você está no jogo (capítulo, área, missão); quando muda,
+  ele descobre em que trecho da história isso fica, e o progresso só sobe. A história só vai para o
+  modelo até ali, então ele não tem como dar spoiler. No chat, "pode dar spoiler" ou "como termina?"
+  libera o resto.
+
 ## Histórico do chat
 
 - **O chat guarda a conversa:** o que você pediu, escrevendo ou falando (com um 🎤), e as respostas dele

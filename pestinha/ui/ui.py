@@ -750,6 +750,7 @@ class SettingsDialog(QDialog):
             self.boxes[key].setEnabled(ia)
         self.boxes["comentarios"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["jogos"].setEnabled(ia and self.perms["ver_tela"])
+        self.boxes["estudar_jogos"].setEnabled(ia and self.perms["ver_tela"] and self.perms["jogos"])
         self.boxes["desenhar"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["videos"].setEnabled(ia)
         self.boxes["voz"].setEnabled(ia and self.perms["conversa"])

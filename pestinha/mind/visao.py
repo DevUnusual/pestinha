@@ -15,7 +15,9 @@ Dois caminhos, os dois em thread para o pet não travar enquanto o modelo pensa:
                (linha "IMAGEM:"); sem link ou sem Hermes, o link vem da Wikipédia. Uma thread baixa e o pet
                projeta como holograma (ia/imagem.py, world/holograma.py).
     jogo       com "Acompanhar jogos", em jogo ele olha a cada poucos segundos (visao_jogo), pula o print
-               se a tela quase não mudou e fala no máximo a cada `fala_jogo`.
+               se a tela quase não mudou e fala no máximo a cada `fala_jogo`. Comenta a jogabilidade, não o
+               visual. Com "Estudar os jogos", a olhada diz qual é o jogo e onde você está, e ele lê sobre o
+               jogo e acompanha o seu progresso na história, sem spoiler (mind/jogo_ctl.py).
     desenhar   com "Desenhar na tela", a olhada (campo "desenhar") ou a resposta do chat (linha "DESENHAR:")
                pode trazer formas sobre o print; elas são desenhadas no monitor que foi fotografado
                (ia/desenho.py, world/rabisco.py).
@@ -239,6 +241,9 @@ class VisaoController(QObject):
         self.geracao += 1
         self.olhando = self.respondendo = self.pesquisando = self.buscando_imagem = False
         self.ferramentas = 0
+        jogo = getattr(self.app, "jogo", None)
+        if jogo is not None:
+            jogo.cancelar()
 
     def chave_nova(self):
         """Você salvou uma chave: recria o cliente e olha de novo logo (sem esperar o tempo de erro)."""
@@ -272,6 +277,16 @@ class VisaoController(QObject):
         """O que ele aprendeu assistindo vídeos com você (mind/conhecimento.py), para o chat."""
         conhecimento = getattr(self.app, "conhecimento", None)
         return conhecimento.contexto(texto) if conhecimento is not None else ""
+
+    def sobre_jogo(self):
+        """O que ele sabe do jogo de agora, até onde você chegou (mind/jogo_ctl.py). '' se nada."""
+        jogo = getattr(self.app, "jogo", None)
+        return jogo.contexto_olhada() if jogo is not None else ""
+
+    def jogos(self, texto=""):
+        """O que ele sabe dos seus jogos, para o chat (a história adiante só se você pediu spoiler)."""
+        jogo = getattr(self.app, "jogo", None)
+        return jogo.contexto_chat(texto) if jogo is not None else ""
 
     def lembrado(self):
         """O que ele viu nos outros computadores (só com "Lembrar o que viu")."""
@@ -324,7 +339,8 @@ class VisaoController(QObject):
                                      self.estado(), self.ja_disse, self.lembrado(),
                                      self.pode_pesquisar(now) and not assistindo, jogo,
                                      desenhar=bool(imagem) and self.pode_desenhar() and not assistindo,
-                                     video=self.perms["videos"] and not assistindo, assistindo=assistindo)
+                                     video=self.perms["videos"] and not assistindo, assistindo=assistindo,
+                                     sobre_jogo=self.sobre_jogo() if jogo else "")
         self.olhando = True
         self._em_thread("observacao", cliente, [{"role": "user", "content": pergunta}], imagem)
 
@@ -370,7 +386,8 @@ class VisaoController(QObject):
         imagem = self._print() if cliente is not None and self.vendo() and cliente.ve_imagem else None
         self._onde_conversa = self._tela_print if imagem else None
         mensagens = self.conversa.mensagens(texto, self.ultimo_resumo if self.vendo() else "", self.estado(),
-                                            self.lembrado(), log_recente(), self.conhecido(texto))
+                                            self.lembrado(), log_recente(), self.conhecido(texto),
+                                            self.jogos(texto))
         if imagem and self.pode_desenhar():
             mensagens[-1] = dict(mensagens[-1], content=mensagens[-1]["content"] + "\n" + INSTRUCOES_DESENHO)
         if por_voz:
@@ -543,6 +560,8 @@ class VisaoController(QObject):
         app.senses.saw(obs.sinais)
         if obs.resumo and self.assistindo_video():
             app.video.viu_tela(obs.resumo)             # o que aparece no vídeo vai para o resumo dele
+        if self.em_jogo() and not self.assistindo_video() and getattr(app, "jogo", None) is not None:
+            app.jogo.viu(obs.jogo, obs.onde, time.monotonic())     # qual jogo e onde você está nele
         novidade = obs.sinais.get("VISAO_NOVO", 0.0)
         if novidade > 0.3:
             app.drives.stimulate("novelty", novidade)  # coisa nova na tela também tira o tédio

@@ -65,6 +65,11 @@ class PetPaths:
         return self.base / "conhecimento.jsonl"
 
     @property
+    def jogos(self):
+        """O que ele sabe dos seus jogos e até onde você chegou em cada um (mind/jogos.py)."""
+        return self.base / "jogos.json"
+
+    @property
     def historico_chat(self):
         """O histórico do chat (mind/historico.py). Fica fora de todos(): não vai para a memória compartilhada."""
         return self.base / "historico_chat.jsonl"
