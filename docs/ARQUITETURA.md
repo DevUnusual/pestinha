@@ -125,7 +125,9 @@ outro pet. Os cartazes do cantinho do castigo são as seções `[castigo]` e `[x
 
 ## Persistência
 
-Todos os arquivos ficam em `memory/` (veja [PRIVACIDADE.md](../PRIVACIDADE.md)). Os caminhos saem só de
+Todos os arquivos ficam na pasta de dados (veja [PRIVACIDADE.md](../PRIVACIDADE.md)): `memory/` ao lado do
+programa ou, no executável do Windows sem uma `memory/` já existente, `%LOCALAPPDATA%\Pestinha`
+(`paths.pasta_de_dados`). Os caminhos saem só de
 `paths.py`: `Paths` tem o que é global (permissões, rotina, painéis, log) e `Paths.pet(id)` devolve um
 `PetPaths` com os oito arquivos de estado de um personagem, em `memory/pets/<id>/`. O id passa por
 `pet_id_valido` antes de virar nome de pasta.

@@ -147,6 +147,11 @@ class SettingsDialog(QDialog):
         self.active_box.setChecked(perms["ativo"])
         self.active_box.toggled.connect(lambda on: self._set("ativo", on))
         top_layout.addWidget(self.active_box)
+        if plataforma.TEM_INICIO_AUTOMATICO:
+            self.inicio_box = QCheckBox(f"Abrir o {config.APP_NOME} ao entrar no {plataforma.NOME_DO_SISTEMA}")
+            self.inicio_box.setChecked(plataforma.inicia_com_sistema())
+            self.inicio_box.toggled.connect(self._definir_inicio)
+            top_layout.addWidget(self.inicio_box)
         if not perms["ativo"]:
             warn = QLabel(f"O pânico desligou o {config.APP_NOME} na última vez. Marque acima para religar.")
             warn.setObjectName("hint")
@@ -200,6 +205,10 @@ class SettingsDialog(QDialog):
                 everything = QPushButton(f"Apagar todos os dados do {config.APP_NOME}")
                 everything.clicked.connect(self._wipe_everything)
                 layout.addWidget(everything)
+                pasta = QLabel(f"Pasta de dados: {self.paths.memory}")
+                pasta.setObjectName("hint")
+                pasta.setWordWrap(True)
+                layout.addWidget(pasta)
                 self._update_history_label()
             if group_title == "Visão e conversa (IA)":
                 self._montar_provedor(layout)
@@ -708,7 +717,7 @@ class SettingsDialog(QDialog):
         """Apaga a rotina (timeline.csv) depois de pedir confirmação."""
         answer = QMessageBox.question(
             self, "Apagar histórico",
-            "Apagar todo o histórico da sua rotina (memory/timeline.csv)? Não dá para desfazer.",
+            f"Apagar todo o histórico da sua rotina ({self.paths.timeline})? Não dá para desfazer.",
         )
         if answer == QMessageBox.Yes:
             try:
@@ -722,11 +731,22 @@ class SettingsDialog(QDialog):
         """Apaga todos os dados do app depois de pedir confirmação; o app fecha em seguida."""
         answer = QMessageBox.question(
             self, "Apagar todos os dados",
-            f"Apagar tudo que o {config.APP_NOME} guardou (pasta memory/: a memória de todos os "
-            f"personagens, histórico, painéis, permissões)? O {config.APP_NOME} vai fechar. Não dá para desfazer.",
+            f"Apagar tudo que o {config.APP_NOME} guardou ({self.paths.memory}: a memória de todos os "
+            f"personagens, histórico, painéis, permissões)? O {config.APP_NOME} vai fechar e deixa de abrir "
+            "sozinho com o sistema. Não dá para desfazer.",
         )
         if answer == QMessageBox.Yes:
+            plataforma.definir_inicio_com_sistema(False)
             self.wipe_all.emit()
+
+    def _definir_inicio(self, ligado):
+        """Liga ou desliga o início com o sistema; se o sistema recusar, avisa e desfaz a marcação."""
+        if plataforma.definir_inicio_com_sistema(ligado):
+            return
+        self.inicio_box.blockSignals(True)
+        self.inicio_box.setChecked(not ligado)
+        self.inicio_box.blockSignals(False)
+        QMessageBox.warning(self, config.APP_NOME, "O sistema não permitiu mudar essa opção.")
 
     def _trocar_pet(self, _indice):
         """Só grava a escolha: o pet que está na tela continua até reabrir (a memória dele é outra)."""

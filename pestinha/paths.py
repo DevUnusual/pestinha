@@ -15,6 +15,7 @@ Arquivos da versão antiga (tudo solto em memory/) são migrados por pestinha/mi
 originais ficam guardados em memory/legado/<pet>/.
 """
 
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -31,6 +32,20 @@ ID_DE_PET = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")    # vira nome de pasta: n
 def pet_id_valido(pet_id):
     """Diz se o id pode virar nome de pasta: só minúsculas, números, '-' e '_', até 40 caracteres."""
     return isinstance(pet_id, str) and bool(ID_DE_PET.match(pet_id))
+
+
+def pasta_de_dados(root, congelado=None, sistema=sys.platform, ambiente=os.environ):
+    """
+    Onde gravar a memória. O padrão é memory/ ao lado do programa, mas o executável do Windows pode estar
+    numa pasta sem permissão de escrita (Program Files): sem uma memory/ já existente, usa %LOCALAPPDATA%.
+    """
+    if congelado is None:
+        congelado = getattr(sys, "frozen", False)
+    ao_lado = Path(root) / "memory"
+    local = ambiente.get("LOCALAPPDATA")
+    if congelado and sistema == "win32" and local and not ao_lado.exists():
+        return Path(local) / "Pestinha"
+    return ao_lado
 
 
 @dataclass(frozen=True)
@@ -175,8 +190,14 @@ class ConteudoPaths:
 
 @dataclass(frozen=True)
 class Paths:
-    """Todos os caminhos do app. Por padrão, a pasta do programa (ou a do .exe, empacotado)."""
+    """Todos os caminhos do app. `root` é a pasta do programa (ou a do .exe); `dados`, a da memória."""
     root: Path = ROOT
+    dados: Path = None
+
+    def __post_init__(self):
+        """Sem `dados` explícito, escolhe a pasta da memória pela regra de pasta_de_dados."""
+        if self.dados is None:
+            object.__setattr__(self, "dados", pasta_de_dados(self.root))
 
     # ----- conteúdo que você edita -----
 
@@ -189,6 +210,11 @@ class Paths:
     def comum(self):
         """Conteúdo neutro, de qualquer personagem: imagens da bolinha e do notebook, suas fotos."""
         return self.assets / "comum"
+
+    @property
+    def programas(self):
+        """Programas extras que contam como trabalho, jogo, música etc. (lista que você edita)."""
+        return self.comum / "programas.json"
 
     @property
     def pets(self):
@@ -216,8 +242,8 @@ class Paths:
 
     @property
     def memory(self):
-        """Pasta memory/: tudo que é seu e do app, fora do código."""
-        return self.root / "memory"
+        """Pasta da memória (memory/ ou %LOCALAPPDATA%\\Pestinha): tudo que é seu e do app, fora do código."""
+        return self.dados
 
     @property
     def permissions(self):

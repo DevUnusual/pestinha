@@ -33,6 +33,8 @@ from PySide6.QtWidgets import QSystemTrayIcon
 from . import config
 from . import log as log_module
 from . import memoria_remota, migracao
+from . import plataforma
+from .store import pasta_gravavel
 from .ajustes import (
     DURACAO_CARINHO,
     ATIVIDADE_MINIMA_VOO as REFLEX_MIN_HZ,
@@ -151,6 +153,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.protest.load(self.prof)
 
         # ----- sentidos -----
+        senses.definir_programas(config.load_programas(self.paths))
         self.senses = senses.ComputerSenses()
         self.tracker = senses.ActivityTracker()
         self.activity = "IDLE"
@@ -296,6 +299,8 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             problems.append(self.aviso_migracao)
         if self.aviso_memoria:
             problems.append(self.aviso_memoria)
+        if not pasta_gravavel(self.paths.memory):
+            problems.append(f"sem permissão para gravar em {self.paths.memory}: o que ele aprender será perdido ao fechar")
         if not self.hotkey.ok:
             problems.append(f"atalho de pânico {config.PANIC_HOTKEY_TEXT} já está em uso por outro programa")
         if problems:
@@ -349,14 +354,20 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         g = QGuiApplication.primaryScreen().availableGeometry()
         return g.x(), g.y(), g.x() + g.width(), g.y() + g.height()
 
+    def _telas(self):
+        """Telas para converter pixels físicos: [(x, y, largura, altura, dpr)], a principal primeiro."""
+        principal = QGuiApplication.primaryScreen()
+        # só o Windows entrega pixels físicos e conserva o canto de cada tela no Qt (ver nativo_para_logico)
+        outras = [s for s in QGuiApplication.screens() if s != principal] if plataforma.NOME_DO_SISTEMA == "Windows" else []
+        return [(s.geometry().x(), s.geometry().y(), s.geometry().width(), s.geometry().height(), s.devicePixelRatio())
+                for s in [principal, *outras]]
+
     def scan_windows(self):
-        """Barras de título onde ele pode pousar, em coordenadas lógicas do Qt."""
+        """Barras de título onde ele pode pousar, em todos os monitores, em coordenadas lógicas do Qt."""
         if not self.perms["pousar_janelas"] or not self.pet.isVisible():
             self.platforms = []
             return
-        screen = QGuiApplication.primaryScreen()
-        dpr = screen.devicePixelRatio()
-        g = screen.geometry()
+        telas = self._telas()
         exclude = {int(self.pet.winId())} | {int(t.winId()) for t in self.mischief.things}
         exclude |= self.floats.visible_handles()
         exclude |= {int(w.winId()) for w in self.revolucao.janelas()}
@@ -366,14 +377,18 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
             exclude.add(int(self.ball.winId()))
         above = []
         platforms = []
-        for hwnd, (l, t, r, b), maximized in senses.list_windows(exclude, dpr):
-            l, t, r, b = l / dpr, t / dpr, r / dpr, b / dpr
+        for hwnd, (l, t, r, b), maximized in senses.list_windows(exclude, telas[0][4]):
+            tela = senses.tela_nativa((l + r) / 2, (t + b) / 2, telas)
+            if tela is None:
+                continue
+            l, t = senses.nativo_para_logico(l, t, tela)
+            r, b = senses.nativo_para_logico(r, b, tela)
             mid = (l + r) / 2
             covered = any(al <= mid <= ar and at <= t + 2 <= ab for al, at, ar, ab in above)
             above.append((l, t, r, b))
             if maximized or covered:
                 continue
-            if not (g.left() <= mid <= g.right() and g.top() + 40 <= t <= g.bottom() - 100):
+            if not tela[1] + 40 <= t <= tela[1] + tela[3] - 101:
                 continue
             platforms.append((hwnd, l + 10, r - 10, t))
         self.platforms = platforms
@@ -401,11 +416,13 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
                 self.activity, self.idle_seconds, events, self.tracker.session_seconds, self.keyboard_active
             )
         if "APP_CHANGED" in events:
-            dpr = QGuiApplication.primaryScreen().devicePixelRatio()
-            rect = senses.foreground_rect(dpr)
+            telas = self._telas()
+            rect = senses.foreground_rect(telas[0][4])
             if rect:
-                self.behavior.look_at((rect[0] + rect[2]) / 2 / dpr, (rect[1] + rect[3]) / 2 / dpr,
-                                      time.monotonic())
+                x, y = (rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2
+                tela = senses.tela_nativa(x, y, telas)
+                if tela:
+                    self.behavior.look_at(*senses.nativo_para_logico(x, y, tela), time.monotonic())
         self.tela_cheia_bruta = senses.is_fullscreen()
         # assistindo você jogar de outro monitor: a tela cheia do jogo não esconde ele (mind/assistir.py)
         fullscreen = self.tela_cheia_bruta and not self.assistir.libera_tela_cheia()

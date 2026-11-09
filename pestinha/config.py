@@ -36,6 +36,7 @@ PTT_HOTKEY_TEXT = "Ctrl + Alt + Shift + V"     # segurar para falar com ele (mac
 
 DEFAULT_PERMISSIONS = {
     "ativo": True,             # False depois do pânico, até religar na tela inicial
+    "configurado": False,      # True depois de clicar em Começar: as próximas aberturas pulam a tela
     "pet": "bryan",
     "travessuras": False,      # interruptor mestre de memes/fotos/bilhetes
     "memes": True,
@@ -46,7 +47,7 @@ DEFAULT_PERMISSIONS = {
     "arrastar": True,
     "pousar_janelas": True,
     "tela_cheia": False,       # experimental: aparecer em jogo/vídeo/apresentação
-    "rotina": True,            # grava a timeline por minuto (só categorias) para o LSTM
+    "rotina": False,           # grava a timeline por minuto (só categorias); nada usa esses dados ainda
     "modo_teste": False,       # desligado por padrão: o modo teste é só para desenvolvimento
     "mostrar_emocao": False,   # só vale com modo_teste ligado
     "bolinha": True,           # a bolinha para ele brincar
@@ -96,9 +97,9 @@ PERMISSION_GROUPS = [
          "Por padrão ele some em jogos, vídeos e apresentações."),
     ]),
     ("Rotina", [
-        ("rotina", "Aprender minha rotina",
-         "Grava 1 linha por minuto em memory/timeline.csv: hora, categoria de atividade, "
-         "trocas de programa, ocioso. Nunca títulos, sites ou conteúdo."),
+        ("rotina", "Registrar minha rotina",
+         "Grava 1 linha por minuto em timeline.csv, na pasta de dados: hora, categoria de atividade, "
+         "trocas de programa, ocioso. Nunca títulos, sites ou conteúdo. O pet ainda não usa esse histórico."),
     ]),
     ("Brincadeira", [
         ("fogos", "Fogos de artifício", "Quando ele fica muito feliz, a alegria da rede pode soltar um fogo."),
@@ -289,6 +290,15 @@ PROFILES = {
         "video_silencio": 240.0,     # 4 min sem som: pausa curta não encerra o vídeo
     },
 }
+
+
+def load_programas(paths):
+    """Lê assets/comum/programas.json: {categoria: [nomes de programa]}. Categoria ou nome inválido é ignorado."""
+    salvo = read_json(paths.programas, default=None)
+    if not isinstance(salvo, dict):
+        return {}
+    return {categoria: [nome for nome in nomes if isinstance(nome, str)]
+            for categoria, nomes in salvo.items() if isinstance(nomes, list)}
 
 
 def check_assets(conteudo):

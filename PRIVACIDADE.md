@@ -203,16 +203,20 @@ Na rede local tudo passa sem criptografia (http), a não ser que você use um en
 `PESTINHA_MEMORIA_TOKEN`, qualquer um da sua rede pode ler o servidor. **Apagar todos os dados** apaga só
 este computador: no servidor, apague a pasta do pet em `~/pestinha-memoria/dados/`.
 
-## O que ele grava (tudo em `memory/`)
+## O que ele grava
+
+Tudo fica na pasta de dados, mostrada na tela de configurações. Ela é `memory/` ao lado do programa ou, no
+executável do Windows, `%LOCALAPPDATA%\Pestinha` (a menos que já exista uma `memory/` ao lado dele). Abaixo,
+`memory/` significa essa pasta. Desinstalar o programa não apaga esses dados.
 
 Do app e seu, direto em `memory/`:
 
 | Arquivo | Conteúdo |
 |---|---|
 | `permissions.json` | As opções que você escolheu |
-| `timeline.csv` | Uma linha por minuto: hora, categoria de programa, trocas de janela, ocioso. Só com "Aprender minha rotina" ligado |
+| `timeline.csv` | Uma linha por minuto: hora, categoria de programa, trocas de janela, ocioso. Só com "Registrar minha rotina" ligado, que vem desligado. O pet ainda não usa esse histórico |
 | `panels.json` | Posição dos painéis, do notebook e da placa |
-| `logs/pestinha.log` | Mensagens do programa (sem conteúdo de janelas) |
+| `logs/pestinha.log` | Mensagens do programa e erros inesperados (sem conteúdo de janelas) |
 
 De cada personagem, em `memory/pets/<pet>/` (um personagem não lê a memória do outro):
 
@@ -238,8 +242,15 @@ os arquivos antigos e avisa no ícone da bandeja.
 
 - Na tela de configurações, **Apagar histórico** apaga a rotina (`timeline.csv`), inclusive o minuto que
   ainda estava na memória.
-- **Apagar todos os dados do Pestinha** apaga a pasta `memory/` inteira, com a memória de todos os personagens (pede confirmação e fecha o programa).
+- **Apagar todos os dados do Pestinha** apaga a pasta `memory/` inteira, com a memória de todos os personagens (pede confirmação, desliga o início com o Windows e fecha o programa). Se algum arquivo não puder ser apagado, ele avisa quais foram antes de fechar.
 - Você também pode apagar a pasta `memory/` manualmente, com o programa fechado.
+
+## Fora da pasta de dados
+
+- **Abrir ao entrar no Windows** (desligado por padrão) grava uma entrada em
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, só para o seu usuário.
+- Um arquivo de trava na pasta temporária do sistema impede abrir duas cópias. Não contém dados seus além do
+  número do processo e do nome do computador.
 
 ## Controle
 

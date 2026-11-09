@@ -45,6 +45,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_jogo.py` | Acompanhar jogos (#4): o Ollama sem "pensar", o reconhecimento do jogo, o pedido de jogo, o print repetido que não é mandado e o freio da fala, com o controlador dentro do app de verdade (Qt offscreen, modelo falso). |
 | `test_jorge.py` | Etapa 4 do multipet: o Jorge, segundo personagem, feito só de configuração e conteúdo. |
 | `test_memoria.py` | Memória compartilhada: o serviço de servidor/memoria/ de verdade (numa porta livre, pasta temporária) e dois "computadores" (duas pastas) sincronizando por ele. |
+| `test_melhorias_windows.py` | Melhorias para o Windows: tela cheia, vários monitores, pasta de dados, uma cópia só, início automático e fechamento seguro. |
 | `test_mesa.py` | Notebook: sentar e levantar pelo disparo do neurônio SENTAR. |
 | `test_migracao.py` | Etapa 1 do multipet: memória por pet (memory/pets/<pet>/) e a migração da versão antiga. |
 | `test_musica.py` | Música pelo chat: "toca um lo-fi" monta a fila no YouTube Music, 👍/👎/pulo/ouvir até o fim ensinam o gosto e a fila se renova pelo rádio. |

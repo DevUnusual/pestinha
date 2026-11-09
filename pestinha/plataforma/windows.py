@@ -1,8 +1,11 @@
 """Windows: a API do sistema (user32, dwmapi) via ctypes e pywin32. Retângulos em pixels físicos."""
 
 import ctypes
+import sys
 import threading
+import winreg
 from ctypes import wintypes
+from pathlib import Path
 
 import psutil
 import pywintypes
@@ -19,6 +22,9 @@ MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT = 0x1, 0x2, 0x4, 0x4000
 WM_HOTKEY = 0x0312
 HOTKEY_ID = 0xB0DD
 HOTKEY_FALAR_ID = 0xB0DE
+
+CHAVE_INICIO = r"Software\Microsoft\Windows\CurrentVersion\Run"
+VALOR_INICIO = "Pestinha"
 
 
 class LASTINPUTINFO(ctypes.Structure):
@@ -87,6 +93,11 @@ def tela_cheia():
         return False
     try:
         if win32gui.GetClassName(hwnd) in SHELL_CLASSES:
+            return False
+        # maximizada também passa das bordas do monitor quando não há barra de tarefas nele (ou ela se
+        # esconde sozinha); o que separa as duas é a moldura, que a tela cheia de verdade não tem
+        estilo = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+        if ctypes.windll.user32.IsZoomed(hwnd) and estilo & (win32con.WS_CAPTION | win32con.WS_THICKFRAME):
             return False
         left, top, right, bottom = win32gui.GetWindowRect(hwnd)
         monitor = win32api.MonitorFromWindow(hwnd, win32con.MONITOR_DEFAULTTONEAREST)
@@ -175,6 +186,43 @@ def sem_foco_nativo(janela_id):
         win32gui.SetWindowLong(janela_id, win32con.GWL_EXSTYLE, style)
     except Exception:
         pass    # sem janela nativa (ex.: teste offscreen)
+
+
+def comando_de_inicio():
+    """O comando que abre o programa ao entrar no Windows, sem a tela de permissões nem terminal."""
+    if getattr(sys, "frozen", False):
+        return f'"{sys.executable}" --direto'
+    python = Path(sys.executable)
+    sem_terminal = python.with_name("pythonw.exe")
+    if sem_terminal.exists():
+        python = sem_terminal
+    return f'"{python}" "{Path(__file__).resolve().parents[2] / "main.py"}" --direto'
+
+
+def inicia_com_sistema():
+    """Diz se o registro do usuário abre esta cópia do programa ao entrar no Windows."""
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, CHAVE_INICIO) as chave:
+            return winreg.QueryValueEx(chave, VALOR_INICIO)[0] == comando_de_inicio()
+    except OSError:
+        return False
+
+
+def definir_inicio_com_sistema(ligado):
+    """Liga ou desliga o início com o Windows (só para este usuário); devolve True se conseguiu."""
+    try:
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, CHAVE_INICIO) as chave:
+            if ligado:
+                winreg.SetValueEx(chave, VALOR_INICIO, 0, winreg.REG_SZ, comando_de_inicio())
+            else:
+                try:
+                    winreg.DeleteValue(chave, VALOR_INICIO)
+                except FileNotFoundError:
+                    pass
+    except OSError as error:
+        log(f"[início] não deu para mudar o início com o Windows: {error}")
+        return False
+    return True
 
 
 def _registrar(tecla, ident, callback, nome):

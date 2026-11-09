@@ -77,10 +77,11 @@ def test_apagar_memoria_informa_falha_sem_fingir_sucesso(tmp_path, monkeypatch):
     paths = Paths(root=tmp_path)
     paths.memory.mkdir()
 
-    def falhar(_path, onerror):
-        onerror(None, paths.memory / "bloqueado.json", None)
+    def falhar(_path, **callback):
+        (avisar,) = callback.values()      # onexc (3.12+) ou onerror (3.11)
+        avisar(None, paths.memory / "bloqueado.json", None)
 
-    monkeypatch.setattr("main.shutil.rmtree", falhar)
+    monkeypatch.setattr("pestinha.store.shutil.rmtree", falhar)
     sucesso, falhas = apagar_memoria(paths)
 
     assert sucesso is False

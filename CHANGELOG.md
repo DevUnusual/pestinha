@@ -295,6 +295,31 @@ o mesmo de antes.
 - Nada da IA é gravado em disco; pânico, pausa ou desligar a IA descartam a resposta a caminho.
 - Nova camada `pestinha/ia/` (sem Qt), entre `core` e `sense`.
 
+## 0.8.0 — melhorias para o Windows
+
+### Correções
+- Janela maximizada em monitor sem barra de tarefas (ou com a barra oculta) não conta mais como tela cheia.
+- O pet pousa em janelas de todos os monitores, cada um com a própria escala.
+- Falha ao apagar os dados pela bandeja agora avisa quais arquivos ficaram, também no executável sem terminal.
+- Só uma cópia abre por vez, para duas não gravarem na mesma memória.
+- Sem permissão de escrita na pasta de dados, a bandeja avisa em vez de perder o aprendizado em silêncio.
+- Erros não tratados vão para o log, e um erro ao salvar não impede as outras gravações nem o fechamento.
+- Religar depois do pânico desloca os prazos pelo tempo parado, como já acontecia com a pausa.
+
+### Melhorias
+- O registro da rotina vem desligado e passa a se chamar "Registrar minha rotina", porque nada usa esses dados
+  ainda. Quem já tinha a opção salva continua como estava.
+- A tela de permissões só aparece na primeira vez, após o pânico ou com `--configurar`.
+- Opção de abrir ao entrar no Windows, em Configurações.
+- O executável do Windows grava em `%LOCALAPPDATA%\Pestinha`. Uma `memory/` já existente ao lado dele continua valendo.
+- Instalador para Windows com Inno Setup (`instalador/pestinha.iss`).
+- Mais programas reconhecidos (Cursor, Windsurf, Zed, Windows Terminal, IDEs JetBrains, Sublime, Notepad++), e
+  `assets/comum/programas.json` para acrescentar outros.
+- Design, vídeo e 3D passam a contar como trabalho: Blender, Figma, Photoshop, Illustrator, After Effects,
+  Premiere, DaVinci Resolve, CapCut, Krita, Inkscape e os fatiadores Bambu Studio, OrcaSlicer, PrusaSlicer
+  e Cura. Também Antigravity, Kiro, Trae e Android Studio como programação, e jogos populares (LoL,
+  Roblox, Minecraft, Fortnite, Apex, Dota 2, Rocket League, Overwatch, GTA V, Elden Ring) como jogo.
+
 ## Suporte a macOS e Linux
 
 - Toda a leitura do sistema (programa em primeiro plano, tempo ocioso, janelas, tela cheia, foco e o atalho
