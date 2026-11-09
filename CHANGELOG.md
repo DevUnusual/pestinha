@@ -1,5 +1,28 @@
 # Histórico de versões
 
+## Chamadas à IA que sabem se deram certo
+
+- **Limite de resposta por tarefa** (`pestinha/ia/orcamento.py`): olhada 400 tokens, chat 800, notas de
+  vídeo 1500, estudo de jogo e resumo 4096 (trecho da história 400, dica 800). Antes, toda resposta parava
+  em 1024: o estudo de um jogo de história longa passava disso e chegava cortado.
+- **Resposta cortada vira erro**, em vez de chegar pela metade: `stop_reason` "max_tokens" no Claude e
+  `finish_reason` "length" na OpenAI, no DeepSeek, no Ollama e no Hermes. Na OpenAI, o limite vai como
+  `max_completion_tokens`, com folga para o raciocínio e `reasoning_effort` "minimal".
+- **Registro de uso, sem conteúdo** (`pestinha/ia/uso.py`): cada chamada vira uma linha `[uso]` no log e
+  uma linha em `memory/logs/uso_ia.jsonl` (tarefa, provedor, modelo, tokens de entrada e saída, ms, motivo
+  de parada, corte de entrada), com as últimas 5.000 chamadas. A linha `[uso]` não entra no registro que o
+  pet lê no chat. Apagar todos os dados também desliga esse registro.
+- **Orçamento de contexto:** cada pedido é montado para caber na janela do modelo, com espaço para a
+  resposta. O prompt de sistema nunca é cortado. No chat, encolhem primeiro o registro, depois as
+  lembranças, os vídeos, os jogos, a tela e o estado, e só então saem as trocas mais antigas. Na olhada,
+  encolhem as lembranças e o que ele sabe do jogo; no estudo, o fim do artigo; no resumo de vídeo, o que
+  ele viu na tela, as notas do meio e o começo da transcrição restante (o começo e o fim do vídeo ficam).
+- **Corte do Ollama detectado:** a janela é lida do servidor (`/api/ps`, 8192 até conseguir ler), e um
+  pedido que chega com bem menos tokens do que tinha vai para o log, com a dica de aumentar
+  `OLLAMA_CONTEXT_LENGTH`. Guia novo em `servidor/OLLAMA.md`.
+- A avaliação da IA passa a tarefa de cada caso e o orçamento do app; o C3 com `--escala 8`, que antes
+  perdia a instrução do começo, agora passa.
+
 ## Conjunto de avaliação da IA
 
 - **`ferramentas/avaliar_ia.py`:** casos fixos do Apêndice B da auditoria, rodando contra o Ollama (sem

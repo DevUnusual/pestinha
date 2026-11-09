@@ -21,7 +21,7 @@ MAX_BYTES = 1_000_000
 MAX_RECENTES = 200
 _file = None
 _recentes = collections.deque(maxlen=MAX_RECENTES)      # (quando, texto)
-_RUIDO = re.compile(r"^\[(?:homeostase|condicionamento|aprendizado|cutucada|assets|pânico)\]|^\[memória\] \w+\|")
+_RUIDO = re.compile(r"^\[(?:homeostase|condicionamento|aprendizado|cutucada|assets|pânico|uso)\]|^\[memória\] \w+\|")
 
 
 def setup(path):

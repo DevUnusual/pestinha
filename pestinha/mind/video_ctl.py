@@ -34,7 +34,7 @@ import warnings
 
 from PySide6.QtCore import QObject, Signal
 
-from ..ia import video, voz
+from ..ia import orcamento, video, voz
 from ..ia.provedores import ErroIA
 from ..log import log
 from ..sense import senses
@@ -351,7 +351,9 @@ class VideoController(QObject):
             self.transcricao.devolver(pedaco)
             return
         self.condensando = True
-        self._modelo("notas", cliente, video.pedido_notas(self.titulo, pedaco), pedaco)
+        resto = orcamento.disponivel(cliente, "notas", self.app.visao.sistema) - orcamento.tokens(
+            video.pedido_notas(self.titulo, ""))
+        self._modelo("notas", cliente, video.pedido_notas(self.titulo, orcamento.encurtar(pedaco, resto)), pedaco)
 
     def _resumir(self, now):
         """O resumo final (em outra thread). Sem nada ouvido, ele só diz isso."""
@@ -370,9 +372,31 @@ class VideoController(QObject):
             estado = ""
         self.resumindo = True
         self._duracao = now - self.desde
-        pedido = video.pedido_resumo(self.titulo, self.transcricao.notas, self.transcricao.texto(),
-                                     self._duracao, estado, self.transcricao.texto_telas())
+        notas, texto, telas = self.encaixar_resumo(cliente, estado)
+        pedido = video.pedido_resumo(self.titulo, notas, texto, self._duracao, estado, telas)
         self._modelo("resumo", cliente, pedido, None)
+
+    def encaixar_resumo(self, cliente, estado=""):
+        """(notas, transcrição, telas) que cabem no pedido do resumo (ia/orcamento.py), cobrindo o começo e o
+        fim do vídeo. Encolhe primeiro o que ele viu na tela; depois tira as notas do meio (a primeira, que é o
+        começo, fica até o fim); depois encurta o começo da transcrição do resto (o fim do vídeo fica). Assim o
+        servidor nunca corta o pedido (antes, cortava pelo começo e perdia as instruções)."""
+        resto = orcamento.disponivel(cliente, "resumo", self.app.visao.sistema) - orcamento.tokens(
+            video.pedido_resumo(self.titulo, [], "", self._duracao, estado, ""))
+        notas = list(self.transcricao.notas)
+        texto = self.transcricao.texto()
+
+        def das_notas():
+            return orcamento.tokens("\n".join(notas))
+
+        telas = orcamento.encurtar(self.transcricao.texto_telas(), max(0, resto - das_notas() - orcamento.tokens(texto)),
+                                   manter="fim")
+        while len(notas) > 1 and das_notas() + orcamento.tokens(texto) + orcamento.tokens(telas) > resto:
+            notas.pop(1)
+        texto = orcamento.encurtar(texto, max(0, resto - das_notas() - orcamento.tokens(telas)), manter="fim")
+        while notas and das_notas() + orcamento.tokens(texto) + orcamento.tokens(telas) > resto:
+            notas.pop(0)
+        return notas, texto, telas
 
     def _modelo(self, tipo, cliente, pedido, extra):
         """Chama o modelo fora da thread do Qt; o resultado volta por _pronto."""
@@ -381,7 +405,7 @@ class VideoController(QObject):
 
         def trabalho():
             try:
-                resultado = cliente.responder(sistema, [{"role": "user", "content": pedido}], None)
+                resultado = cliente.responder(sistema, [{"role": "user", "content": pedido}], None, tarefa=tipo)
             except ErroIA as erro:
                 resultado = erro
             except Exception as erro:

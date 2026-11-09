@@ -144,7 +144,7 @@ class ClienteFalso:
         self.resposta, self.ve_imagem, self.erro = resposta, ve_imagem, erro
         self.chamadas = []
 
-    def responder(self, sistema, mensagens, imagem=None):
+    def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
         self.chamadas.append((sistema, mensagens, imagem))
         if self.erro:
             raise self.erro

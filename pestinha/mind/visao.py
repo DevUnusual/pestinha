@@ -45,7 +45,7 @@ import time
 from PySide6.QtCore import QBuffer, QIODevice, QObject, QPoint, Qt, Signal
 from PySide6.QtGui import QGuiApplication, QImage
 
-from ..ia import pesquisa, provedores
+from ..ia import orcamento, pesquisa, provedores
 from ..ia.desenho import INSTRUCOES_CHAT as INSTRUCOES_DESENHO, separar_desenho
 from ..ia.imagem import baixar as baixar_imagem, buscar as buscar_imagem_na_web, pedido_de_imagem as imagem_pedida
 from ..ia.imagem import titulo_do_link
@@ -64,6 +64,10 @@ ESPERA_TROCA = 3.0          # s depois de trocar de programa, para a janela nova
 REPETE_AVISO = 600.0        # s antes de repetir o mesmo aviso na bandeja
 TAMANHO_MINI = (32, 18)     # px da miniatura cinza que compara um print com o anterior
 QUASE_IGUAL = 0.025         # diferença média (0..1) abaixo disso: a tela não mudou o bastante
+
+
+# tipo da chamada (o sinal _pronto) -> tarefa do orçamento (limite de saída, ia/orcamento.py)
+TAREFAS = {"observacao": "olhada", "conversa": "chat", "pesquisa": "dica"}
 
 
 def tela_da_janela(retangulo_ativo=None, dpr=1.0):
@@ -334,13 +338,20 @@ class VisaoController(QObject):
                 return                                 # a tela quase não mudou: não gasta uma olhada
             self._mini = mini
         self.ultimo_envio = now
-        pergunta = pedido_observacao(senses.get_active_app(), senses.get_active_title(), self.app.activity,
-                                     self.app.pet_state.emotion, self.ultimo_resumo,
-                                     self.estado(), self.ja_disse, self.lembrado(),
+
+        def montar(lembrancas, sobre_jogo):
+            return pedido_observacao(programa, titulo, self.app.activity, self.app.pet_state.emotion,
+                                     self.ultimo_resumo, estado, self.ja_disse, lembrancas,
                                      self.pode_pesquisar(now) and not assistindo, jogo,
                                      desenhar=bool(imagem) and self.pode_desenhar() and not assistindo,
                                      video=self.perms["videos"] and not assistindo, assistindo=assistindo,
-                                     sobre_jogo=self.sobre_jogo() if jogo else "")
+                                     sobre_jogo=sobre_jogo)
+
+        programa, titulo, estado = senses.get_active_app(), senses.get_active_title(), self.estado()
+        # o que sobra da janela vai para o que ele sabe do jogo e as lembranças (encolhem nessa ordem inversa)
+        resto = orcamento.disponivel(cliente, "olhada", self.sistema, bool(imagem)) - orcamento.tokens(montar("", ""))
+        lembrancas, sobre = orcamento.encaixar([(self.lembrado(), 2), (self.sobre_jogo() if jogo else "", 1)], resto)
+        pergunta = montar(lembrancas, sobre)
         self.olhando = True
         self._em_thread("observacao", cliente, [{"role": "user", "content": pergunta}], imagem)
 
@@ -385,9 +396,13 @@ class VisaoController(QObject):
                 return False
         imagem = self._print() if cliente is not None and self.vendo() and cliente.ve_imagem else None
         self._onde_conversa = self._tela_print if imagem else None
+        quem = cliente if cliente is not None else hermes
+        extra = (orcamento.tokens(INSTRUCOES_DESENHO) if imagem else 0) + (orcamento.tokens(INSTRUCOES_VOZ) if por_voz else 0)
         mensagens = self.conversa.mensagens(texto, self.ultimo_resumo if self.vendo() else "", self.estado(),
                                             self.lembrado(), log_recente(), self.conhecido(texto),
-                                            self.jogos(texto))
+                                            self.jogos(texto),
+                                            disponivel=orcamento.disponivel(quem, "chat", self.sistema, bool(imagem))
+                                            - extra)
         if imagem and self.pode_desenhar():
             mensagens[-1] = dict(mensagens[-1], content=mensagens[-1]["content"] + "\n" + INSTRUCOES_DESENHO)
         if por_voz:
@@ -434,7 +449,7 @@ class VisaoController(QObject):
         if cliente is None:
             return provedores.ErroIA("o Hermes não respondeu e não há outro provedor configurado")
         try:
-            return cliente.responder(self.sistema, mensagens, imagem)
+            return cliente.responder(self.sistema, mensagens, imagem, tarefa="chat")
         except provedores.ErroIA as erro:
             return erro
         except Exception as erro:
@@ -491,10 +506,12 @@ class VisaoController(QObject):
         """Chama o modelo fora da thread do Qt; o resultado volta pelo sinal _pronto."""
         geracao = self.geracao
 
+        tarefa = TAREFAS.get(tipo, "chat")
+
         def trabalho():
             """Roda numa thread: devolve o texto ou a falha, nunca levanta."""
             try:
-                resultado = cliente.responder(self.sistema, mensagens, imagem)
+                resultado = cliente.responder(self.sistema, mensagens, imagem, tarefa=tarefa)
             except provedores.ErroIA as erro:
                 resultado = erro
             except Exception as erro:                  # bug ou SDK inesperada: vira aviso, não derruba

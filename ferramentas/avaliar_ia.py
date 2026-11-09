@@ -39,7 +39,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from pestinha.ia import jogo_info, mente, provedores  # noqa: E402
+from pestinha.ia import jogo_info, mente, orcamento, provedores  # noqa: E402
 from pestinha.ia.musica import pedido_de_musica  # noqa: E402
 
 ENDERECO_PADRAO = "http://192.168.3.250:11434"
@@ -47,8 +47,6 @@ MODELO_PADRAO = "gemma4:e4b"
 CASOS = ("O1", "O2", "O5", "C1", "C3", "E1")
 SAIDA_PADRAO = RAIZ / "docs" / "avaliacoes"
 CACHE = Path(__file__).resolve().parent / ".cache_avaliacao"
-CARACTERES_POR_TOKEN = 4.0      # medido no gemma4 em português (17.699 caracteres -> 4.434 tokens)
-CORTE_SUSPEITO = 0.75           # prompt_tokens abaixo disso da estimativa: o servidor cortou o prompt
 AGULHA = "ABACAXI-73"
 JOGOS_E1 = ("Hollow Knight", "The Witcher 3: Wild Hunt", "Final Fantasy VII", "Mass Effect 2",
             "Red Dead Redemption 2")
@@ -140,11 +138,17 @@ class ModeloOllama:
 
         self.cliente.cliente.chat.completions.create = medir
 
-    def chamar(self, sistema, mensagens, imagem=None):
-        """Uma chamada pelo caminho do app. Levanta provedores.ErroIA como o app."""
+    def chamar(self, sistema, mensagens, imagem=None, tarefa="chat"):
+        """Uma chamada pelo caminho do app (com o limite de saída da tarefa). Uma resposta cortada vira uma
+        Chamada com motivo "length" (o app levanta ErroIA; aqui ela é contada)."""
         self._bruta = None
         inicio = time.perf_counter()
-        texto = self.cliente.responder(sistema, mensagens, imagem)
+        try:
+            texto = self.cliente.responder(sistema, mensagens, imagem, tarefa=tarefa)
+        except provedores.ErroIA:
+            if self._bruta is None:
+                raise
+            texto = (self._bruta.choices[0].message.content or "") if self._bruta.choices else ""
         segundos = time.perf_counter() - inicio
         bruta, uso = self._bruta, getattr(self._bruta, "usage", None)
         motivo = bruta.choices[0].finish_reason if bruta is not None and bruta.choices else ""
@@ -265,7 +269,7 @@ def olhadas(modelo, n, imagem, pedido):
     """`n` olhadas iguais: (chamadas, observações lidas pelo app)."""
     sistema = sistema_do_pet()
     mensagens = [{"role": "user", "content": pedido}]
-    chamadas = [modelo.chamar(sistema, mensagens, imagem) for _ in range(n)]
+    chamadas = [modelo.chamar(sistema, mensagens, imagem, tarefa="olhada") for _ in range(n)]
     return chamadas, [mente.ler_observacao(c.texto) for c in chamadas]
 
 
@@ -352,7 +356,7 @@ class _ContaChamadas:
     def __init__(self):
         self.chamadas = 0
 
-    def responder(self, sistema, mensagens, imagem=None):
+    def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
         self.chamadas += 1
         return "Oi!"
 
@@ -398,6 +402,8 @@ def caso_c1(_modelo, _n):
         app.tray.icon.hide()
         app.musica.parar()
     finally:
+        from pestinha.ia import uso
+        uso.configurar(None)                    # o app apontou o registro de uso para a pasta temporária
         shutil.rmtree(pasta, ignore_errors=True)
     fora = [f for f, local in zip(FRASES_C1, locais) if not local]
     r.criterios = [("resolvidos no app (0 chamadas)", f"{sum(locais)}/{len(FRASES_C1)}", not fora),
@@ -410,9 +416,10 @@ def caso_c1(_modelo, _n):
     return r
 
 
-def mensagens_c3(escala=1.0):
+def mensagens_c3(escala=1.0, disponivel=None):
     """Uma conversa no tamanho máximo que o app monta (8 trocas, lembranças, vídeos, jogos, registro, tela).
-    `escala` multiplica os blocos de contexto, para ver quando a janela do servidor estoura."""
+    `escala` multiplica os blocos de contexto, para ver quando a janela do servidor estoura; `disponivel`
+    passa a conversa pelo orçamento do app (ia/orcamento.py), como o chat de verdade."""
     conversa = mente.Conversa()
     for i in range(mente.MAX_TURNOS // 2):
         conversa.registrar(f"Me explica de novo a parte {i + 1} do projeto, com calma, o que cada módulo faz e "
@@ -429,18 +436,20 @@ def mensagens_c3(escala=1.0):
     registro = [f"{10 + i}:0{i} música: tocando lo-fi {i}" for i in range(10)]
     return conversa.mensagens("Qual é o código do dia que está nas suas instruções? Responda só o código.",
                               "programando em Python no VS Code", "emoção: contente; energia média",
-                              lembrancas, registro, conhecimento, jogos)
+                              lembrancas, registro, conhecimento, jogos, disponivel=disponivel)
 
 
 def caso_c3(modelo, n, escala=1.0):
-    """Agulha no começo do sistema (o Ollama corta pelo começo): tem que sobreviver em toda resposta."""
+    """Agulha no começo do sistema (o Ollama corta pelo começo): tem que sobreviver em toda resposta. A
+    conversa passa pelo orçamento do app, então nem com `escala` grande o servidor corta o pedido."""
     r = Resultado("C3", f"Conversa longa com agulha no sistema (escala {escala:g})", n)
     sistema = f"Código do dia (diga se perguntarem): {AGULHA}.\n" + sistema_do_pet()
-    mensagens = mensagens_c3(escala)
-    chamadas = [modelo.chamar(sistema, mensagens) for _ in range(n)]
+    cliente = getattr(modelo, "cliente", None)
+    mensagens = mensagens_c3(escala, orcamento.disponivel(cliente, "chat", sistema))
+    chamadas = [modelo.chamar(sistema, mensagens, tarefa="chat") for _ in range(n)]
     lembrou = sum(AGULHA in c.texto.upper() for c in chamadas)
-    estimativa = round(tamanho(sistema, mensagens) / CARACTERES_POR_TOKEN)
-    cortes = sum(0 < c.prompt_tokens < CORTE_SUSPEITO * estimativa for c in chamadas)
+    estimativa = orcamento.tokens_mensagens(sistema, mensagens)     # a mesma estimativa do app
+    cortes = sum(orcamento.cortou(c.prompt_tokens, sistema, mensagens) for c in chamadas)
     r.metricas = dict(metricas_de(chamadas), estimativa_tokens=estimativa, caracteres=tamanho(sistema, mensagens),
                       cortes_de_entrada=cortes)
     r.criterios = [("agulha lembrada", f"{lembrou}/{n}", lembrou == n),
@@ -462,6 +471,18 @@ def artigo(nome, buscar=jogo_info.buscar_wikipedia):
     return achado
 
 
+def por_que_nao_leu(texto):
+    """Onde o JSON de uma resposta quebrou (o erro e o trecho em volta), para entender a falha depois."""
+    achado = re.search(r"\{.*\}", texto or "", re.DOTALL)
+    bruto = achado.group(0) if achado else (texto or "")
+    try:
+        json.loads(bruto)
+    except ValueError as erro:
+        posicao = getattr(erro, "pos", 0) or 0
+        return f"{erro} | ...{bruto[max(0, posicao - 80):posicao + 40]!r}"
+    return f"JSON lido, mas sem nome nem conteúdo | {bruto[:160]!r}"
+
+
 def caso_e1(modelo, n, jogos=JOGOS_E1, buscar=jogo_info.buscar_wikipedia):
     """Estudo de jogos de história longa: JSON válido, >= 15 trechos e nenhuma resposta cortada."""
     r = Resultado("E1", "Estudo de jogos de história longa", n * len(jogos))
@@ -471,9 +492,12 @@ def caso_e1(modelo, n, jogos=JOGOS_E1, buscar=jogo_info.buscar_wikipedia):
         if not achado:
             faltou.append(nome)
             continue
-        pedido = jogo_info.pedido_estudo(nome, achado[1])
+        cliente = getattr(modelo, "cliente", None)          # o artigo encolhe como no app (mind/jogo_ctl.py)
+        resto = (orcamento.disponivel(cliente, "estudo", jogo_info.SISTEMA_ESTUDO)
+                 - orcamento.tokens(jogo_info.pedido_estudo(nome, "x")))
+        pedido = jogo_info.pedido_estudo(nome, orcamento.encurtar(achado[1], resto, razao=orcamento.PROSA))
         for _ in range(n):
-            c = modelo.chamar(jogo_info.SISTEMA_ESTUDO, [{"role": "user", "content": pedido}])
+            c = modelo.chamar(jogo_info.SISTEMA_ESTUDO, [{"role": "user", "content": pedido}], tarefa="estudo")
             chamadas.append(c)
             estudo = jogo_info.ler_estudo(c.texto)
             lidos += estudo is not None
@@ -481,14 +505,14 @@ def caso_e1(modelo, n, jogos=JOGOS_E1, buscar=jogo_info.buscar_wikipedia):
             por_jogo.setdefault(nome, []).append(f"{trechos[-1]} trechos, {c.completion_tokens} tokens"
                                                  if estudo else f"JSON inválido ({c.motivo or '?'})")
             if estudo is None:
-                r.exemplos.append(f"{nome}: {c.texto[:200]}")
+                r.exemplos.append(f"{nome}: {por_que_nao_leu(c.texto)}")
     if not chamadas:
         r.erro = "nenhum artigo encontrado na Wikipédia"
         return r
     total = len(chamadas)
     r.n = total
     r.metricas = dict(metricas_de(chamadas), trechos_min=min(trechos), trechos_medio=round(statistics.mean(trechos), 1),
-                      acima_do_limite_do_claude=sum(c.completion_tokens > provedores.MAX_TOKENS for c in chamadas),
+                      acima_de_1024_tokens=sum(c.completion_tokens > 1024 for c in chamadas),   # o limite antigo
                       sem_artigo=faltou, por_jogo=por_jogo)
     r.criterios = [("JSON válido", f"{lidos}/{total}", lidos == total),
                    (">= 15 trechos", f"{sum(t >= 15 for t in trechos)}/{total}", all(t >= 15 for t in trechos)),

@@ -13,15 +13,21 @@ roda no seu computador e não precisa de chave.
 import json
 import os
 import re
+import threading
+import time
 import urllib.error
 import urllib.request
 
+from . import orcamento, uso
+from ..log import log
 from .chaves import parece_chave
 
 TEMPO_LIMITE = 60.0         # s por chamada; o pet desiste e tenta de novo mais tarde
 OLLAMA_PADRAO = "http://localhost:11434"     # este computador; outro PC da rede vai em "Endereço do Ollama"
 PORTA_OLLAMA = 11434
-MAX_TOKENS = 1024           # as respostas pedidas são curtas (um JSON ou duas frases)
+MAX_TOKENS = orcamento.LIMITES["chat"]      # a saída de cada tarefa fica em orcamento.LIMITES
+RACIOCINIO_OPENAI = 1024    # tokens a mais na OpenAI: o gpt-5 conta o raciocínio dentro do limite de saída
+JANELA_LIDA_A_CADA = 600.0  # s entre leituras da janela do Ollama (/api/ps)
 
 PROVEDORES = {
     "claude": {
@@ -136,14 +142,27 @@ def criar_cliente(provedor, modelo="", endereco=""):
         base = endereco_ollama(endereco)
         if base is None:
             raise ErroIA(f"endereço do Ollama inválido: {endereco!r}")
-        return ClienteOpenAI("ollama", modelo_de(provedor, modelo), f"{base}/v1", dados["ve_imagem"], ollama=True)
-    return ClienteOpenAI(chave, modelo_de(provedor, modelo), dados.get("base_url"), dados["ve_imagem"])
+        return ClienteOpenAI("ollama", modelo_de(provedor, modelo), f"{base}/v1", dados["ve_imagem"], ollama=True,
+                             provedor="ollama")
+    return ClienteOpenAI(chave, modelo_de(provedor, modelo), dados.get("base_url"), dados["ve_imagem"],
+                         provedor=provedor if provedor in PROVEDORES else "openai")
+
+
+def cortada(tarefa):
+    """O erro de uma resposta que passou do limite de saída da tarefa (orcamento.LIMITES)."""
+    return ErroIA(f"a resposta veio cortada (passou de {orcamento.limite(tarefa)} tokens na tarefa {tarefa})")
+
+
+def _ms(desde):
+    """Milissegundos desde `desde` (time.perf_counter)."""
+    return int((time.perf_counter() - desde) * 1000)
 
 
 class ClienteClaude:
     """Claude pela SDK oficial da Anthropic."""
 
     ve_imagem = True
+    janela = orcamento.JANELA_NUVEM
 
     def __init__(self, chave, modelo):
         """Cria o cliente com a chave e o modelo."""
@@ -155,8 +174,9 @@ class ClienteClaude:
         self.modelo = modelo
         self.cliente = anthropic.Anthropic(api_key=chave, timeout=TEMPO_LIMITE, max_retries=1)
 
-    def responder(self, sistema, mensagens, imagem=None):
-        """Manda a conversa (o print vai junto da última mensagem) e devolve o texto."""
+    def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
+        """Manda a conversa (o print vai junto da última mensagem) e devolve o texto. `tarefa` escolhe o
+        limite de saída (orcamento.LIMITES); uma resposta que passa dele vira ErroIA."""
         msgs = [dict(m) for m in mensagens]
         if imagem:
             msgs[-1]["content"] = [
@@ -164,10 +184,11 @@ class ClienteClaude:
                 {"type": "text", "text": msgs[-1]["content"]},
             ]
         sdk = self._sdk
+        inicio = time.perf_counter()
         try:
             resposta = self.cliente.beta.messages.create(
                 model=self.modelo,
-                max_tokens=MAX_TOKENS,
+                max_tokens=orcamento.limite(tarefa),
                 system=sistema,
                 messages=msgs,
                 output_config={"effort": "low"},         # frases curtas: não precisa pensar muito
@@ -184,16 +205,23 @@ class ClienteClaude:
             raise ErroIA(f"a API respondeu com erro {erro.status_code}") from erro
         except sdk.APIConnectionError as erro:
             raise ErroIA("sem conexão com a API da Anthropic") from erro
+        gasto = getattr(resposta, "usage", None)
+        uso.registrar(uso.Uso(tarefa, "claude", self.modelo, getattr(gasto, "input_tokens", 0) or 0,
+                              getattr(gasto, "output_tokens", 0) or 0, _ms(inicio),
+                              getattr(resposta, "stop_reason", "") or ""))
         if resposta.stop_reason == "refusal":
             raise ErroIA("o modelo preferiu não responder a isso")
+        if resposta.stop_reason in ("max_tokens", "model_context_window_exceeded"):
+            raise cortada(tarefa)
         return "".join(b.text for b in resposta.content if b.type == "text").strip()
 
 
 class ClienteOpenAI:
     """OpenAI, DeepSeek e Ollama: todos falam o formato de chat da OpenAI."""
 
-    def __init__(self, chave, modelo, base_url=None, ve_imagem=True, ollama=False, tempo=TEMPO_LIMITE):
-        """Cria o cliente; `base_url` aponta para o DeepSeek, o Ollama ou o Hermes (deste ou de outro computador)."""
+    def __init__(self, chave, modelo, base_url=None, ve_imagem=True, ollama=False, tempo=TEMPO_LIMITE,
+                 provedor="openai"):
+        """Cria o cliente; `base_url` aponta para o DeepSeek ou o Ollama (deste ou de outro computador)."""
         try:
             import openai
         except ImportError as erro:
@@ -203,10 +231,47 @@ class ClienteOpenAI:
         self.ve_imagem = ve_imagem
         self.ollama = ollama
         self.base_url = base_url
+        self.provedor = "ollama" if ollama else provedor
+        self.janela = orcamento.JANELA_OLLAMA if ollama else orcamento.JANELA_NUVEM
+        self.tokens_imagem = 450 if ollama else orcamento.TOKENS_IMAGEM      # gemma4: ~400 por print
+        self._janela_lida = None                # quando leu a janela do Ollama pela última vez
         self.cliente = openai.OpenAI(api_key=chave, base_url=base_url, timeout=tempo, max_retries=1)
 
-    def responder(self, sistema, mensagens, imagem=None):
-        """Manda a conversa (o print vai junto da última mensagem, se o modelo vê imagem) e devolve o texto."""
+    def _parametros(self, tarefa):
+        """O limite de saída (e o raciocínio) no formato de cada provedor."""
+        maximo = orcamento.limite(tarefa)
+        if self.provedor == "openai":       # gpt-5: o raciocínio conta no limite; pouco raciocínio basta aqui
+            return {"max_completion_tokens": maximo + RACIOCINIO_OPENAI, "reasoning_effort": "minimal"}
+        return {"max_tokens": maximo}
+
+    def ler_janela(self):
+        """Ollama: a janela de contexto do modelo carregado (/api/ps), no máximo a cada JANELA_LIDA_A_CADA s.
+        Roda fora da thread do Qt; se falhar ou o modelo não estiver carregado, fica a que estava."""
+        agora = time.monotonic()
+        if not self.ollama or (self._janela_lida is not None and agora - self._janela_lida < JANELA_LIDA_A_CADA):
+            return self.janela
+        self._janela_lida = agora
+        base = (self.base_url or "").removesuffix("/v1")
+        try:
+            with urllib.request.urlopen(f"{base}/api/ps", timeout=3.0) as resposta:
+                dados = json.loads(resposta.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError, ValueError):
+            return self.janela
+        modelos = dados.get("models") if isinstance(dados, dict) else None
+        for item in modelos if isinstance(modelos, list) else []:
+            if not isinstance(item, dict):
+                continue
+            nome, tamanho = item.get("name") or item.get("model"), item.get("context_length")
+            if nome in (self.modelo, f"{self.modelo}:latest") and isinstance(tamanho, int) and tamanho > 0:
+                if tamanho != self.janela:
+                    log(f"[ia] janela do Ollama para {self.modelo}: {tamanho} tokens")
+                self.janela = tamanho
+        return self.janela
+
+    def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
+        """Manda a conversa (o print vai junto da última mensagem, se o modelo vê imagem) e devolve o texto.
+        `tarefa` escolhe o limite de saída (orcamento.LIMITES); uma resposta que passa dele vira ErroIA. No
+        Ollama, um pedido que o servidor cortou (janela pequena) vai para o log."""
         msgs = [{"role": "system", "content": sistema}] + [dict(m) for m in mensagens]
         if imagem and self.ve_imagem:
             msgs[-1]["content"] = [
@@ -214,10 +279,12 @@ class ClienteOpenAI:
                 {"type": "text", "text": msgs[-1]["content"]},
             ]
         sdk = self._sdk
+        inicio = time.perf_counter()
         try:
             # Ollama: sem "pensar" antes de responder (gemma4: de ~6 s para <1 s por olhada, ver #4)
             extra = {"reasoning_effort": "none"} if self.ollama else None
-            resposta = self.cliente.chat.completions.create(model=self.modelo, messages=msgs, extra_body=extra)
+            resposta = self.cliente.chat.completions.create(model=self.modelo, messages=msgs, extra_body=extra,
+                                                            **self._parametros(tarefa))
         except sdk.AuthenticationError as erro:
             raise ErroIA("a chave da API foi recusada") from erro
         except sdk.NotFoundError as erro:
@@ -232,6 +299,19 @@ class ClienteOpenAI:
                 endereco = (self.base_url or "").removesuffix("/v1")
                 raise ErroIA(f"o Ollama não respondeu em {endereco} (está ligado? aceita conexões da rede?)") from erro
             raise ErroIA("sem conexão com a API") from erro
+        gasto = getattr(resposta, "usage", None)
+        entrada = getattr(gasto, "prompt_tokens", 0) or 0
+        motivo = (getattr(resposta.choices[0], "finish_reason", "") or "") if resposta.choices else ""
+        corte = bool(self.ollama and orcamento.cortou(entrada, sistema, mensagens))
+        uso.registrar(uso.Uso(tarefa, self.provedor, self.modelo, entrada,
+                              getattr(gasto, "completion_tokens", 0) or 0, _ms(inicio), motivo, corte))
+        if corte:
+            log(f"[ia] o Ollama cortou o pedido ({entrada} tokens, ~{orcamento.tokens_mensagens(sistema, mensagens)} "
+                f"esperados; janela de {self.janela}): aumente OLLAMA_CONTEXT_LENGTH no servidor (README)")
+        if self.ollama:
+            threading.Thread(target=self.ler_janela, name="pestinha-janela", daemon=True).start()
+        if motivo == "length":
+            raise cortada(tarefa)
         if not resposta.choices:
             return ""
         return (resposta.choices[0].message.content or "").strip()

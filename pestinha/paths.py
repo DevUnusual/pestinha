@@ -270,6 +270,11 @@ class Paths:
         """Log do programa (sem conteúdo de janelas)."""
         return self.memory / "logs" / "pestinha.log"
 
+    @property
+    def uso_ia(self):
+        """Uso de cada chamada à IA, só números: tarefa, modelo, tokens, tempo, motivo de parada (ia/uso.py)."""
+        return self.memory / "logs" / "uso_ia.jsonl"
+
     # ----- estado de cada personagem -----
 
     @property

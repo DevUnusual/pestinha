@@ -13,6 +13,7 @@ import threading
 import time
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 from .. import config, memoria_remota, store
+from ..ia import uso as uso_ia
 from ..ui.ui import SettingsDialog
 
 
@@ -189,6 +190,7 @@ class SessaoMixin:
         """Apaga a pasta memory/ inteira e fecha. Nada é gravado depois disso, nem o log."""
         self.wiping = True
         log_module.desligar_arquivo()
+        uso_ia.configurar(None)                     # nem o registro de uso da IA recria a pasta
         falhas = store.apagar_pasta(self.paths.memory) if self.paths.memory.exists() else []
         if falhas or self.paths.memory.exists():
             print(f"[dados] não consegui apagar tudo: {falhas or self.paths.memory}")

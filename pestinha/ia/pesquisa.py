@@ -20,10 +20,12 @@ A chave é a API_SERVER_KEY do Hermes, guardada aqui como HERMES_API_KEY no .env
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 
-from .provedores import ErroIA, endereco_de
+from . import orcamento, uso
+from .provedores import ErroIA, cortada, endereco_de
 
 PORTA_HERMES = 8642
 HERMES_PADRAO = "http://localhost:8642"     # este computador; outro PC da rede vai em "Endereço do Hermes"
@@ -37,6 +39,7 @@ class ClienteHermes:
     """Chat Completions do Hermes por HTTP puro, em streaming, com a chave de sessão da memória dele."""
 
     ve_imagem = False
+    janela = orcamento.JANELA_NUVEM
 
     def __init__(self, base, chave, sessao="", tempo=TEMPO_LIMITE):
         """`base` sem /v1 ('http://192.168.3.250:8642'); `sessao` vira o X-Hermes-Session-Key."""
@@ -46,14 +49,16 @@ class ClienteHermes:
         self.sessao = sessao
         self.tempo = tempo
 
-    def responder(self, sistema, mensagens, imagem=None):
+    def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
         """Igual aos outros clientes (sem imagem: o Hermes não vê o print)."""
-        return self.conversar(sistema, mensagens)
+        return self.conversar(sistema, mensagens, tarefa=tarefa)
 
-    def conversar(self, sistema, mensagens, ao_usar=None):
+    def conversar(self, sistema, mensagens, ao_usar=None, tarefa="chat"):
         """
         Manda a conversa e devolve o texto. `ao_usar(ferramenta, rodando)` é chamado (na thread de quem
-        chamou) quando o Hermes começa (True) e termina (False) de usar uma ferramenta.
+        chamou) quando o Hermes começa (True) e termina (False) de usar uma ferramenta. O Hermes é um agente:
+        não leva limite de saída (ele precisa de espaço para as ferramentas), mas uma resposta que ele mesmo
+        marcou como cortada vira ErroIA, e o uso vai para o registro (ia/uso.py).
         """
         corpo = json.dumps({"model": self.modelo, "stream": True,
                             "messages": [{"role": "system", "content": sistema}] + list(mensagens)}).encode()
@@ -62,19 +67,26 @@ class ClienteHermes:
         if self.sessao:
             cabecalhos["X-Hermes-Session-Key"] = self.sessao
         pedido = urllib.request.Request(f"{self.base_url}/chat/completions", data=corpo, headers=cabecalhos)
+        inicio, fim = time.perf_counter(), {}
         try:
             with urllib.request.urlopen(pedido, timeout=self.tempo) as resposta:
-                return ler_stream(resposta, ao_usar)
+                texto = ler_stream(resposta, ao_usar, fim)
         except urllib.error.HTTPError as erro:
             if erro.code in (401, 403):
                 raise ErroIA("o Hermes recusou a chave (confira a API_SERVER_KEY dele)") from erro
             raise ErroIA(f"o Hermes respondeu com erro {erro.code}") from erro
         except (urllib.error.URLError, OSError) as erro:
             raise ErroIA(f"o Hermes não respondeu em {self.base_url.removesuffix('/v1')}") from erro
+        uso.registrar(uso.Uso(tarefa, "hermes", self.modelo, fim.get("entrada", 0), fim.get("saida", 0),
+                              int((time.perf_counter() - inicio) * 1000), fim.get("motivo", "")))
+        if fim.get("motivo") == "length":
+            raise cortada(tarefa)
+        return texto
 
 
-def ler_stream(linhas, ao_usar=None):
-    """Lê o SSE do Hermes (bytes por linha): junta o texto e avisa as ferramentas. Devolve o texto."""
+def ler_stream(linhas, ao_usar=None, fim=None):
+    """Lê o SSE do Hermes (bytes por linha): junta o texto e avisa as ferramentas. Devolve o texto.
+    `fim` (um dicionário) recebe o que vier no fim: "motivo" (finish_reason), "entrada" e "saida" (tokens)."""
     texto, evento, dados = [], "", []
     rodando = set()
 
@@ -97,10 +109,20 @@ def ler_stream(linhas, ao_usar=None):
                 rodando.discard(ident)
                 ao_usar(ferramenta, False)
             return
-        for escolha in (carga.get("choices") or []) if isinstance(carga, dict) else []:
+        if not isinstance(carga, dict):
+            return
+        gasto = carga.get("usage")
+        if fim is not None and isinstance(gasto, dict):
+            fim["entrada"] = gasto.get("prompt_tokens") or 0
+            fim["saida"] = gasto.get("completion_tokens") or 0
+        for escolha in carga.get("choices") or []:
+            if not isinstance(escolha, dict):
+                continue
             pedaco = (escolha.get("delta") or {}).get("content")
             if isinstance(pedaco, str):
                 texto.append(pedaco)
+            if fim is not None and escolha.get("finish_reason"):
+                fim["motivo"] = escolha["finish_reason"]
 
     for linha in linhas:
         if isinstance(linha, bytes):

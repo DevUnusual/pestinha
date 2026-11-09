@@ -63,6 +63,7 @@ from .core.episodic import EpisodicMemory
 from .core.homeostasis import Drives
 from .core.nervous_system import LIFBrain
 from .core.protesto import Protesto
+from .ia import uso as uso_ia
 from .log import log
 from .mind.assistir import AssistirController
 from .mind.castigo_ctl import CastigoController
@@ -106,6 +107,7 @@ class PestinhaApp(SessaoMixin, InteracaoMixin, QObject):
         self.perms = store.perms
         self.paths = paths or Paths()
         log_module.setup(self.paths.log)
+        uso_ia.configurar(self.paths.uso_ia)        # tokens e tempo de cada chamada à IA, sem conteúdo
         self.prof = config.profile(self.perms)
         self.debugging = lambda: self.perms["modo_teste"]
 

@@ -20,6 +20,7 @@ import re
 from dataclasses import dataclass, field
 
 from ..mathutil import clamp
+from . import orcamento
 from .desenho import INSTRUCOES_OLHADA, ler_formas
 
 SINAIS = {
@@ -348,13 +349,32 @@ class Conversa:
         """Começa sem nada."""
         self.turnos = []
 
-    def mensagens(self, texto, contexto="", estado="", lembrancas="", registro=(), conhecimento="", jogos=""):
+    def mensagens(self, texto, contexto="", estado="", lembrancas="", registro=(), conhecimento="", jogos="",
+                  disponivel=None):
         """Mensagens para o modelo: o histórico e a fala nova (com o estado da rede, as lembranças, o que
-        aprendeu em vídeos, os jogos dela, o log recente dele e a tela)."""
-        nova = texto if not contexto else f"[O que você viu na tela por último: {contexto}]\n{texto}"
-        prefixo = (bloco_estado(estado) + bloco_lembrancas(lembrancas) + bloco_conhecimento(conhecimento)
-                   + bloco_jogos(jogos) + bloco_registro(registro))
-        return self.turnos + [{"role": "user", "content": prefixo + nova}]
+        aprendeu em vídeos, os jogos dela, o log recente dele e a tela).
+
+        `disponivel` (tokens, ver ia/orcamento.py): o que não couber encolhe nesta ordem: o registro, as
+        lembranças, o que aprendeu em vídeos, os jogos, a tela e o estado; depois saem as trocas mais antigas.
+        A sua fala nunca é cortada."""
+        blocos = [bloco_estado(estado), bloco_lembrancas(lembrancas), bloco_conhecimento(conhecimento),
+                  bloco_jogos(jogos), bloco_registro(registro),
+                  f"[O que você viu na tela por último: {contexto}]\n" if contexto else ""]
+        turnos = list(self.turnos)
+        if disponivel is not None:
+            ordem = (1, 5, 4, 3, 6, 2)          # estado, lembranças, vídeos, jogos, registro, tela: maior sai antes
+            fixo = orcamento.tokens_mensagens("", turnos + [{"content": texto}])
+            folga = len(blocos)                 # o arredondamento de cada bloco (tokens() arredonda para cima)
+            blocos = orcamento.encaixar([(b, o) for b, o in zip(blocos, ordem)], max(0, disponivel - fixo - folga))
+            blocos = [b if not b or b.endswith("\n") else b + "\n" for b in blocos]
+
+            def cabe():
+                nova = {"content": "".join(blocos) + texto}
+                return orcamento.tokens_mensagens("", turnos + [nova]) <= disponivel
+
+            while turnos and not cabe():
+                turnos = turnos[2:]             # a troca mais antiga (sua fala e a resposta) sai inteira
+        return turnos + [{"role": "user", "content": "".join(blocos) + texto}]
 
     def registrar(self, texto, resposta):
         """Guarda a troca (a fala da pessoa sem o contexto) e descarta as mais antigas."""

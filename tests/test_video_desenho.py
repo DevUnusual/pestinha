@@ -232,7 +232,7 @@ class ClienteFalso:
         self.resposta = resposta
         self.chamadas = []
 
-    def responder(self, sistema, mensagens, imagem=None):
+    def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
         self.chamadas.append((mensagens, imagem))
         return self.resposta(mensagens) if callable(self.resposta) else self.resposta
 

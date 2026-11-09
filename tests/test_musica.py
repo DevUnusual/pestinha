@@ -320,7 +320,7 @@ def test_a_ia_da_o_play_quando_so_ela_entendeu(app, monkeypatch):
     class IA:
         ve_imagem = False
 
-        def responder(self, sistema, mensagens, imagem=None):
+        def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
             assert "TOCAR:" in sistema                              # ela sabe que pode tocar
             return "Fechou, vou de samba raiz!\nTOCAR: samba raiz"
 

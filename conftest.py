@@ -30,6 +30,14 @@ def _multimidia_presente(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _uso_sem_arquivo(monkeypatch):
+    # O app grava o uso da IA na pasta de dados (ia/uso.py); cada teste começa sem arquivo escolhido, para
+    # um teste não escrever na pasta temporária de outro.
+    from pestinha.ia import uso
+    monkeypatch.setattr(uso, "_arquivo", None)
+
+
+@pytest.fixture(autouse=True)
 def _encerrar_apps_e_janelas():
     from PySide6.QtWidgets import QApplication
     qt = QApplication.instance()

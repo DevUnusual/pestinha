@@ -217,6 +217,7 @@ Do app e seu, direto em `memory/`:
 | `timeline.csv` | Uma linha por minuto: hora, categoria de programa, trocas de janela, ocioso. Só com "Registrar minha rotina" ligado, que vem desligado. O pet ainda não usa esse histórico |
 | `panels.json` | Posição dos painéis, do notebook e da placa |
 | `logs/pestinha.log` | Mensagens do programa e erros inesperados (sem conteúdo de janelas) |
+| `logs/uso_ia.jsonl` | Uma linha por chamada à IA, só números: a tarefa (olhada, chat, estudo...), o provedor e o modelo, os tokens de entrada e saída, o tempo e o motivo de parada. Nunca o print, o pedido nem a resposta. Guarda as últimas 5.000 chamadas e só existe com a IA ligada |
 
 De cada personagem, em `memory/pets/<pet>/` (um personagem não lê a memória do outro):
 

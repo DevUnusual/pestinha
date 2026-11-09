@@ -134,7 +134,7 @@ class ClienteFalso:
     def __init__(self):
         self.chamadas = []
 
-    def responder(self, sistema, mensagens, imagem=None):
+    def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
         self.chamadas.append(mensagens)
         return "Manga é uma fruta tropical, docinha!"
 

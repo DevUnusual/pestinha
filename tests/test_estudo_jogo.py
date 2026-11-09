@@ -155,7 +155,7 @@ class ModeloFalso:
         self.trecho = 2
         self.pedidos = []
 
-    def responder(self, sistema, mensagens, imagem=None):
+    def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
         texto = mensagens[-1]["content"]
         self.pedidos.append((sistema, texto))
         if sistema == jogo_info.SISTEMA_ESTUDO:

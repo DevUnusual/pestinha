@@ -83,7 +83,7 @@ class ClienteFalso:
     def __init__(self, resposta):
         self.resposta = resposta
 
-    def responder(self, sistema, mensagens, imagem=None):
+    def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
         return self.resposta
 
 

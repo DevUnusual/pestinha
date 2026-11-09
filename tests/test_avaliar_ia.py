@@ -30,9 +30,11 @@ class ModeloFalso:
         self.texto, self.prompt_tokens, self.completion_tokens, self.motivo = texto, prompt_tokens, completion_tokens, motivo
         self.responder = responder
         self.pedidos = []
+        self.tarefas = []
 
-    def chamar(self, sistema, mensagens, imagem=None):
+    def chamar(self, sistema, mensagens, imagem=None, tarefa="chat"):
         self.pedidos.append((sistema, mensagens, imagem))
+        self.tarefas.append(tarefa)
         texto = self.responder(sistema, mensagens, imagem) if self.responder else self.texto
         return av.Chamada(texto, 0.5, self.prompt_tokens, self.completion_tokens, self.motivo,
                           av.tamanho(sistema, mensagens))
@@ -109,7 +111,7 @@ def test_c1_resolve_a_musica_no_app_e_so_a_conversa_chama_o_modelo():
 def test_c3_agulha_no_comeco_do_sistema_e_corte_detectado():
     mensagens = av.mensagens_c3()
     assert len(mensagens) == av.mente.MAX_TURNOS + 1                          # 8 turnos e a pergunta
-    estimativa = av.tamanho("x", mensagens) / av.CARACTERES_POR_TOKEN
+    estimativa = av.orcamento.tokens_mensagens("x", mensagens)
     ok = av.caso_c3(ModeloFalso(f"O código é {av.AGULHA}.", prompt_tokens=int(estimativa * 1.2)), 4)
     assert ok.passou and ok.metricas["cortes_de_entrada"] == 0
     sistema = ModeloFalso(av.AGULHA)
@@ -134,13 +136,15 @@ def test_e1_usa_o_cache_e_acusa_poucos_trechos_e_resposta_cortada(tmp_path, monk
         return (nome, f"Artigo sobre {nome}. " * 50)
 
     r = av.caso_e1(ModeloFalso(estudo(18), completion_tokens=1500), 1, jogos=("A", "B"), buscar=buscar)
-    assert r.passou and r.n == 2 and r.metricas["acima_do_limite_do_claude"] == 2
+    assert r.passou and r.n == 2 and r.metricas["acima_de_1024_tokens"] == 2
     av.caso_e1(ModeloFalso(estudo(18)), 1, jogos=("A", "B"), buscar=buscar)
     assert buscas == ["A", "B"]                                               # a segunda rodada veio do cache
     assert r.metricas["por_jogo"] == {"A": ["18 trechos, 1500 tokens"], "B": ["18 trechos, 1500 tokens"]}
     assert not av.caso_e1(ModeloFalso(estudo(10)), 1, jogos=("A",), buscar=buscar).passou
     invalido = av.caso_e1(ModeloFalso("desculpe, não sei"), 1, jogos=("A",), buscar=buscar)
     assert invalido.metricas["por_jogo"] == {"A": ["JSON inválido (stop)"]} and invalido.exemplos[0].startswith("A:")
+    quebrado = av.por_que_nao_leu('```json\n{"nome": "FF7", "premissa": "Cloud diz "oi" e sai"}\n```')
+    assert "Expecting" in quebrado and "oi" in quebrado                      # o erro e o trecho onde quebrou
     cortado = av.caso_e1(ModeloFalso(estudo(18), motivo="length"), 1, jogos=("A",), buscar=buscar)
     assert not cortado.passou and cortado.metricas["cortadas"] == 1
     sem = av.caso_e1(ModeloFalso(estudo(18)), 1, jogos=("Nada",), buscar=lambda _n: None)
@@ -181,7 +185,7 @@ def test_modelo_ollama_mede_pelo_cliente_do_app(monkeypatch):
         def __init__(self):
             self.cliente = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **_k: resposta)))
 
-        def responder(self, sistema, mensagens, imagem=None):
+        def responder(self, sistema, mensagens, imagem=None, tarefa="chat"):
             return self.cliente.chat.completions.create(model=self.modelo).choices[0].message.content
 
     monkeypatch.setattr(av.provedores, "criar_cliente", lambda *_a: Cliente())

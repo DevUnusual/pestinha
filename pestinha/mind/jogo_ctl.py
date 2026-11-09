@@ -18,7 +18,7 @@ import time
 
 from PySide6.QtCore import QObject, Signal
 
-from ..ia import provedores
+from ..ia import orcamento, provedores
 from ..ia.jogo_info import (SISTEMA_ESTUDO, SISTEMA_TRECHO, buscar_wikipedia, chave, ler_estudo, ler_trecho,
                             nome_pelo_titulo, pedido_estudo, pedido_trecho, pediu_spoiler)
 from ..log import log
@@ -133,7 +133,11 @@ class JogoController(QObject):
                     quem, fonte = cliente, f"Wikipédia: {titulo}"
                 else:
                     texto, quem, fonte = "", hermes or cliente, "Hermes" if hermes else "o que a IA sabia"
-                resposta = quem.responder(SISTEMA_ESTUDO, [{"role": "user", "content": pedido_estudo(nome, texto)}])
+                # o artigo encolhe (pelo fim) até caber: o pedido e as instruções nunca são cortados
+                resto = orcamento.disponivel(quem, "estudo", SISTEMA_ESTUDO) - orcamento.tokens(pedido_estudo(nome, "x"))
+                texto = orcamento.encurtar(texto, resto, razao=orcamento.PROSA) if texto else ""
+                resposta = quem.responder(SISTEMA_ESTUDO, [{"role": "user", "content": pedido_estudo(nome, texto)}],
+                                          tarefa="estudo")
                 resultado = (ler_estudo(resposta), fonte)
             except provedores.ErroIA as erro:
                 resultado = erro
@@ -166,8 +170,8 @@ class JogoController(QObject):
         def trabalho():
             """Roda numa thread: devolve o número do trecho (ou None), nunca levanta."""
             try:
-                resultado = ler_trecho(cliente.responder(SISTEMA_TRECHO, [{"role": "user", "content": pedido}]),
-                                       total)
+                resultado = ler_trecho(cliente.responder(SISTEMA_TRECHO, [{"role": "user", "content": pedido}],
+                                                         tarefa="trecho"), total)
             except Exception as erro:
                 log(f"[jogos] não localizei: {type(erro).__name__}: {erro}")
                 resultado = None
