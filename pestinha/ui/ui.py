@@ -263,6 +263,24 @@ class SettingsDialog(QDialog):
         self.modelo_campo.activated.connect(lambda _indice: self._trocar_modelo())
         linha.addWidget(self.modelo_campo, 1)
         layout.addLayout(linha)
+        # a olhada (a chamada mais frequente) tem o seu modelo; o chat, o estudo e o resumo usam o de cima
+        linha = QHBoxLayout()
+        linha.addWidget(QLabel("Modelo da olhada:"))
+        self.olhada_combo = Escolha()
+        for chave, nome in provedores.OLHADA_PROVEDORES.items():
+            self.olhada_combo.addItem(nome, chave)
+        self.olhada_combo.setCurrentIndex(max(0, self.olhada_combo.findData(self.perms["olhada_provedor"])))
+        self.olhada_combo.currentIndexChanged.connect(self._trocar_olhada)
+        linha.addWidget(self.olhada_combo, 1)
+        self.olhada_modelo = QLineEdit(self.perms["olhada_modelo"])
+        self.olhada_modelo.setMaxLength(100)
+        self.olhada_modelo.editingFinished.connect(self._trocar_modelo_olhada)
+        linha.addWidget(self.olhada_modelo, 1)
+        layout.addLayout(linha)
+        self.olhada_dica = QLabel()
+        self.olhada_dica.setObjectName("hint")
+        self.olhada_dica.setWordWrap(True)
+        layout.addWidget(self.olhada_dica)
         self._modelos_chegaram.connect(self._mostrar_modelos_ollama)
         self.ollama_linha = QWidget()
         linha = QHBoxLayout(self.ollama_linha)
@@ -684,12 +702,43 @@ class SettingsDialog(QDialog):
         self.chave_estado.setText(texto)
         self.chave_estado.setVisible(bool(texto))
 
+    def _trocar_olhada(self, _indice):
+        """Quem olha a tela: automático, Ollama, Claude ou o mesmo do chat."""
+        self._set("olhada_provedor", self.olhada_combo.currentData())
+        self._atualizar_provedor()
+
+    def _trocar_modelo_olhada(self):
+        """O modelo da olhada (vazio: o padrão); uma chave colada por engano não é gravada."""
+        texto = self.olhada_modelo.text().strip()
+        if chaves.parece_chave(texto):
+            self.olhada_modelo.clear()
+            texto = ""
+        if texto != self.perms["olhada_modelo"]:
+            self._set("olhada_modelo", texto)
+            self._atualizar_provedor()
+
+    def _atualizar_olhada(self):
+        """A dica de qual modelo vai olhar a tela agora."""
+        escolha = self.perms["olhada_provedor"]
+        self.olhada_modelo.setEnabled(escolha != "mesmo")
+        provedor, modelo, _endereco = provedores.modelo_da_olhada(self.perms)
+        padrao = provedores.modelo_da_olhada(dict(self.perms, olhada_modelo=""))[1] or "o do chat"
+        self.olhada_modelo.setPlaceholderText(f"padrão: {padrao}")
+        nome = provedores.info(provedor)["nome"]
+        self.olhada_dica.setText(f"A tela é olhada por {nome}, {modelo or provedores.info(provedor)['modelo']}. "
+                                 "O chat, o estudo dos jogos e o resumo dos vídeos usam o provedor e o modelo de "
+                                 "cima. A olhada é a chamada mais frequente (a cada ~2,5 min): num modelo pago, "
+                                 "prefira um barato.")
+
     def _atualizar_provedor(self):
         """Modelo padrão no campo vazio e a dica de onde fica a chave."""
         dados = provedores.info(self.perms["ia_provedor"])
         self.modelo_campo.lineEdit().setPlaceholderText(f"padrão: {dados['modelo']}")
         self.chave_linha.setVisible(bool(dados["chave"]))
-        self.ollama_linha.setVisible(self.perms["ia_provedor"] == "ollama")
+        # o endereço do Ollama vale para o chat e para a olhada (que, no automático, usa o Ollama se houver)
+        self.ollama_linha.setVisible(self.perms["ia_provedor"] == "ollama"
+                                     or self.perms["olhada_provedor"] in ("auto", "ollama"))
+        self._atualizar_olhada()
         self._buscar_modelos_ollama()                   # no Ollama: a lista dos modelos que o servidor tem
         if dados["chave"]:
             final = chaves.final_da_chave(dados["chave"])
@@ -827,8 +876,9 @@ class SettingsDialog(QDialog):
             self.chamado_campo.setEnabled(ia and self.perms["conversa"] and self.perms["voz"] and som)
         if hasattr(self, "provedor_combo"):
             for campo in (self.provedor_combo, self.modelo_campo, self.chave_campo, self.chave_botao,
-                          self.ollama_campo, self.ollama_botao):
+                          self.ollama_campo, self.ollama_botao, self.olhada_combo):
                 campo.setEnabled(ia)
+            self.olhada_modelo.setEnabled(ia and self.perms["olhada_provedor"] != "mesmo")
 
     def set_active(self, on):
         """Atualiza a caixa 'ligado' sem disparar a gravação (usado pelo pânico)."""

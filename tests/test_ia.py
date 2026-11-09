@@ -208,7 +208,8 @@ def test_claude_manda_o_print_e_le_o_texto(monkeypatch):
     ultima = chamadas.kwargs["messages"][-1]["content"]
     assert ultima[0]["source"]["data"] == "AAAA" and ultima[1]["text"] == "o que é isso?"
     assert chamadas.kwargs["model"] == provedores.PROVEDORES["claude"]["modelo"]
-    assert chamadas.kwargs["system"] == "sistema"
+    assert chamadas.kwargs["system"] == [{"type": "text", "text": "sistema", "cache_control": {"type": "ephemeral"}}]
+    assert chamadas.kwargs["fallbacks"] == "default"                      # o Sonnet tem fallback de recusa
 
 
 def test_claude_recusa_vira_erro_explicado(monkeypatch):
@@ -419,7 +420,10 @@ def test_endereco_do_ollama_na_tela(qapp, tmp_path, monkeypatch):
         dialogo.ollama_botao.click()
         assert dialogo.chave_estado.objectName() == "ok" and "192.168.3.250" in dialogo.chave_estado.text()
         dialogo.provedor_combo.setCurrentIndex(dialogo.provedor_combo.findData("claude"))
-        assert dialogo.ollama_linha.isHidden()
+        assert not dialogo.ollama_linha.isHidden()                       # a olhada no automático usa o Ollama
+        assert "Ollama" in dialogo.olhada_dica.text() and "gemma4:e4b" in dialogo.olhada_dica.text()
+        dialogo.olhada_combo.setCurrentIndex(dialogo.olhada_combo.findData("claude"))
+        assert dialogo.ollama_linha.isHidden() and "claude-haiku-5-5" in dialogo.olhada_dica.text()
     finally:
         dialogo.close()
 

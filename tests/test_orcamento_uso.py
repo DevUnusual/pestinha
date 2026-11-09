@@ -249,7 +249,7 @@ def test_uso_grava_so_numeros_e_apara_o_arquivo(tmp_path, monkeypatch):
     chamadas = uso.ler(arquivo)
     assert 5 <= len(chamadas) <= 7 and chamadas[-1]["entrada"] == 1808
     assert set(chamadas[0]) == {"tarefa", "provedor", "modelo", "entrada", "saida", "ms", "motivo", "corte_entrada",
-                                "quando"}
+                                "cache_lido", "cache_gravado", "quando"}
     uso.registrar(uso.Uso("chat", "claude", "x"))                    # sem arquivo: só o log
     assert len(uso.ler(arquivo)) == len(chamadas)
 

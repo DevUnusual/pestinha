@@ -52,6 +52,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_multimidia.py` | QtMultimedia opcional: com só o PySide6-Essentials o pet abre, e voz, chamado pelo nome e música ficam desligados, com aviso. |
 | `test_musica.py` | Música pelo chat: "toca um lo-fi" monta a fila no YouTube Music, 👍/👎/pulo/ouvir até o fim ensinam o gosto e a fila se renova pelo rádio. |
 | `test_nucleo.py` | Testes dos módulos puros: nada de Qt, nada de Windows. |
+| `test_olhada.py` | Modelo da olhada separado: Ollama se configurado, senão Claude Haiku ou o do chat; o chat segue no escolhido; o Haiku sem fallback e o sistema no cache do Claude. |
 | `test_orcamento_uso.py` | Chamadas confiáveis: o limite de saída de cada tarefa, a resposta cortada que vira erro, o registro de uso sem conteúdo, o orçamento de contexto que nunca corta o prompt de sistema e o aviso quando o Ollama corta o pedido. |
 | `test_paineis.py` | Painéis do menu (monitor neural e painel de protesto): abrir à mão deve manter o painel na tela. |
 | `test_pedido.py` | Pedir para trabalhar: o neurônio SENTAR decide. |

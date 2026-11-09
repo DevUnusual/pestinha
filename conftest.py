@@ -30,6 +30,15 @@ def _multimidia_presente(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _olhada_pelo_cliente_do_chat(monkeypatch):
+    # A olhada tem o seu modelo (VisaoController.cliente_olhada): no automático, o Claude se houver chave no
+    # ambiente. Os testes trocam o `cliente` do chat por um falso; a olhada vai por ele, para nenhum teste chamar
+    # uma API de verdade. test_olhada.py testa o cliente da olhada de verdade.
+    from pestinha.mind.visao import VisaoController
+    monkeypatch.setattr(VisaoController, "cliente_olhada", lambda self: self.cliente())
+
+
+@pytest.fixture(autouse=True)
 def _rede_decide_rapido(monkeypatch):
     # A política de fala espera a rede reagir (FALA_ESPERA_REDE, 1,5 s); nos testes, quase nada.
     from pestinha import ajustes

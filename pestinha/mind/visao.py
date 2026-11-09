@@ -177,6 +177,8 @@ class VisaoController(QObject):
         self._onde_conversa = None          # o monitor do print da conversa a caminho
         self._cliente = None
         self._cliente_de = None
+        self._olhada = None                # o cliente de quem olha a tela (cliente_olhada)
+        self._olhada_de = None
         self._hermes = None
         self._hermes_de = None
         self._avisos = {}
@@ -254,7 +256,7 @@ class VisaoController(QObject):
 
     def chave_nova(self):
         """Você salvou uma chave: recria o cliente e olha de novo logo (sem esperar o tempo de erro)."""
-        self._cliente = self._hermes = None
+        self._cliente = self._hermes = self._olhada = None
         self._avisos.clear()
         self.proxima = min(self.proxima, time.monotonic() + ESPERA_TROCA)
 
@@ -265,6 +267,26 @@ class VisaoController(QObject):
             self._cliente = provedores.criar_cliente(*chave)
             self._cliente_de = chave
         return self._cliente
+
+    def cliente_olhada(self):
+        """O cliente de quem olha a tela (provedores.modelo_da_olhada): em geral, o Ollama ou o Claude Haiku. O
+        chat, o estudo e o resumo continuam no `cliente()`. Se o da olhada não der (no automático, sem a chave do
+        Claude, por exemplo), a olhada vai pelo do chat."""
+        escolha = provedores.modelo_da_olhada(self.perms)
+        if escolha == (self.perms["ia_provedor"], self.perms["ia_modelo"], self.perms["ia_ollama_url"]):
+            return self.cliente()                       # o mesmo do chat: um cliente só
+        de = (self.perms.get("olhada_provedor", "auto"),) + escolha    # o automático pode cair no do chat
+        if self._olhada is None or self._olhada_de != de:
+            self._olhada_de = de
+            try:
+                self._olhada = provedores.criar_cliente(*escolha)
+            except provedores.ErroIA as erro:
+                if self.perms.get("olhada_provedor", "auto") != "auto":
+                    self._olhada = None
+                    raise
+                log(f"[visão] a olhada vai pelo modelo do chat ({erro})")
+                self._olhada = self.cliente()
+        return self._olhada
 
     def hermes(self):
         """O cliente do Hermes (recriado se você trocar o endereço)."""
@@ -328,7 +350,7 @@ class VisaoController(QObject):
         self.ultima_olhada = now
         self.proxima = now + self.intervalo()
         try:
-            cliente = self.cliente()
+            cliente = self.cliente_olhada()
         except provedores.ErroIA as erro:
             self._falhou(str(erro), now)
             return

@@ -31,6 +31,10 @@ Só valem com **Usar IA** ligado em Configurações, e cada parte tem a própria
   não manda nada para a internet. Com outro computador, o print atravessa a sua rede local sem criptografia
   (http), a não ser que você use um endereço https. O DeepSeek não recebe
   o print (a API dele não aceita imagem), só o nome do programa e o título.
+- **Quem olha a tela pode ser outro modelo:** em **Modelo da olhada** você escolhe quem recebe o print. No
+  automático, é o Ollama que você configurou; sem Ollama e com o Claude no chat, o Claude Haiku (o mais
+  barato dele); com outro provedor no chat, o mesmo provedor. O print nunca vai para um provedor que você
+  não escolheu.
 - **O que fica gravado:** da tela, nada, a não ser que você ligue **Lembrar o que viu**. O print, o
   título e o comentário ficam só na memória enquanto o app está aberto e não vão para `memory/` nem para o
   log. O que fica é o efeito na rede neural, como qualquer outro estímulo.
@@ -236,7 +240,7 @@ Do app e seu, direto em `memory/`:
 | `timeline.csv` | Uma linha por minuto: hora, categoria de programa, trocas de janela, ocioso. Só com "Registrar minha rotina" ligado, que vem desligado. O pet ainda não usa esse histórico |
 | `panels.json` | Posição dos painéis, do notebook e da placa |
 | `logs/pestinha.log` | Mensagens do programa e erros inesperados (sem conteúdo de janelas) |
-| `logs/uso_ia.jsonl` | Uma linha por chamada à IA, só números: a tarefa (olhada, chat, estudo...), o provedor e o modelo, os tokens de entrada e saída, o tempo e o motivo de parada. Nunca o print, o pedido nem a resposta. Guarda as últimas 5.000 chamadas e só existe com a IA ligada |
+| `logs/uso_ia.jsonl` | Uma linha por chamada à IA, só números: a tarefa (olhada, chat, estudo...), o provedor e o modelo, os tokens de entrada e saída, o tempo, o motivo de parada e quanto veio do cache. Nunca o print, o pedido nem a resposta. Guarda as últimas 5.000 chamadas e só existe com a IA ligada |
 
 De cada personagem, em `memory/pets/<pet>/` (um personagem não lê a memória do outro):
 

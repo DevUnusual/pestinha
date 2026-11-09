@@ -35,6 +35,8 @@ class Uso:
     ms: int = 0
     motivo: str = ""            # por que parou: end_turn/stop, max_tokens/length (cortada), refusal...
     corte_entrada: bool = False     # o servidor cortou o pedido (Ollama com janela pequena)
+    cache_lido: int = 0             # tokens do pedido que vieram do cache (Claude: ~10% do preço)
+    cache_gravado: int = 0          # tokens gravados no cache nesta chamada
 
 
 def configurar(arquivo):
@@ -48,7 +50,8 @@ def registrar(uso):
     global _desde_aparar
     avisos = (" CORTADA" if uso.motivo in ("max_tokens", "length") else "") + (
         " ENTRADA CORTADA" if uso.corte_entrada else "")
-    log(f"[uso] {uso.tarefa} {uso.provedor}:{uso.modelo} {uso.entrada}+{uso.saida} tokens {uso.ms} ms "
+    cache = f" (cache {uso.cache_lido})" if uso.cache_lido else ""
+    log(f"[uso] {uso.tarefa} {uso.provedor}:{uso.modelo} {uso.entrada}+{uso.saida} tokens{cache} {uso.ms} ms "
         f"{uso.motivo or '?'}{avisos}")
     arquivo = _arquivo
     if arquivo is None:

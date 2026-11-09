@@ -32,7 +32,7 @@ JANELA_LIDA_A_CADA = 600.0  # s entre leituras da janela do Ollama (/api/ps)
 PROVEDORES = {
     "claude": {
         "nome": "Claude (Anthropic)",
-        "modelo": "claude-opus-5-5",
+        "modelo": "claude-sonnet-5-5",      # o chat; a olhada, mais frequente, usa o Haiku (modelo_da_olhada)
         "chave": "ANTHROPIC_API_KEY",
         "ve_imagem": True,
     },
@@ -58,6 +58,42 @@ PROVEDORES = {
     },
 }
 PROVEDOR_PADRAO = "claude"
+MODELO_OLHADA_CLAUDE = "claude-haiku-5-5"   # a olhada a cada 2,5 min: ~40x mais barata que o Opus
+SEM_FALLBACK = ("haiku",)                   # modelos sem fallback de recusa no servidor (o parâmetro dá 400)
+OLHADA_PROVEDORES = {
+    "auto": "Automático (Ollama, se configurado; no Claude, o Haiku; senão, o do chat)",
+    "ollama": "Ollama",
+    "claude": "Claude",
+    "mesmo": "O mesmo do chat",
+}
+
+
+def ollama_configurado(perms):
+    """Você configurou um Ollama: é o provedor do chat ou tem um endereço salvo."""
+    return perms.get("ia_provedor") == "ollama" or bool((perms.get("ia_ollama_url") or "").strip())
+
+
+def modelo_da_olhada(perms):
+    """(provedor, modelo, endereço) da olhada. O chat, o estudo e o resumo continuam com o provedor e o modelo
+    escolhidos; a olhada, a chamada mais frequente, tem o seu (perms "olhada_provedor" e "olhada_modelo")."""
+    escolha = perms.get("olhada_provedor", "auto")
+    modelo = (perms.get("olhada_modelo") or "").strip()
+    endereco = perms.get("ia_ollama_url", "")
+    if escolha == "mesmo" or escolha not in OLHADA_PROVEDORES:
+        return perms.get("ia_provedor", PROVEDOR_PADRAO), perms.get("ia_modelo", ""), endereco
+    if escolha == "auto":
+        # o print só vai para um provedor que você escolheu: o Ollama que você configurou, ou o do chat (no
+        # Claude, o modelo mais barato dele)
+        if ollama_configurado(perms):
+            escolha = "ollama"
+        elif perms.get("ia_provedor", PROVEDOR_PADRAO) == "claude":
+            escolha = "claude"
+        else:
+            return perms.get("ia_provedor", PROVEDOR_PADRAO), perms.get("ia_modelo", ""), endereco
+    if escolha == "ollama":
+        do_chat = perms.get("ia_modelo", "") if perms.get("ia_provedor") == "ollama" else ""
+        return "ollama", modelo or do_chat or PROVEDORES["ollama"]["recomendado"], endereco
+    return "claude", modelo or MODELO_OLHADA_CLAUDE, endereco
 
 
 class ErroIA(Exception):
@@ -185,15 +221,19 @@ class ClienteClaude:
             ]
         sdk = self._sdk
         inicio = time.perf_counter()
+        extra = {}
+        if not any(nome in self.modelo for nome in SEM_FALLBACK):
+            extra = {"betas": ["server-side-fallback-2026-07-01"],
+                     "fallbacks": "default"}             # recusa por engano: outro modelo responde
         try:
             resposta = self.cliente.beta.messages.create(
                 model=self.modelo,
                 max_tokens=orcamento.limite(tarefa),
-                system=sistema,
+                # o prompt de sistema (a persona) é o mesmo em toda chamada: fica no cache (~10% do preço)
+                system=[{"type": "text", "text": sistema, "cache_control": {"type": "ephemeral"}}],
                 messages=msgs,
                 output_config={"effort": "low"},         # frases curtas: não precisa pensar muito
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",                      # recusa por engano: outro modelo responde
+                **extra,
             )
         except sdk.AuthenticationError as erro:
             raise ErroIA("a chave ANTHROPIC_API_KEY foi recusada") from erro
@@ -208,7 +248,9 @@ class ClienteClaude:
         gasto = getattr(resposta, "usage", None)
         uso.registrar(uso.Uso(tarefa, "claude", self.modelo, getattr(gasto, "input_tokens", 0) or 0,
                               getattr(gasto, "output_tokens", 0) or 0, _ms(inicio),
-                              getattr(resposta, "stop_reason", "") or ""))
+                              getattr(resposta, "stop_reason", "") or "",
+                              cache_lido=getattr(gasto, "cache_read_input_tokens", 0) or 0,
+                              cache_gravado=getattr(gasto, "cache_creation_input_tokens", 0) or 0))
         if resposta.stop_reason == "refusal":
             raise ErroIA("o modelo preferiu não responder a isso")
         if resposta.stop_reason in ("max_tokens", "model_context_window_exceeded"):

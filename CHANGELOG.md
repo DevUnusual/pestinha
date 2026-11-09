@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## Modelo da olhada separado
+
+- **Campo novo, Modelo da olhada**, nas Configurações. A olhada é a chamada mais frequente e a mais
+  simples; ela agora tem o seu modelo, e o chat, o estudo e o resumo continuam com o escolhido. No
+  automático: o Ollama, se você configurou um; senão, com o Claude no chat, o `claude-haiku-5-5` (~40x mais
+  barato que o Opus por olhada); senão, o mesmo provedor do chat (o print nunca vai para quem você não
+  escolheu). Sem a chave do Claude, a olhada automática vai pelo modelo do chat.
+- **O padrão de fábrica do Claude deixa de ser o Opus:** o chat passa a `claude-sonnet-5-5`.
+- **Cache do prompt de sistema no Claude:** a persona vai marcada para cache, e o registro de uso mostra
+  quanto veio do cache. O Haiku vai sem o parâmetro de fallback de recusa, que ele não aceita.
+
 ## A rede decide quando ele fala
 
 - **O modelo sempre propõe uma fala, e quem decide é o app** (`pestinha/mind/politica.py`). Antes, o

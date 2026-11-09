@@ -102,7 +102,7 @@ e a chave some da tela). **Ver minha tela** é separado: sem ele, ele conversa m
 
 | Provedor | Vê a tela? | Como configurar |
 |---|---|---|
-| **Claude** (padrão) | Sim | Chave da Anthropic (`ANTHROPIC_API_KEY`). Modelo padrão `claude-opus-5-5`; `claude-haiku-5-5` sai bem mais barato. |
+| **Claude** (padrão) | Sim | Chave da Anthropic (`ANTHROPIC_API_KEY`). Modelo padrão do chat `claude-sonnet-5-5`; a olhada usa o `claude-haiku-5-5`, bem mais barato. O prompt de sistema fica no cache do Claude. |
 | **OpenAI** | Sim | Chave da OpenAI (`OPENAI_API_KEY`). Modelo padrão `gpt-5-mini`. |
 | **DeepSeek** | Não (só o nome do programa e o título da janela) | Chave do DeepSeek (`DEEPSEEK_API_KEY`). A API do DeepSeek não aceita imagem. |
 | **Ollama** (local) | Sim, com modelo de visão | Sem chave e sem internet. Instale o [Ollama](https://ollama.com) neste ou em outro computador da rede e baixe um modelo de visão. **Recomendado: `ollama pull gemma4:e4b`** (testado numa RTX 3070 de 8 GB: ~0,6 s por olhada com o modelo carregado; o Pestinha pede ao Ollama para responder sem "pensar" antes, que custava ~5 s). Para usar outro PC, ponha o endereço dele em **Endereço** (ex.: `192.168.0.10`) e clique em **Testar conexão**; lá, o Ollama precisa de `OLLAMA_HOST=0.0.0.0`. Deixe `OLLAMA_CONTEXT_LENGTH` em pelo menos `8192` (veja [servidor/OLLAMA.md](servidor/OLLAMA.md)): com uma janela menor, o Ollama corta o começo do pedido sem avisar. |
@@ -111,6 +111,11 @@ A chave é gravada no arquivo `.env` da pasta do Pestinha, que fica fora do git 
 vale na hora. Também dá para usar uma variável de ambiente com o mesmo nome; se as duas existirem, vale a
 do `.env`. O campo **Modelo** recusa texto com cara de chave. Cada olhada (a cada ~2,5 min, e logo depois de trocar de programa) e
 cada mensagem custam um pouco na conta do provedor; com o Ollama, nada sai do computador.
+
+**Modelo da olhada:** a olhada na tela é a chamada mais frequente (a cada ~2,5 min), então tem um campo
+próprio. No automático, ela vai pelo Ollama se você configurou um (o endereço vale para os dois); sem
+Ollama, pelo Claude Haiku se o chat é Claude, ou pelo mesmo provedor do chat. O chat, o estudo dos jogos e
+o resumo dos vídeos continuam com o provedor e o modelo de cima.
 
 Cada tarefa tem um limite de resposta (olhada 400 tokens, chat 800, notas de vídeo 1500, estudo de jogo e
 resumo 4096), e uma resposta que passa dele é descartada com um aviso no log, em vez de chegar pela
