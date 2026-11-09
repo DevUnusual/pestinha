@@ -57,6 +57,9 @@ QPushButton:hover { border-color: #63e56f; }
 """
 
 
+QUEBRA = "\u200b"         # espaço invisível: onde um texto sem espaços (um caminho) pode quebrar a linha
+
+
 class Escolha(QComboBox):
     """
     Caixa de escolha que não muda com a rodinha do mouse enquanto você só está rolando a página: a rodinha
@@ -64,9 +67,14 @@ class Escolha(QComboBox):
     """
 
     def __init__(self, *args, **kwargs):
-        """Igual ao QComboBox, mas só pega o foco com clique ou Tab."""
+        """Igual ao QComboBox, mas só pega o foco com clique ou Tab, e a largura não segue a opção mais comprida
+        (senão uma opção longa alarga a janela e empurra os botões da linha para fora da tela). A lista aberta
+        mostra o texto inteiro."""
         super().__init__(*args, **kwargs)
         self.setFocusPolicy(Qt.StrongFocus)
+        self.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        self.setMinimumContentsLength(10)
+        self.view().setTextElideMode(Qt.ElideNone)
 
     def wheelEvent(self, event):
         """Rodinha: troca a opção só com foco; senão, deixa a página rolar."""
@@ -207,7 +215,9 @@ class SettingsDialog(QDialog):
                 everything = QPushButton(f"Apagar todos os dados do {config.APP_NOME}")
                 everything.clicked.connect(self._wipe_everything)
                 layout.addWidget(everything)
-                pasta = QLabel(f"Pasta de dados: {self.paths.memory}")
+                # um espaço invisível depois de cada barra: um caminho comprido quebra a linha em vez de alargar a janela
+                caminho = str(self.paths.memory).replace("\\", "\\" + QUEBRA).replace("/", "/" + QUEBRA)
+                pasta = QLabel(f"Pasta de dados: {caminho}")
                 pasta.setObjectName("hint")
                 pasta.setWordWrap(True)
                 layout.addWidget(pasta)
@@ -222,6 +232,7 @@ class SettingsDialog(QDialog):
 
         panic = QLabel(f"Pânico (desliga tudo e fica desligado): {config.PANIC_HOTKEY_TEXT}")
         panic.setObjectName("hint")
+        panic.setWordWrap(True)
         root.addWidget(panic)
 
         buttons = QHBoxLayout()

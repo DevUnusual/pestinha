@@ -61,7 +61,7 @@ PROVEDOR_PADRAO = "claude"
 MODELO_OLHADA_CLAUDE = "claude-haiku-5-5"   # a olhada a cada 2,5 min: ~40x mais barata que o Opus
 SEM_FALLBACK = ("haiku",)                   # modelos sem fallback de recusa no servidor (o parâmetro dá 400)
 OLHADA_PROVEDORES = {
-    "auto": "Automático (Ollama, se configurado; no Claude, o Haiku; senão, o do chat)",
+    "auto": "Automático",       # Ollama, se configurado; no Claude, o Haiku; senão, o do chat (a dica explica)
     "ollama": "Ollama",
     "claude": "Claude",
     "mesmo": "O mesmo do chat",

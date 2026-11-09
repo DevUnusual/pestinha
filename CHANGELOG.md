@@ -6,6 +6,10 @@
   numa vermelha, por que foi recusado. Antes, só dizia "Token salvo", sem saber se valia.
 - **O token novo vale na hora** para a sincronia que já está aberta, sem reabrir o Pestinha.
 - Os avisos das Configurações (chave, Hermes, memória, voz) viram uma caixa colorida, mais fácil de ver.
+- **Os botões das Configurações não saem mais da janela:** a opção comprida do "Modelo da olhada" alargava
+  a página e empurrava para fora os botões da direita (Testar conexão, Testar voz, Testar Hermes, Salvar
+  chave, Testar memória, Salvar token). As caixas de escolha não crescem mais com a opção mais longa, as
+  opções da olhada ficaram curtas, e o aviso do pânico e o caminho da pasta de dados quebram a linha.
 
 ## Memória local: diário das conversas e busca no que ele sabe
 
