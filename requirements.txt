@@ -1,8 +1,12 @@
 # Para rodar o Pestinha (Python 3.11 ou mais novo). Windows 10/11, macOS ou Linux (X11).
 # CI Linux: 6.11.3 validado com 340 testes; 6.12.0 provoca abort nativo none_dealloc.
-# Só QtCore, QtGui e QtWidgets: o Essentials basta (o PySide6 completo traz WebEngine, QML, 3D...)
+# QtCore, QtGui e QtWidgets vêm no Essentials (o PySide6 completo traz WebEngine, QML, 3D...)
 PySide6-Essentials==6.11.3; sys_platform == "linux"
 PySide6-Essentials>=6.11.0; sys_platform != "linux"
+# QtMultimedia (microfone da voz e do chamado, player da música) vem no Addons. É opcional: sem ele o pet
+# abre e essas três funções ficam desligadas, com aviso (pestinha/multimidia.py)
+PySide6-Addons==6.11.3; sys_platform == "linux"
+PySide6-Addons>=6.11.0; sys_platform != "linux"
 psutil>=7.2.2
 # IA opcional (visão e conversa): Claude pela SDK da Anthropic; OpenAI, DeepSeek e Ollama pela SDK da OpenAI
 anthropic>=2.4

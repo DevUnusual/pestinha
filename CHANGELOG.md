@@ -1,5 +1,19 @@
 # Histórico de versões
 
+## Integração com o upstream e QtMultimedia opcional
+
+- **Integrado o `upstream/main` (0.8.0):** melhorias para o Windows (tela cheia, vários monitores, pasta de
+  dados em `%LOCALAPPDATA%\Pestinha` no executável, uma cópia só, início com o Windows, instalador) e mais
+  programas reconhecidos. A pausa e o pânico continuam cancelando visão, voz, vídeo, chamado e música.
+- **QtMultimedia opcional:** o `requirements.txt` instala o PySide6-Essentials e o PySide6-Addons. Sem o
+  Addons, o pet abre normalmente, e voz, chamado pelo nome e música ficam desligados, com aviso no log, nas
+  Configurações e no chat (`pestinha/multimidia.py`). Antes, sem o módulo, o app nem abria.
+- O executável pede o QtMultimedia ao PyInstaller (`--hidden-import`), porque agora ele só é importado na
+  hora de usar. O CI do Linux também roda os testes de abertura sem o Addons.
+- **Balão no ritmo dos olhos:** o balão digitava a 0,06 s por letra, e os olhos "falavam" a 0,035 s. Agora
+  os dois usam o ritmo de `body/animacoes.py`, e o tempo de leitura do balão tem nome próprio
+  (`SEGUNDOS_LEITURA_POR_LETRA`). Isso também conserta o pyflakes do CI.
+
 ## Companheiro de jogo que entende do jogo
 
 - **Comenta a jogabilidade, não o visual:** em jogo, ele fala da jogada, da build, do equipamento, da

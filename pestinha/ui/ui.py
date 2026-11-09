@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from .. import config, memoria_remota
+from .. import config, memoria_remota, multimidia
 from ..ia import chaves, pesquisa, provedores, voz
 from ..sense import timeline
 from ..core.emotion import EYE_SHAPES
@@ -773,9 +773,15 @@ class SettingsDialog(QDialog):
         self.boxes["estudar_jogos"].setEnabled(ia and self.perms["ver_tela"] and self.perms["jogos"])
         self.boxes["desenhar"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["videos"].setEnabled(ia)
-        self.boxes["voz"].setEnabled(ia and self.perms["conversa"])
+        som = multimidia.disponivel()            # sem o PySide6-Addons não há microfone (multimidia.py)
+        self.boxes["voz"].setEnabled(ia and self.perms["conversa"] and som)
         self.boxes["historico_chat"].setEnabled(ia and self.perms["conversa"])
-        self.boxes["chamar"].setEnabled(ia and self.perms["conversa"] and self.perms["voz"])
+        self.boxes["chamar"].setEnabled(ia and self.perms["conversa"] and self.perms["voz"] and som)
+        if not som:
+            for key in ("voz", "chamar"):
+                dica = self.boxes[key].toolTip()
+                if not dica.startswith("Desligado:"):
+                    self.boxes[key].setToolTip(f"Desligado: {multimidia.AVISO}.\n\n{dica}")
         self.boxes["lembrar"].setEnabled(ia and self.perms["ver_tela"])
         self.boxes["pesquisar"].setEnabled(ia and self.perms["ver_tela"])
         if hasattr(self, "hermes_campo"):
@@ -789,7 +795,7 @@ class SettingsDialog(QDialog):
             com_voz = ia and (self.perms["conversa"] and self.perms["voz"] or self.perms["videos"])
             for campo in (self.voz_campo, self.voz_botao):
                 campo.setEnabled(com_voz)
-            self.chamado_campo.setEnabled(ia and self.perms["conversa"] and self.perms["voz"])
+            self.chamado_campo.setEnabled(ia and self.perms["conversa"] and self.perms["voz"] and som)
         if hasattr(self, "provedor_combo"):
             for campo in (self.provedor_combo, self.modelo_campo, self.chave_campo, self.chave_botao,
                           self.ollama_campo, self.ollama_botao):

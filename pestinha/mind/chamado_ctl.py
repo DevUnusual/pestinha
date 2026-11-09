@@ -34,12 +34,12 @@ import threading
 import time
 
 from PySide6.QtCore import QObject, Signal
-from PySide6.QtMultimedia import QAudioFormat, QAudioSource, QMediaDevices
 
+from .. import multimidia
 from ..ia import chamado, voz
 from ..ia.provedores import ErroIA
 from ..log import log
-from .voz_ctl import _FORMATOS
+from .voz_ctl import nome_do_formato
 
 REPETE_AVISO = 600.0
 ESPERA_FILA = 0.3           # s: a thread confere se ainda deve ouvir pelo menos a esse intervalo
@@ -66,6 +66,7 @@ class ChamadoController(QObject):
         self._fonte = None
         self._dispositivo = None
         self._formato = None
+        self._nome_formato = None       # 'int16'... do formato do microfone aberto
         self._fila = queue.Queue()
         self._surdo = False             # lido pela thread: agora não atende
         self._exigente = False          # lido pela thread: vídeo ou música tocando, só o nome bem claro
@@ -81,9 +82,11 @@ class ChamadoController(QObject):
         return self.app.perms
 
     def permitido(self):
-        """As permissões deixam: IA, conversa, voz e "Chamar pelo nome", com o pet ativo."""
+        """As permissões deixam: IA, conversa, voz e "Chamar pelo nome", com o pet ativo (e o QtMultimedia
+        instalado, multimidia.py)."""
         p = self.perms
-        return p["ia"] and p["conversa"] and p["voz"] and p["chamar"] and p["ativo"]
+        return bool(p["ia"] and p["conversa"] and p["voz"] and p["chamar"] and p["ativo"]
+                    and multimidia.disponivel())
 
     def palavra_de_chamado(self):
         """A palavra configurada, ou o nome do pet."""
@@ -127,7 +130,12 @@ class ChamadoController(QObject):
 
     def comecar(self):
         """Abre o microfone e liga a thread do Vosk. Devolve False se não houver microfone."""
-        dispositivo = QMediaDevices.defaultAudioInput()
+        if not multimidia.disponivel():
+            self._avisar(multimidia.AVISO)
+            return False
+        qm = multimidia.modulo()
+        QAudioFormat = qm.QAudioFormat
+        dispositivo = qm.QMediaDevices.defaultAudioInput()
         if dispositivo.isNull():
             self._avisar("não achei um microfone para ouvir o nome")
             return False
@@ -137,14 +145,15 @@ class ChamadoController(QObject):
         formato.setSampleFormat(QAudioFormat.Int16)
         if not dispositivo.isFormatSupported(formato):
             formato = dispositivo.preferredFormat()
-        if _FORMATOS.get(formato.sampleFormat()) is None:
+        if nome_do_formato(formato) is None:
             self._avisar("o microfone usa um formato de áudio que eu não sei ler")
             return False
         self.geracao += 1
         self.palavra = self.palavra_de_chamado()
         self._fila = queue.Queue()
         self._formato = formato
-        self._fonte = QAudioSource(dispositivo, formato)
+        self._nome_formato = nome_do_formato(formato)
+        self._fonte = qm.QAudioSource(dispositivo, formato)
         self._dispositivo = self._fonte.start()
         if self._dispositivo is None:
             self._fonte = None
@@ -182,7 +191,7 @@ class ChamadoController(QObject):
         dados = bytes(self._dispositivo.readAll())
         if dados:
             formato = self._formato
-            self._fila.put(voz.para_mono16(dados, _FORMATOS[formato.sampleFormat()], formato.channelCount()))
+            self._fila.put(voz.para_mono16(dados, self._nome_formato, formato.channelCount()))
 
     # ---------------- thread ----------------
 

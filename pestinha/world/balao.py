@@ -25,7 +25,7 @@ MARGEM = 12                 # px entre o texto e a borda do balão
 PONTA = 14                  # px da pontinha que aponta para o pet
 FOLGA = 10                  # px em volta do balão: o pop passa um pouco do tamanho e não pode ser cortado
 SEGUNDOS_BASE = 4.0         # todo balão fica pelo menos isso...
-SEGUNDOS_POR_LETRA = 0.06   # ...mais um tanto por letra (tempo de leitura)
+SEGUNDOS_LEITURA_POR_LETRA = 0.06   # ...mais um tanto por letra (tempo de leitura; digitar é animacoes.py)
 SEGUNDOS_MAX = 14.0
 DURACAO_POP = 0.28          # s do balão crescendo a partir da pontinha
 DURACAO_SAIDA = 0.16        # s do balão sumindo (sair é mais rápido que entrar)
@@ -34,7 +34,12 @@ COR_TEXTO = QColor("#13261a")
 
 def duracao(texto):
     """Quanto tempo o balão fica na tela para dar tempo de ler."""
-    return min(SEGUNDOS_MAX, SEGUNDOS_BASE + SEGUNDOS_POR_LETRA * len(texto))
+    return min(SEGUNDOS_MAX, SEGUNDOS_BASE + SEGUNDOS_LEITURA_POR_LETRA * len(texto))
+
+
+def tempo_de_digitar(texto):
+    """Quanto tempo a digitação leva: o mesmo dos olhos falando (body/animacoes.py, PetAnimacoes.falar)."""
+    return min(FALA_MAX, SEGUNDOS_POR_LETRA * len(texto))
 
 
 class Balao(QWidget):
@@ -79,7 +84,7 @@ class Balao(QWidget):
 
     def letras(self, agora):
         """Quantas letras já foram digitadas (o mesmo ritmo dos olhos falando)."""
-        digitar = min(FALA_MAX, SEGUNDOS_POR_LETRA * len(self.texto))
+        digitar = tempo_de_digitar(self.texto)
         if digitar <= 0.0 or agora - self.desde >= digitar:
             return len(self.texto)
         return max(0, min(len(self.texto), math.ceil(len(self.texto) * (agora - self.desde) / digitar)))
@@ -102,7 +107,7 @@ class Balao(QWidget):
         self._agora = agora
         if not self.isVisible():
             self.show()
-        if (agora - self.desde < max(DURACAO_POP, SEGUNDOS_POR_LETRA * len(self.texto), 0.0) + 0.1
+        if (agora - self.desde < max(DURACAO_POP, tempo_de_digitar(self.texto)) + 0.1
                 or self.ate - agora < DURACAO_SAIDA + 0.05):
             self.update()                       # só redesenha enquanto anima (pop, digitação, saída)
 

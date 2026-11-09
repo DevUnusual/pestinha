@@ -208,3 +208,21 @@ def test_app_conta_ao_rosto_o_que_a_mente_faz():
     visao.olhando = False
     PestinhaApp._atualizar_mente(app, 6.0)
     assert st.anim.entendi_desde == 6.0 and "olhando" not in st.mente    # a olhada voltou: entendi
+
+
+def test_o_balao_termina_de_digitar_junto_com_os_olhos():
+    """O balão digita no ritmo de animacoes.py (não no tempo de leitura dele, que é outro, mais lento)."""
+    QApplication.instance() or QApplication([])
+    from pestinha.world.balao import SEGUNDOS_LEITURA_POR_LETRA, Balao, duracao
+    for texto in ("Oi!", "Olha só que coisa", "x" * 400):
+        a = Animacoes()
+        a.falar(0.0, texto)
+        balao = Balao()
+        balao.mostrar(texto, 0.0)
+        assert balao.letras(a.fala_ate / 4) < len(texto)
+        for k in range(11):
+            t = a.fala_ate * k / 10
+            assert balao.letras(t) == a.letras_visiveis(t, texto)
+        assert duracao(texto) > a.fala_ate                      # nunca some antes de terminar de digitar
+        balao.close()
+    assert SEGUNDOS_LEITURA_POR_LETRA > animacoes.SEGUNDOS_POR_LETRA             # ler leva mais que digitar

@@ -184,7 +184,7 @@ def esperar(condicao, segundos=3.0):
 
 
 def test_toca_pelo_chat_e_aprende_com_os_botoes(app, monkeypatch):
-    from PySide6.QtMultimedia import QMediaPlayer
+    QMediaPlayer = pytest.importorskip("PySide6.QtMultimedia").QMediaPlayer
     assert app._musica_pelo_chat("toca um lo-fi") == "Bora de lo-fi! Procurando..."
     assert esperar(lambda: app.tocou)
     primeira = app.musica.atual
@@ -284,7 +284,7 @@ class PlayerFalso:
 
 def test_cortou_no_meio_recomeca_de_onde_parou_e_conta_no_log(app):
     from PySide6.QtCore import QUrl
-    from PySide6.QtMultimedia import QMediaPlayer
+    QMediaPlayer = pytest.importorskip("PySide6.QtMultimedia").QMediaPlayer
     from pestinha import log as log_mod
     app._musica_pelo_chat("toca charlie brown")
     assert esperar(lambda: app.tocou)

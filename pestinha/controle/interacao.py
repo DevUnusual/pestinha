@@ -10,6 +10,7 @@ Mixin de PestinhaApp: usa os atributos criados em PestinhaApp.__init__.
 from ..log import log
 import time
 from PySide6.QtWidgets import QMenu
+from .. import multimidia
 from ..body.pet import cursor_pos
 from ..ia.musica import comando_de_musica, pedido_de_musica, volume_pedido
 from ..ia.video import pedido_de_video
@@ -336,6 +337,8 @@ class InteracaoMixin:
 
     def tocar_musica(self, estilo):
         """Começa a playlist (pedida por você, ou escolhida pela IA na conversa) e diz o que vai tocar."""
+        if not multimidia.disponivel():
+            return "Não consigo tocar música aqui: falta o PySide6-Addons (pip install PySide6-Addons)."
         escolhido = self.musica.pedir(estilo)
         self.tocando.atualizar(self.musica)
         if estilo:

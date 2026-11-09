@@ -5,6 +5,7 @@ Configuração comum dos testes (pasta tests/).
 - Isolamento: apps e janelas criados num teste não continuam rodando nos seguintes.
 - Sem rede: a tela de Configurações pergunta ao Ollama quais modelos ele tem; nos testes, ele "não tem
   nenhum" (o teste que precisa de uma lista troca isso).
+- QtMultimedia: os testes valem com ou sem o PySide6-Addons (a falta dele é testada em test_multimidia.py).
 """
 import gc
 import os
@@ -18,6 +19,14 @@ import pytest
 def _ollama_sem_rede(monkeypatch):
     from pestinha.ia import provedores
     monkeypatch.setattr(provedores, "modelos_ollama", lambda endereco, tempo=3.0: [])
+
+
+@pytest.fixture(autouse=True)
+def _multimidia_presente(monkeypatch):
+    # Os testes de voz, chamado e música usam microfone e player falsos: valem com ou sem o PySide6-Addons.
+    # A falta do módulo é testada à parte (tests/test_multimidia.py).
+    from pestinha import multimidia
+    monkeypatch.setattr(multimidia, "_disponivel", True)
 
 
 @pytest.fixture(autouse=True)

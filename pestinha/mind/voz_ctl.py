@@ -22,9 +22,8 @@ import threading
 import time
 
 from PySide6.QtCore import QBuffer, QIODevice, QObject, QTimer, Signal
-from PySide6.QtMultimedia import QAudioFormat, QAudioSource, QMediaDevices, QtAudio
 
-from .. import plataforma
+from .. import multimidia, plataforma
 from ..ia import voz
 from ..ia.provedores import ErroIA
 from ..log import log
@@ -35,8 +34,14 @@ MIN_GRAVACAO = 0.35         # s: menos que isso foi um toque sem querer
 PASSO_MS = 50               # ms entre leituras da tecla
 REPETE_AVISO = 600.0        # s antes de repetir o mesmo aviso na bandeja
 
-_FORMATOS = {QAudioFormat.Int16: "int16", QAudioFormat.Int32: "int32", QAudioFormat.Float: "float",
-             QAudioFormat.UInt8: "uint8"}
+
+
+def nome_do_formato(formato):
+    """'int16', 'int32', 'float' ou 'uint8' para o formato de amostra do QAudioFormat; None se não sei ler.
+    (O QtMultimedia é opcional, multimidia.py: só é importado aqui, na hora de gravar.)"""
+    QAudioFormat = multimidia.modulo().QAudioFormat
+    return {QAudioFormat.Int16: "int16", QAudioFormat.Int32: "int32", QAudioFormat.Float: "float",
+            QAudioFormat.UInt8: "uint8"}.get(formato.sampleFormat())
 
 
 class Microfone:
@@ -50,7 +55,9 @@ class Microfone:
 
     def abrir(self):
         """Começa a gravar. Devolve False se não houver microfone ou ele não abrir."""
-        dispositivo = QMediaDevices.defaultAudioInput()
+        qm = multimidia.modulo()
+        QAudioFormat = qm.QAudioFormat
+        dispositivo = qm.QMediaDevices.defaultAudioInput()
         if dispositivo.isNull():
             return False
         formato = QAudioFormat()
@@ -62,9 +69,9 @@ class Microfone:
         self._formato = formato
         self._buffer = QBuffer()
         self._buffer.open(QIODevice.WriteOnly)
-        self._fonte = QAudioSource(dispositivo, formato)
+        self._fonte = qm.QAudioSource(dispositivo, formato)
         self._fonte.start(self._buffer)
-        return self._fonte.error() == QtAudio.Error.NoError
+        return self._fonte.error() == qm.QtAudio.Error.NoError
 
     def fechar(self):
         """Para de gravar e devolve (pcm 16 bits mono, taxa); (b"", 0) se não havia nada."""
@@ -74,7 +81,7 @@ class Microfone:
         dados = bytes(self._buffer.data())
         formato = self._formato
         self._fonte = self._buffer = self._formato = None
-        nome = _FORMATOS.get(formato.sampleFormat())
+        nome = nome_do_formato(formato)
         if not dados or nome is None:
             return b"", 0
         return voz.para_mono16(dados, nome, formato.channelCount()), formato.sampleRate()
@@ -118,9 +125,9 @@ class VozController(QObject):
         return self.app.perms
 
     def ligada(self):
-        """Voz permitida agora: IA, conversa e voz ligadas, e o pet ativo."""
+        """Voz permitida agora: IA, conversa e voz ligadas, o pet ativo e o QtMultimedia instalado."""
         p = self.perms
-        return p["ia"] and p["conversa"] and p["voz"] and p["ativo"]
+        return bool(p["ia"] and p["conversa"] and p["voz"] and p["ativo"] and multimidia.disponivel())
 
     def registrar_atalho(self):
         """Registra Ctrl+Alt+Shift+V na primeira vez que a voz é ligada (antes disso a tecla fica livre)."""

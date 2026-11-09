@@ -64,6 +64,11 @@ fica salvo localmente e muda o jeito dele com o tempo.
 ```bash
 pip install -r requirements.txt
 ```
+
+O `requirements.txt` instala o PySide6-Essentials e o PySide6-Addons. O Addons traz o QtMultimedia, usado só
+pelo microfone (voz e chamado pelo nome) e pelo player da música. Sem ele o pet abre normalmente, e essas
+três funções ficam desligadas, com um aviso nas Configurações e no log.
+
 ```bash
 python main.py
 ```
@@ -269,7 +274,7 @@ O PyInstaller só gera o executável do sistema onde roda, por isso um Windows n
 2. Gere o executável, no Windows:
 
    ```bash
-   python -m PyInstaller --noconfirm --onefile --windowed --name Pestinha --distpath build/onefile --workpath build/work --specpath build --hidden-import win32timezone main.py
+   python -m PyInstaller --noconfirm --onefile --windowed --name Pestinha --distpath build/onefile --workpath build/work --specpath build --hidden-import win32timezone --hidden-import PySide6.QtMultimedia main.py
    ```
 
    No macOS e no Linux, use o mesmo comando sem `--windowed` e sem `--hidden-import win32timezone`.
