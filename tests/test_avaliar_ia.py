@@ -65,6 +65,8 @@ def test_o1_passa_quando_o_erro_e_visto_e_falha_quando_nao():
     r = av.caso_o1(modelo, 10)
     assert r.passou and r.metricas["json_lido"] == 10 and r.metricas["json_puro"] == 0      # cerca: lido, não puro
     assert r.metricas["taxa_fala"] == 1.0 and r.metricas["sinais"]["VISAO_ERRO"] == 0.95
+    assert ("falas depois da política", "10/10", True) in r.criterios        # erro na tela: fala
+    assert r.metricas["falas_em_sequencia"].startswith("6/10")                 # o teto por hora segura
     sistema, mensagens, imagem = modelo.pedidos[0]
     assert "JSON" in mensagens[-1]["content"] and imagem and sistema         # o pedido e o print do app
     assert not av.caso_o1(ModeloFalso(olhada(erro=0.3)), 10).passou
@@ -74,6 +76,7 @@ def test_o1_passa_quando_o_erro_e_visto_e_falha_quando_nao():
 def test_o2_mede_a_taxa_de_fala_sem_reprovar_por_ela():
     r = av.caso_o2(ModeloFalso(olhada(erro=0.0, comentario="Que código limpo!")), 10)
     assert r.passou and r.metricas["taxa_fala"] == 1.0 and r.metricas["falas"].startswith("10/10")
+    assert ("falas depois da política", "0/10", True) in r.criterios         # tela neutra: a rede não fala
     assert not av.caso_o2(ModeloFalso(olhada(erro=0.5)), 10).passou
 
 
@@ -161,7 +164,7 @@ def test_rodar_transforma_falha_do_provedor_em_erro_do_caso():
 
 def test_relatorio_e_comparacao(tmp_path):
     antes = [av.caso_o1(ModeloFalso(olhada(erro=0.3)), 4)]
-    depois = [av.caso_o1(ModeloFalso(olhada(erro=0.9)), 4)]
+    depois = [av.caso_o1(ModeloFalso(olhada(erro=0.9, comentario="Erro ali!")), 4)]
     md, js = av.gravar(antes, "ollama:gemma4:e4b", tmp_path / "a")
     texto = md.read_text(encoding="utf-8")
     assert "| O1 | **falhou** |" in texto and "p95" in texto and md.name.endswith("_ollama-gemma4-e4b.md")

@@ -501,6 +501,6 @@ def test_comentario_da_olhada_vem_com_desenho(qapp, pet):
     falso.resposta = ('{"resumo": "vendo código", "comentario": "olha esse erro!", "erro": 0.9, '
                       '"desenhar": [{"forma": "seta", "de": [100, 100], "para": [500, 400]}]}')
     app.visao.olhar(time.monotonic())
-    assert esperar(qapp, lambda: not app.visao.olhando)
-    assert app.rabisco.visivel(time.monotonic()) and app.rabisco.formas[0][0].tipo == "seta"
+    assert esperar(qapp, lambda: not app.visao.olhando and app.rabisco.visivel(time.monotonic()))
+    assert app.rabisco.formas[0][0].tipo == "seta"
     assert math.isclose(app.rabisco.width(), 1000)

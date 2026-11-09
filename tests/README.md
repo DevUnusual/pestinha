@@ -57,6 +57,7 @@ app inteiro usam um relógio virtual: avançam o tempo sem esperar.
 | `test_pedido.py` | Pedir para trabalhar: o neurônio SENTAR decide. |
 | `test_pesquisa.py` | Pesquisa na internet pelo Hermes: o prompt, o cliente (com um servidor HTTP falso nesta máquina) e o controlador dentro do app de verdade (Qt offscreen, Hermes falso). |
 | `test_plataforma.py` | Plataforma: cada sistema expõe as mesmas funções, e as leituras de texto (wmctrl, xdotool, ioreg, janelas do Quartz) são testadas com saídas de exemplo, em qualquer sistema. |
+| `test_politica.py` | Política de fala: o modelo propõe e o app decide pelo tom da rede, pelos sinais, pelo intervalo e pelo teto por hora; pânico e pausa cancelam a fala que esperava a rede. |
 | `test_robustez.py` | Robustez: arquivo corrompido, assets faltando, log em arquivo. |
 | `test_robustez_v2.py` | Falhas do relatório técnico (docs/auditorias/ANALISE_TECNICA.md): cada caso tem um teste que reproduz o problema. |
 | `test_conversa_atencao.py` | Falar ou escrever com o pet é atenção: carência e tristeza caem e a rede recebe recompensa na hora, mesmo sem resposta da IA; pausado, não conta. |

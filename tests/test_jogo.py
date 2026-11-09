@@ -222,9 +222,11 @@ def test_em_jogo_fala_bem_menos_do_que_ve(qapp, pet):
     app.visao.fala.connect(falas.append)
     agora = time.monotonic()
     olhar(qapp, app, olhos, agora)
+    assert esperar(qapp, lambda: falas == ["Achou diamante!"])          # a política decide um instante depois
     tela["print"] = print_de("#000000", qapp)
     olhos.resposta = '{"resumo": "jogando", "comentario": "Que pulo!"}'
     olhar(qapp, app, olhos, agora + 8)                                 # olhou, mas ainda é cedo para falar
+    assert not esperar(qapp, lambda: len(falas) > 1, segundos=0.3)
     assert len(olhos.chamadas) == 2 and falas == ["Achou diamante!"]
     app.visao.olhar_agora()                                            # pedido seu: sempre responde
     assert esperar(qapp, lambda: len(falas) == 2)

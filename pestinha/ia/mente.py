@@ -57,7 +57,7 @@ INSTRUCOES_JOGO = (
     "cenário (nada de \"que lugar sombrio\", \"que atmosfera\", \"que bonito\"), nem narre o que está na "
     "tela. Sem spoiler: nunca fale do que vem depois na história, de reviravoltas, de quem trai, morre ou é "
     "o vilão de verdade, nem de lugares ou chefes que ela ainda não viu; da história, só o que ela já viveu. "
-    "Se não mudou nada que valha, fique quieto. "
+    "Se não mudou nada que valha, fique quieto (comentario vazio). "
     "Em \"jogo\", o nome do jogo (se der para saber pela tela ou pelo título; senão \"\"). Em \"onde\", onde "
     "ela está no jogo, pelo que aparece na tela (capítulo, missão, área, chefe), em até 10 palavras, ou \"\" "
     "se não der para saber."
@@ -168,7 +168,7 @@ def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", est
         + " ".join(contexto) + "\n"
         "Olhe o que a pessoa está fazendo agora e responda SÓ com um JSON, sem texto em volta:\n"
         '{"resumo": "o que ela está fazendo, em até 12 palavras", '
-        '"comentario": "uma fala sua para ela, no seu jeito, ou \\"\\" se for melhor ficar quieto", '
+        '"comentario": "uma fala sua para ela, no seu jeito, em uma frase", '
         '"graca": 0.0, "erro": 0.0, "foco": 0.0, "novidade": 0.0'
         + (', "pesquisar": ""' if pesquisa else "") + (', "desenhar": []' if desenhar else "")
         + (', "video": false' if video else "")
@@ -179,8 +179,9 @@ def pedido_observacao(programa, titulo, atividade, emocao, ultimo_resumo="", est
         "Se houver algo novo (uma pesquisa, um projeto, um site diferente), mostre interesse de verdade: "
         "pergunte do assunto (o que ela quer conseguir, como funciona), não do programa. Se enxergar um erro, "
         "um risco ou um jeito mais simples, diga numa frase e sugira a alternativa. Nunca questione se aquilo "
-        "vale a pena, se é importante ou se vai dar em algo. Fora isso, fique quieto (comentario vazio) na "
-        "maior parte das vezes, principalmente se ela estiver focada."
+        "vale a pena, se é importante ou se vai dar em algo. Escreva sempre o comentario, curto: se ele aparece "
+        "ou não é decidido depois, pelo que você sente (a pessoa focada, por exemplo, só é interrompida por um "
+        "erro)."
         + (INSTRUCOES_JOGO if jogo else "")
         + (" Você pode pesquisar na internet: se algo na tela chamou sua atenção (um jogo, um item, um erro, "
            "um assunto) e uma curiosidade ou dica ajudaria, ponha em \"pesquisar\" o que procurar, em até 6 "

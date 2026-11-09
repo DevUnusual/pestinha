@@ -42,10 +42,12 @@ import base64
 import threading
 import time
 
-from PySide6.QtCore import QBuffer, QIODevice, QObject, QPoint, Qt, Signal
+from PySide6.QtCore import QBuffer, QIODevice, QObject, QPoint, Qt, QTimer, Signal
 from PySide6.QtGui import QGuiApplication, QImage
 
 from ..ia import orcamento, pesquisa, provedores
+from .. import ajustes
+from .politica import PoliticaFala
 from ..ia.desenho import INSTRUCOES_CHAT as INSTRUCOES_DESENHO, separar_desenho
 from ..ia.imagem import baixar as baixar_imagem, buscar as buscar_imagem_na_web, pedido_de_imagem as imagem_pedida
 from ..ia.imagem import titulo_do_link
@@ -164,7 +166,8 @@ class VisaoController(QObject):
         self.ferramentas = 0                # ferramentas do Hermes rodando agora (o pet vira a IA vilã)
         self.ultima_pesquisa = float("-inf")
         self.ultimo_envio = float("-inf")   # quando um print foi de fato para o modelo
-        self.ultima_fala = float("-inf")    # último comentário espontâneo (freio em jogo)
+        self.ultima_fala = float("-inf")    # último comentário espontâneo
+        self.politica = PoliticaFala()      # se o comentário da olhada aparece (mind/politica.py)
         self._mini = None                   # miniatura do último print enviado
         self.geracao = 0                    # muda no pânico/pausa: respostas antigas são descartadas
         self._pedido_seu = False            # a olhada a caminho foi pedida por você (pelo menu)
@@ -590,18 +593,41 @@ class VisaoController(QObject):
         quieto = self.assistindo_video() and not pedido     # assistindo: só presta atenção
         if obs.pesquisar and self.pode_pesquisar(now) and not quieto:
             self.pesquisar(obs.pesquisar, now)
-        comentario = obs.comentario or (obs.resumo if pedido else "")
-        if not pedido and self.em_jogo() and now - self.ultima_fala < app.prof["fala_jogo"]:
-            comentario = ""                            # em jogo ele olha muito: fala bem menos do que vê
-        if quieto:
-            comentario = ""
-        if comentario and (pedido or self.perms["comentarios"]):
-            self.ja_disse = (self.ja_disse + [comentario])[-JA_DISSE:]
-            if not pedido:
-                self.ultima_fala = now
-            self.fala.emit(comentario)
-            if obs.desenhar and self._onde_olhada and self.pode_desenhar():
-                self.desenho.emit(obs.desenhar, self._onde_olhada)   # o desenho vem junto do comentário
+        comentario = "" if quieto else (obs.comentario or (obs.resumo if pedido else ""))
+        if not comentario or not (pedido or self.perms["comentarios"]):
+            return
+        onde = self._onde_olhada
+        if pedido:
+            self._falar(comentario, obs, onde, pedido=True)
+            return
+        # a rede decide: os sinais acabaram de entrar nela; um instante depois, o tom dos motores mostra a reação
+        geracao = self.geracao
+        QTimer.singleShot(int(ajustes.FALA_ESPERA_REDE * 1000),
+                          lambda: self._decidir_fala(comentario, obs, onde, geracao))
+
+    def _decidir_fala(self, comentario, obs, onde, geracao):
+        """Depois de a rede reagir ao que ele viu: a política diz se o comentário aparece."""
+        app = self.app
+        if geracao != self.geracao or app._congelado() or not self.perms["comentarios"]:
+            return                                      # pânico, pausa ou cancelado no meio da espera
+        now = time.monotonic()
+        tom = dict(getattr(getattr(app.pet_state, "tone", None), "r", {}) or {})
+        jogo = self.em_jogo()
+        intervalo = app.prof["fala_jogo"] if jogo else None     # em jogo ele olha muito mais
+        decisao = self.politica.decidir(now, comentario, obs.sinais, tom, intervalo=intervalo, jogo=jogo)
+        if self.debugging():
+            log(f"[visão] fala {'sim' if decisao.falar else 'não'}: {decisao.motivo}")
+        if decisao.falar:
+            self.politica.falou(now)
+            self.ultima_fala = now
+            self._falar(comentario, obs, onde)
+
+    def _falar(self, comentario, obs, onde, pedido=False):
+        """O comentário vai para o balão (e o desenho vem junto)."""
+        self.ja_disse = (self.ja_disse + [comentario])[-JA_DISSE:]
+        self.fala.emit(comentario)
+        if obs.desenhar and onde and self.pode_desenhar():
+            self.desenho.emit(obs.desenhar, onde)       # o desenho vem junto do comentário
 
     def _respondido(self, texto):
         """Resposta do chat: a inteira vai para o chat (e o histórico), a curta para o balão; guarda na conversa

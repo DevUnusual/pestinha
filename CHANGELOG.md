@@ -1,5 +1,18 @@
 # Histórico de versões
 
+## A rede decide quando ele fala
+
+- **O modelo sempre propõe uma fala, e quem decide é o app** (`pestinha/mind/politica.py`). Antes, o
+  prompt pedia para ele ficar quieto "na maior parte das vezes", e numa tela neutra ele comentava 10 de 10.
+- Os sinais da olhada entram na rede e, 1,5 s depois, o tom dos motores decide: erro na tela fala; com
+  você concentrado, só o erro interrompe; graça fala se a rede ficou alegre (CHEER); novidade fala se ela
+  ficou atenta (WATCH). Valem também um intervalo mínimo (60 s) e um teto por hora (6). O que você pede
+  pelo menu ou pelo chat sempre aparece. Em jogo, vale o intervalo do perfil, como antes.
+- Pânico e pausa no meio da espera cancelam a fala. Os números ficam em `ajustes.py` (`FALA_*`), e o
+  motivo de cada decisão vai para o log no modo teste.
+- A avaliação da IA mede as falas depois da política, com o tom de uma rede de verdade simulada: no
+  máximo 2 de 10 numa tela neutra e pelo menos 8 de 10 numa com erro.
+
 ## Segurança da parte de IA
 
 - **Imagens de qualquer site, nunca da sua rede:** o link de imagem (que vem do Hermes ou da Wikipédia)

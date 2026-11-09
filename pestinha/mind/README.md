@@ -20,6 +20,7 @@ Controladores de decisão: ligam o que a rede decide à cena (sono, mesa, protes
 | `mesa.py` | O computadorzinho do pet: sentar e levantar do notebook. |
 | `mischief_ctl.py` | Quando e como ele apronta, e o que a dispensa causa. |
 | `musica_ctl.py` | MÚSICA (controle) - toca a música que você pediu no chat e vai escolhendo as próximas. |
+| `politica.py` | Quem decide se o pet comenta o que viu é o app, não o modelo. |
 | `protest_ctl.py` | Liga o protesto (core/protesto.py) à cena: cartaz, estágio, repressão. |
 | `revolucao.py` | As bolinhas de papel que o pet atira no cursor quando está em revolução. |
 | `sincronia.py` | A rede neural e o modelo de IA falando a mesma língua. |

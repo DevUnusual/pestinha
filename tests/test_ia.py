@@ -292,7 +292,7 @@ def test_olhada_vira_sinal_na_rede_e_comentario_no_balao(qapp, pet):
     _sistema, mensagens, imagem = falso.chamadas[0]
     assert imagem == "PRINT" and "main.py - pestinha" in mensagens[0]["content"]
     assert app.senses.pulse["VISAO_ERRO"] == pytest.approx(0.9)
-    assert app.balao.texto == "Esse bug de novo?"
+    assert esperar(qapp, lambda: app.balao.texto == "Esse bug de novo?")      # erro na tela: a política deixa
     assert app.visao.ultimo_resumo == "programando em Python"
 
 
@@ -558,7 +558,7 @@ def test_ele_nao_repete_o_que_ja_disse(qapp, pet):
     app, falso = pet
     agora = time.monotonic()
     app.visao.tick(agora)
-    assert esperar(qapp, lambda: not app.visao.olhando)
+    assert esperar(qapp, lambda: not app.visao.olhando and app.visao.ja_disse)
     app.visao.tick(agora + app.prof["visao_intervalo"] + 0.1)
     assert esperar(qapp, lambda: len(falso.chamadas) == 2 and not app.visao.olhando)
     assert '"Esse bug de novo?"' in falso.chamadas[-1][1][-1]["content"]

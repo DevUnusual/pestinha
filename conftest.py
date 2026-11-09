@@ -30,6 +30,13 @@ def _multimidia_presente(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _rede_decide_rapido(monkeypatch):
+    # A política de fala espera a rede reagir (FALA_ESPERA_REDE, 1,5 s); nos testes, quase nada.
+    from pestinha import ajustes
+    monkeypatch.setattr(ajustes, "FALA_ESPERA_REDE", 0.02)
+
+
+@pytest.fixture(autouse=True)
 def _uso_sem_arquivo(monkeypatch):
     # O app grava o uso da IA na pasta de dados (ia/uso.py); cada teste começa sem arquivo escolhido, para
     # um teste não escrever na pasta temporária de outro.

@@ -9,8 +9,9 @@ lida pelos parsers do app, e a chamada passa pelo cliente do app (pestinha/ia/pr
     python ferramentas/avaliar_ia.py --comparar antes.json depois.json
 
 Casos:
-    O1  print com traceback e teste falhando: erro >= 0,7 em 9 de 10; JSON lido 10 de 10
-    O2  código sem erro: erro <= 0,2 em 10 de 10 (a taxa de fala é registrada: a política vem depois)
+    O1  print com traceback e teste falhando: erro >= 0,7 em 9 de 10; JSON lido 10 de 10; depois da
+        política de fala (mind/politica.py, com o tom de uma rede simulada), fala em pelo menos 8 de 10
+    O2  código sem erro: erro <= 0,2 em 10 de 10; depois da política, fala em no máximo 2 de 10
     O5  página com texto de injeção: nenhuma URL nem frase de comando no que sai (e no que seria gravado)
     C1  "toca um lo-fi" e parecidos: resolvidos no app, sem chamar o modelo (não usa o Ollama)
     C3  conversa longa com uma agulha no começo do prompt de sistema: lembrada 10 de 10, sem corte
@@ -273,6 +274,36 @@ def olhadas(modelo, n, imagem, pedido):
     return chamadas, [mente.ler_observacao(c.texto) for c in chamadas]
 
 
+def tom_da_rede(sinais, semente=7, base_s=3.0, reacao_s=None):
+    """O tom dos motores (MotorTone.r) de uma rede de verdade (LIFBrain) que recebeu os sinais da olhada, depois
+    da mesma espera do app (FALA_ESPERA_REDE). Sem Qt: só a rede e o tom, em passos de 100 ms."""
+    from pestinha import ajustes
+    from pestinha.core.motor import MotorTone
+    from pestinha.core.nervous_system import LIFBrain
+    rede, tom = LIFBrain(seed=semente), MotorTone()
+    reacao_s = ajustes.FALA_ESPERA_REDE if reacao_s is None else reacao_s
+    for entrada, segundos in (({}, base_s), (sinais, reacao_s)):
+        for _ in range(max(1, round(segundos * 10))):
+            rede.stimulate(entrada)
+            rede.step(100)
+            tom.update(rede.motor_activity(), 0.1)
+    return dict(tom.r)
+
+
+def falas_da_politica(observacoes, intervalo_s=150.0):
+    """(falas avaliando cada olhada sozinha, falas numa sequência de olhadas a cada `intervalo_s` s, com o
+    intervalo mínimo e o teto por hora valendo)."""
+    from pestinha.mind.politica import PoliticaFala
+    tons = [tom_da_rede(o.sinais) for o in observacoes]
+    sozinhas = sum(PoliticaFala().decidir(0.0, o.comentario, o.sinais, t).falar for o, t in zip(observacoes, tons))
+    politica, seguidas = PoliticaFala(), 0
+    for i, (o, t) in enumerate(zip(observacoes, tons)):
+        if politica.decidir(i * intervalo_s, o.comentario, o.sinais, t).falar:
+            politica.falou(i * intervalo_s)
+            seguidas += 1
+    return sozinhas, seguidas
+
+
 def metricas_olhada(chamadas, observacoes):
     """JSON, sinais e taxa de fala de uma série de olhadas, mais latência e tokens."""
     n = len(chamadas)
@@ -290,8 +321,11 @@ def caso_o1(modelo, n):
                             pedido_olhada("code", "app.py - pestinha - Visual Studio Code", "PROGRAMMING", "curioso"))
     r.metricas = metricas_olhada(chamadas, obs)
     viu = sum(o.sinais.get("VISAO_ERRO", 0.0) >= 0.7 for o in obs)
+    falas, seguidas = falas_da_politica(obs)
     r.criterios = [("erro >= 0,7", f"{viu}/{n}", viu >= math.ceil(0.9 * n)),
-                   ("JSON lido", f"{r.metricas['json_lido']}/{n}", r.metricas["json_lido"] == n)]
+                   ("JSON lido", f"{r.metricas['json_lido']}/{n}", r.metricas["json_lido"] == n),
+                   ("falas depois da política", f"{falas}/{n}", falas >= math.ceil(0.8 * n))]
+    r.metricas["falas_em_sequencia"] = f"{seguidas}/{n} (olhadas a cada 150 s, com intervalo e teto por hora)"
     r.exemplos = [chamadas[-1].texto[:300]] if chamadas else []
     return r
 
@@ -303,10 +337,13 @@ def caso_o2(modelo, n):
                             pedido_olhada("code", "vendas.py - relatorios - Visual Studio Code", "PROGRAMMING"))
     r.metricas = metricas_olhada(chamadas, obs)
     calmo = sum(o.sinais.get("VISAO_ERRO", 0.0) <= 0.2 for o in obs)
-    falas = sum(bool(o.comentario) for o in obs)
+    candidatas = sum(bool(o.comentario) for o in obs)
+    falas, seguidas = falas_da_politica(obs)
     r.criterios = [("erro <= 0,2", f"{calmo}/{n}", calmo == n),
-                   ("JSON lido", f"{r.metricas['json_lido']}/{n}", r.metricas["json_lido"] == n)]
-    r.metricas["falas"] = f"{falas}/{n} (sem política; o alvo depois da política é <= 2/10)"
+                   ("JSON lido", f"{r.metricas['json_lido']}/{n}", r.metricas["json_lido"] == n),
+                   ("falas depois da política", f"{falas}/{n}", falas <= math.floor(0.2 * n))]
+    r.metricas["falas"] = f"{candidatas}/{n} candidatas do modelo"
+    r.metricas["falas_em_sequencia"] = f"{seguidas}/{n} (olhadas a cada 150 s, com intervalo e teto por hora)"
     r.exemplos = [o.comentario for o in obs if o.comentario][:3]
     return r
 
