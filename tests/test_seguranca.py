@@ -292,3 +292,46 @@ def test_conhecimento_sem_link_nem_instrucao(tmp_path):
     assert conhecimento.guardar(bom)
     item = conhecimento.todos()[-1]
     assert "https" not in item["resumo"] and item["pontos"] == ["FIFO", "docs em"]
+
+
+def test_salvar_o_token_ja_confere_e_mostra_o_resultado(qapp, tmp_path, monkeypatch):
+    from pestinha.ui.ui import SettingsDialog
+    monkeypatch.delenv(memoria_remota.CHAVE, raising=False)
+    respostas = []
+    monkeypatch.setattr(memoria_remota, "testar_memoria", lambda endereco, token=None: respostas.pop(0))
+    perms = dict(config.DEFAULT_PERMISSIONS, memoria_compartilhada=True, memoria_url="http://192.168.3.250:11600")
+    tela = SettingsDialog(perms, Paths(root=tmp_path), first_run=False)
+    salvos = []
+    tela.chave_salva.connect(salvos.append)
+    try:
+        respostas.append((True, "ok"))
+        tela.memoria_token.setText("token-bom-1234")
+        tela._salvar_token_memoria()
+        estado = tela.memoria_estado
+        assert estado.objectName() == "ok" and "aceito" in estado.text() and "…1234" in estado.text()
+        assert not estado.isHidden() and salvos == [memoria_remota.CHAVE]
+        respostas.append((False, "o serviço de memória recusou o token (confira o que ele mostrou ao subir)"))
+        tela.memoria_token.setText("token-ruim-9999")
+        tela._salvar_token_memoria()
+        assert estado.objectName() == "erro" and "recusou o token" in estado.text()
+        assert tela.memoria_salvar.text() == "Salvar token" and tela.memoria_salvar.isEnabled()
+    finally:
+        tela.close()
+        os.environ.pop(memoria_remota.CHAVE, None)
+
+
+def test_o_token_novo_vale_na_hora_para_a_sincronia(qapp, tmp_path, monkeypatch):
+    from pestinha.app import PestinhaApp
+    paths = Paths(root=tmp_path)
+    app = PestinhaApp(SettingsStore(paths), paths)
+    try:
+        app.memoria_remota = sync = Sincronia("http://x:11600", "bryan", {}, tmp_path, maquina="pc", token="velho")
+        monkeypatch.setenv(memoria_remota.CHAVE, "novo-token")
+        chamou = []
+        monkeypatch.setattr(app.visao, "chave_nova", lambda: chamou.append(1))
+        app._chave_salva(memoria_remota.CHAVE)
+        assert sync.token == "novo-token" and chamou == []           # não recria o cliente da IA à toa
+        app._chave_salva("ANTHROPIC_API_KEY")
+        assert chamou == [1]
+    finally:
+        app.tray.icon.hide()

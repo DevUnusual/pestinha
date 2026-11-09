@@ -10,6 +10,7 @@ Mixin de PestinhaApp: usa os atributos criados em PestinhaApp.__init__.
 from .. import log as log_module
 from ..log import log
 import threading
+import os
 import time
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 from .. import config, memoria_remota, store
@@ -104,10 +105,20 @@ class SessaoMixin:
             return
         self.settings = SettingsDialog(self.perms, self.paths, first_run=False)
         self.settings.changed.connect(self.apply_perms)
-        self.settings.chave_salva.connect(lambda _nome: self.visao.chave_nova())
+        self.settings.chave_salva.connect(self._chave_salva)
         self.settings.wipe_all.connect(self.wipe_all_data)
         self.settings.history_wiped.connect(self.timeline.discard)
         self.settings.show()
+
+    def _chave_salva(self, nome):
+        """Uma chave foi salva nas Configurações: o token da memória vale na hora para a sincronia aberta; as
+        chaves de IA recriam o cliente."""
+        if nome == memoria_remota.CHAVE:
+            if self.memoria_remota is not None:
+                self.memoria_remota.token = os.environ.get(memoria_remota.CHAVE, "").strip()
+                log("[memória] token novo: a sincronia já usa ele")
+            return
+        self.visao.chave_nova()
 
     def toggle_floating(self):
         """Mostra ou esconde os painéis de teste."""

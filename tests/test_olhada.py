@@ -165,3 +165,24 @@ def test_no_automatico_sem_chave_a_olhada_vai_pelo_do_chat(qapp, tmp_path, monke
             app.visao.cliente_olhada()                                         # escolhido à mão: o erro aparece
     finally:
         app.tray.icon.hide()
+
+
+def test_nada_alarga_as_configuracoes_e_corta_os_botoes(qapp, tmp_path):
+    """Uma opção comprida numa caixa de escolha, um rótulo longo ou um caminho de pasta não podem alargar a página
+    e empurrar os botões da direita ("Testar...", "Salvar...") para fora da janela."""
+    from PySide6.QtWidgets import QComboBox, QLabel
+    from pestinha.ui.ui import QUEBRA, Escolha, SettingsDialog
+    paths = Paths(root=tmp_path / ("pasta_com_um_nome_bem_comprido_sem_espacos" * 3))
+    perms = dict(config.DEFAULT_PERMISSIONS, ia=True, conversa=True, ver_tela=True, memoria_compartilhada=True)
+    tela = SettingsDialog(perms, paths, first_run=False)
+    try:
+        caixas = tela.findChildren(Escolha)
+        assert caixas and all(c.sizeAdjustPolicy() == QComboBox.AdjustToMinimumContentsLengthWithIcon for c in caixas)
+        olhada = tela.olhada_combo
+        assert olhada.minimumSizeHint().width() < olhada.fontMetrics().horizontalAdvance("O mesmo do chat" * 3)
+        longos = [r for r in tela.findChildren(QLabel) if len(r.text()) > 45]
+        assert longos and all(r.wordWrap() for r in longos), [r.text() for r in longos if not r.wordWrap()]
+        pasta = next(r for r in longos if r.text().startswith("Pasta de dados"))
+        assert QUEBRA in pasta.text()                                   # o caminho tem onde quebrar
+    finally:
+        tela.close()
